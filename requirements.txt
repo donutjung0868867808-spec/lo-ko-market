@@ -1,0 +1,11 @@
+Django==6.0.6
+djangorestframework==3.17.1
+psycopg2-binary==2.9.12
+dj-database-url==2.3.0
+django-cloudinary-storage==0.3.0
+cloudinary==1.44.0
+stripe==12.5.0
+gunicorn==23.0.0
+whitenoise==6.9.0
+Pillow==11.3.0
+sentry-sdk==2.66.0

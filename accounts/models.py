@@ -1,0 +1,684 @@
+from django.conf import settings
+from django.contrib.auth.models import AbstractUser
+from django.core.exceptions import ValidationError
+from django.core.validators import FileExtensionValidator
+from django.db import models
+from django.db.models.functions import Lower
+from django.utils import timezone
+
+from agri_market.storage import private_storage
+
+from .validators import validate_private_document
+
+
+def validate_file_size(upload):
+    if upload and upload.size > settings.MAX_UPLOAD_SIZE:
+        raise ValidationError("ไฟล์มีขนาดใหญ่เกินกำหนด")
+
+
+AVATAR_MAX_SIZE = 1024 * 1024
+
+
+def validate_avatar_size(upload):
+    if upload and upload.size > AVATAR_MAX_SIZE:
+        raise ValidationError("รูปโปรไฟล์ต้องมีขนาดไม่เกิน 1 MB")
+
+
+class User(AbstractUser):
+    class Roles(models.TextChoices):
+        CONSUMER = "consumer", "ผู้บริโภคทั่วไป"
+        FARMER = "farmer", "เกษตรกรชุมชน"
+        COOPERATIVE_STAFF = "cooperative_staff", "เจ้าหน้าที่สหกรณ์/วิสาหกิจชุมชน"
+        OWNER = "owner", "เจ้าของระบบ"
+
+    class Gender(models.TextChoices):
+        MALE = "male", "ชาย"
+        FEMALE = "female", "หญิง"
+        OTHER = "other", "อื่น ๆ"
+        UNSPECIFIED = "unspecified", "ไม่ระบุ"
+
+    avatar = models.FileField("รูปโปรไฟล์",
+        upload_to="avatars/%Y/%m/",
+        blank=True,
+        validators=[
+            FileExtensionValidator(["jpg", "jpeg", "png"]),
+            validate_avatar_size,
+        ],
+    )
+    birth_date = models.DateField("วันเกิด", null=True, blank=True)
+    gender = models.CharField("เพศ",
+        max_length=20,
+        choices=Gender.choices,
+        default=Gender.UNSPECIFIED,
+    )
+    role = models.CharField(
+        max_length=32,
+        choices=Roles.choices,
+        default=Roles.CONSUMER,
+    )
+    display_name = models.CharField(max_length=150, blank=True)
+    phone = models.CharField(max_length=30, blank=True)
+    email_verified_at = models.DateTimeField(null=True, blank=True)
+    terms_accepted_at = models.DateTimeField(null=True, blank=True)
+    privacy_accepted_at = models.DateTimeField(null=True, blank=True)
+    terms_version = models.CharField(max_length=20, blank=True)
+    privacy_version = models.CharField(max_length=20, blank=True)
+
+    class Meta:
+        verbose_name = "ผู้ใช้"
+        verbose_name_plural = "ผู้ใช้"
+        constraints = [
+            models.UniqueConstraint(
+                Lower("email"),
+                condition=~models.Q(email=""),
+                name="unique_nonblank_user_email_ci",
+            ),
+        ]
+
+    def __str__(self):
+        return self.display_name or self.get_full_name() or self.username
+
+    def save(self, *args, **kwargs):
+        admin_roles = {self.Roles.OWNER}
+        if self.role in admin_roles:
+            self.is_staff = True
+        elif not self.is_superuser:
+            self.is_staff = False
+        update_fields = kwargs.get("update_fields")
+        if update_fields is not None and {"role", "is_superuser"}.intersection(update_fields):
+            kwargs["update_fields"] = set(update_fields) | {"is_staff"}
+        super().save(*args, **kwargs)
+
+    @property
+    def is_consumer(self):
+        return self.role == self.Roles.CONSUMER
+
+    @property
+    def is_farmer(self):
+        return self.role == self.Roles.FARMER
+
+    @property
+    def is_cooperative_staff(self):
+        return self.role == self.Roles.COOPERATIVE_STAFF
+
+    @property
+    def is_owner(self):
+        return self.role == self.Roles.OWNER or self.is_superuser
+
+    @property
+    def is_email_verified(self):
+        return bool(self.email_verified_at)
+
+
+class Community(models.Model):
+    name = models.CharField("ชื่อชุมชน/สหกรณ์", max_length=180, unique=True)
+    slug = models.SlugField("ชื่อย่อ URL", max_length=200, unique=True)
+    province = models.CharField("จังหวัด", max_length=120)
+    district = models.CharField("อำเภอ/เขต", max_length=120, blank=True)
+    address = models.TextField("ที่อยู่", blank=True)
+    description = models.TextField("รายละเอียด", blank=True)
+    is_active = models.BooleanField("เปิดใช้งาน", default=True)
+    created_at = models.DateTimeField("วันที่สร้าง", auto_now_add=True)
+    updated_at = models.DateTimeField("วันที่แก้ไขล่าสุด", auto_now=True)
+
+    class Meta:
+        verbose_name = "ชุมชน/สหกรณ์"
+        verbose_name_plural = "ชุมชน/สหกรณ์"
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+
+class FarmerProfile(models.Model):
+    class DocumentType(models.TextChoices):
+        NATIONAL_ID = "national_id", "บัตรประจำตัวประชาชน"
+        FARM_REGISTRATION = "farm_registration", "ทะเบียนเกษตรกร"
+        COMMUNITY_CERTIFICATE = "community_certificate", "หนังสือรับรองชุมชน"
+        OTHER = "other", "เอกสารอื่น"
+
+    class VerificationStatus(models.TextChoices):
+        PENDING = "pending", "รอตรวจสอบ"
+        VERIFIED = "verified", "ยืนยันแล้ว"
+        REJECTED = "rejected", "ไม่ผ่านการตรวจสอบ"
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="farmer_profile",
+    )
+    community = models.ForeignKey(
+        Community,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="farmers",
+    )
+    farm_name = models.CharField(max_length=180)
+    bio = models.TextField(blank=True)
+    document_type = models.CharField(
+        max_length=30,
+        choices=DocumentType.choices,
+        default=DocumentType.FARM_REGISTRATION,
+    )
+    verification_document = models.FileField(
+        upload_to="farmer-verification/%Y/%m/",
+        storage=private_storage,
+        blank=True,
+        validators=[
+            FileExtensionValidator(["pdf", "jpg", "jpeg", "png", "webp"]),
+            validate_file_size,
+            validate_private_document,
+        ],
+    )
+    address = models.TextField("ที่อยู่", blank=True)
+    province = models.CharField(max_length=120, blank=True)
+    district = models.CharField("อำเภอ/เขต", max_length=120, blank=True)
+    verification_status = models.CharField(
+        max_length=20,
+        choices=VerificationStatus.choices,
+        default=VerificationStatus.PENDING,
+    )
+    verified_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="verified_farmers",
+    )
+    verified_at = models.DateTimeField(null=True, blank=True)
+    rejection_reason = models.TextField(blank=True)
+    created_at = models.DateTimeField("วันที่สร้าง", auto_now_add=True)
+    updated_at = models.DateTimeField("วันที่แก้ไขล่าสุด", auto_now=True)
+
+    class Meta:
+        verbose_name = "ข้อมูลเกษตรกร"
+        verbose_name_plural = "ข้อมูลเกษตรกร"
+        ordering = ["farm_name"]
+
+    def __str__(self):
+        return self.farm_name
+
+    @property
+    def is_verified(self):
+        return self.verification_status == self.VerificationStatus.VERIFIED
+
+    def mark_verified(self, staff_user):
+        self.verification_status = self.VerificationStatus.VERIFIED
+        self.verified_by = staff_user
+        self.verified_at = timezone.now()
+        self.rejection_reason = ""
+        self.save(update_fields=["verification_status", "verified_by", "verified_at", "rejection_reason"])
+
+
+class DeliveryAddress(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="delivery_addresses",
+    )
+    label = models.CharField("ชื่อที่อยู่", max_length=60, default="บ้าน")
+    recipient_name = models.CharField("ชื่อผู้รับ", max_length=180)
+    phone = models.CharField("เบอร์โทรศัพท์", max_length=30)
+    address_line = models.CharField("บ้านเลขที่ ซอย ถนน", max_length=255)
+    subdistrict = models.CharField("ตำบล/แขวง", max_length=120)
+    district = models.CharField("อำเภอ/เขต", max_length=120)
+    province = models.CharField("จังหวัด", max_length=120)
+    postal_code = models.CharField("รหัสไปรษณีย์", max_length=5)
+    is_default = models.BooleanField("ที่อยู่เริ่มต้น", default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "ที่อยู่จัดส่ง"
+        verbose_name_plural = "ที่อยู่จัดส่ง"
+        ordering = ["-is_default", "-updated_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user"],
+                condition=models.Q(is_default=True),
+                name="one_default_delivery_address_per_user",
+            )
+        ]
+        indexes = [models.Index(fields=["user", "is_default"])]
+
+    def __str__(self):
+        return f"{self.label} - {self.recipient_name}"
+
+    @property
+    def full_address(self):
+        return (
+            f"{self.address_line} {self.subdistrict} {self.district} "
+            f"{self.province} {self.postal_code}"
+        )
+
+class LoginAttempt(models.Model):
+    identifier_hash = models.CharField(max_length=64)
+    ip_hash = models.CharField(max_length=64)
+    failed_attempts = models.PositiveSmallIntegerField(default=0)
+    blocked_until = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "การพยายามเข้าสู่ระบบ"
+        verbose_name_plural = "การพยายามเข้าสู่ระบบ"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["identifier_hash", "ip_hash"],
+                name="unique_login_attempt_source",
+            )
+        ]
+
+
+class Notification(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="notifications",
+    )
+    title = models.CharField(max_length=200)
+    message = models.TextField(blank=True)
+    link = models.CharField(max_length=500, blank=True)
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField("วันที่สร้าง", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "การแจ้งเตือน"
+        verbose_name_plural = "การแจ้งเตือน"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return self.title
+
+
+
+class NewsPost(models.Model):
+    class Audience(models.TextChoices):
+        ALL = "all", "ผู้ใช้ทั้งหมด"
+        CONSUMERS = "consumers", "ผู้บริโภค"
+        FARMERS = "farmers", "เกษตรกรชุมชน"
+        STAFF = "staff", "เจ้าหน้าที่ชุมชน"
+
+    title = models.CharField(max_length=220)
+    slug = models.SlugField(max_length=240, unique=True)
+    summary = models.TextField(blank=True)
+    body = models.TextField()
+    audience = models.CharField(
+        max_length=20,
+        choices=Audience.choices,
+        default=Audience.ALL,
+    )
+    is_published = models.BooleanField(default=True)
+    published_at = models.DateTimeField(default=timezone.now)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="news_posts",
+    )
+    created_at = models.DateTimeField("วันที่สร้าง", auto_now_add=True)
+    updated_at = models.DateTimeField("วันที่แก้ไขล่าสุด", auto_now=True)
+
+    class Meta:
+        verbose_name = "ข่าวสาร"
+        verbose_name_plural = "ข่าวสาร"
+        ordering = ["-published_at", "-created_at"]
+        indexes = [
+            models.Index(fields=["is_published", "published_at"]),
+            models.Index(fields=["audience", "is_published"]),
+        ]
+
+    def __str__(self):
+        return self.title
+
+    def is_visible_to(self, user):
+        if not self.is_published:
+            return bool(user.is_authenticated and user.is_owner)
+        if self.audience == self.Audience.ALL:
+            return True
+        if not user.is_authenticated:
+            return False
+        return (
+            (self.audience == self.Audience.CONSUMERS and user.is_consumer)
+            or (self.audience == self.Audience.FARMERS and user.is_farmer)
+            or (
+                self.audience == self.Audience.STAFF
+                and (user.is_cooperative_staff or user.is_owner)
+            )
+        )
+
+
+class Report(models.Model):
+    class TargetType(models.TextChoices):
+        PRODUCT = "product", "สินค้า"
+        SELLER = "seller", "ผู้ขาย"
+        BUYER = "buyer", "ผู้ซื้อ"
+        ORDER = "order", "คำสั่งซื้อ"
+
+    class Reason(models.TextChoices):
+        QUALITY = "quality", "ปัญหาคุณภาพสินค้า"
+        FRAUD = "fraud", "น่าสงสัยหรือฉ้อโกง"
+        ABUSE = "abuse", "พฤติกรรมไม่เหมาะสม"
+        DELIVERY = "delivery", "ปัญหาการจัดส่ง"
+        PAYMENT = "payment", "ปัญหาการชำระเงิน"
+        OTHER = "other", "อื่น ๆ"
+
+    class Status(models.TextChoices):
+        OPEN = "open", "เปิดรายการ"
+        REVIEWING = "reviewing", "กำลังตรวจสอบ"
+        RESOLVED = "resolved", "จัดการแล้ว"
+        DISMISSED = "dismissed", "ยกเลิกรายงาน"
+
+    reporter = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="reports_submitted",
+    )
+    target_type = models.CharField(max_length=20, choices=TargetType.choices)
+    product = models.ForeignKey(
+        "catalog.Product",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reports",
+    )
+    reported_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reports_received",
+    )
+    order = models.ForeignKey(
+        "orders.Order",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reports",
+    )
+    community = models.ForeignKey(
+        Community,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reports",
+    )
+    reason = models.CharField(
+        max_length=30,
+        choices=Reason.choices,
+        default=Reason.OTHER,
+    )
+    details = models.TextField()
+    evidence = models.FileField(
+        upload_to="report-evidence/%Y/%m/",
+        storage=private_storage,
+        blank=True,
+        validators=[
+            FileExtensionValidator(["pdf", "jpg", "jpeg", "png", "webp"]),
+            validate_file_size,
+            validate_private_document,
+        ],
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.OPEN,
+    )
+    handled_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reports_handled",
+    )
+    handled_at = models.DateTimeField(null=True, blank=True)
+    resolution_note = models.TextField(blank=True)
+    created_at = models.DateTimeField("วันที่สร้าง", auto_now_add=True)
+    updated_at = models.DateTimeField("วันที่แก้ไขล่าสุด", auto_now=True)
+
+    class Meta:
+        verbose_name = "รายงานปัญหา"
+        verbose_name_plural = "รายงานปัญหา"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["status", "created_at"]),
+            models.Index(fields=["community", "status"]),
+            models.Index(fields=["reporter", "created_at"]),
+        ]
+
+    def __str__(self):
+        return f"รายงาน{self.get_target_type_display()} #{self.pk}"
+
+    def infer_community(self):
+        if self.product_id:
+            return self.product.community
+        if self.order_id:
+            return self.order.community
+        if self.reported_user_id:
+            profile = getattr(self.reported_user, "farmer_profile", None)
+            if profile and profile.community_id:
+                return profile.community
+        return None
+
+    def save(self, *args, **kwargs):
+        if not self.community_id:
+            community = self.infer_community()
+            if community:
+                self.community = community
+        super().save(*args, **kwargs)
+
+    def resolve(self, staff_user, status=None, note=""):
+        self.status = status or self.Status.RESOLVED
+        self.handled_by = staff_user
+        self.handled_at = timezone.now()
+        self.resolution_note = note
+        self.save(update_fields=["status", "handled_by", "handled_at", "resolution_note", "updated_at"])
+
+
+class ReportMessage(models.Model):
+    report = models.ForeignKey(Report, on_delete=models.CASCADE, related_name="messages")
+    sender = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="report_messages",
+    )
+    message = models.TextField()
+    attachment = models.FileField(
+        upload_to="report-messages/%Y/%m/",
+        storage=private_storage,
+        blank=True,
+        validators=[
+            FileExtensionValidator(["pdf", "jpg", "jpeg", "png", "webp"]),
+            validate_file_size,
+            validate_private_document,
+        ],
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "ข้อความในรายงานปัญหา"
+        verbose_name_plural = "ข้อความในรายงานปัญหา"
+        ordering = ["created_at"]
+
+
+class Conversation(models.Model):
+    buyer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="buyer_conversations",
+    )
+    seller = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="seller_conversations",
+    )
+    product = models.ForeignKey(
+        "catalog.Product",
+        on_delete=models.PROTECT,
+        related_name="conversations",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "บทสนทนาผู้ซื้อและผู้ขาย"
+        verbose_name_plural = "บทสนทนาผู้ซื้อและผู้ขาย"
+        ordering = ["-updated_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["buyer", "seller", "product"],
+                name="unique_buyer_seller_product_conversation",
+            ),
+            models.CheckConstraint(
+                condition=~models.Q(buyer=models.F("seller")),
+                name="prevent_self_conversation",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["buyer", "updated_at"]),
+            models.Index(fields=["seller", "updated_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.buyer} - {self.seller}: {self.product}"
+
+    def other_participant(self, user):
+        return self.seller if user.pk == self.buyer_id else self.buyer
+
+
+class DirectMessage(models.Model):
+    conversation = models.ForeignKey(
+        Conversation,
+        on_delete=models.CASCADE,
+        related_name="messages",
+    )
+    sender = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="direct_messages",
+    )
+    body = models.TextField(max_length=2000)
+    read_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "ข้อความระหว่างผู้ซื้อและผู้ขาย"
+        verbose_name_plural = "ข้อความระหว่างผู้ซื้อและผู้ขาย"
+        ordering = ["created_at"]
+        indexes = [
+            models.Index(fields=["conversation", "created_at"]),
+            models.Index(fields=["conversation", "read_at"]),
+        ]
+
+    def __str__(self):
+        return f"ข้อความจาก {self.sender}"
+
+class CommunityStaffProfile(models.Model):
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="community_staff_profile",
+    )
+    community = models.ForeignKey(
+        Community,
+        on_delete=models.PROTECT,
+        related_name="staff_members",
+    )
+    title = models.CharField(max_length=120, blank=True)
+    created_at = models.DateTimeField("วันที่สร้าง", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "เจ้าหน้าที่ชุมชน"
+        verbose_name_plural = "เจ้าหน้าที่ชุมชน"
+        ordering = ["community__name", "user__username"]
+
+    def __str__(self):
+        return f"{self.user} - {self.community}"
+
+
+class EmailDelivery(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "รอส่ง"
+        SENT = "sent", "ส่งแล้ว"
+        FAILED = "failed", "ส่งไม่สำเร็จ"
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="email_deliveries",
+    )
+    to_email = models.EmailField()
+    subject = models.CharField(max_length=255)
+    body = models.TextField()
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+    attempts = models.PositiveSmallIntegerField(default=0)
+    last_error = models.TextField(blank=True)
+    next_attempt_at = models.DateTimeField(default=timezone.now)
+    sent_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "อีเมลที่ระบบส่ง"
+        verbose_name_plural = "อีเมลที่ระบบส่ง"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["status", "next_attempt_at"]),
+            models.Index(fields=["to_email", "created_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.subject} - {self.to_email}"
+
+
+class AuditEvent(models.Model):
+    class Action(models.TextChoices):
+        CREATE = "create", "สร้างข้อมูล"
+        UPDATE = "update", "แก้ไขข้อมูล"
+        APPROVE = "approve", "อนุมัติ"
+        REJECT = "reject", "ปฏิเสธ"
+        BLOCK = "block", "ระงับ"
+        UNBLOCK = "unblock", "ปลดระงับ"
+        STATUS = "status", "เปลี่ยนสถานะ"
+        REFUND = "refund", "คืนเงิน"
+        DOWNLOAD = "download", "ดาวน์โหลดเอกสาร"
+
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="audit_events",
+    )
+    action = models.CharField(max_length=20, choices=Action.choices)
+    target_type = models.CharField(max_length=100)
+    target_id = models.CharField(max_length=100, blank=True)
+    description = models.CharField(max_length=255, blank=True)
+    before = models.JSONField(default=dict, blank=True)
+    after = models.JSONField(default=dict, blank=True)
+    community = models.ForeignKey(
+        Community,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="audit_events",
+    )
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "บันทึกการตรวจสอบ"
+        verbose_name_plural = "บันทึกการตรวจสอบ"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["target_type", "target_id"]),
+            models.Index(fields=["actor", "created_at"]),
+            models.Index(fields=["community", "created_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.get_action_display()} {self.target_type} {self.target_id}"

@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}การแจ้งเตือน{% endblock %}
+
+{% block content %}
+<section class="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
+  {% include "accounts/_account_sidebar.html" %}
+
+  <section class="overflow-hidden rounded-md border border-emerald-900/25 bg-white">
+    <header class="border-b border-stone-200 px-5 py-5 sm:px-7">
+      <h1 class="text-xl font-semibold text-slate-950">การแจ้งเตือน</h1>
+      <p class="mt-1 text-sm text-slate-500">ติดตามคำสั่งซื้อ ข้อความ และข่าวสำคัญของบัญชี</p>
+    </header>
+    <div class="divide-y divide-stone-200">
+      {% for notification in notifications %}
+        <article class="flex gap-4 px-5 py-5 sm:px-7 {% if not notification.is_read %}bg-emerald-50/60{% endif %}">
+          <span class="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full {% if notification.is_read %}bg-stone-100 text-slate-500{% else %}bg-leaf text-white{% endif %}">
+            <i data-lucide="bell" class="h-5 w-5" aria-hidden="true"></i>
+            {% if not notification.is_read %}<span class="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-rice"></span>{% endif %}
+          </span>
+          <div class="min-w-0 flex-1">
+            <div class="flex flex-wrap items-start justify-between gap-2">
+              <h2 class="font-semibold text-slate-950">{{ notification.title }}</h2>
+              <time class="whitespace-nowrap text-xs text-slate-400">{{ notification.created_at|date:"d/m/Y H:i" }}</time>
+            </div>
+            {% if notification.message %}<p class="mt-1 text-sm leading-6 text-slate-600">{{ notification.message }}</p>{% endif %}
+            {% if not notification.is_read or notification.link %}
+              <a href="{% url 'accounts:mark_notification_read' notification.id %}" class="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-leaf hover:underline">
+                {% if notification.link %}เปิดดูรายละเอียด{% else %}ทำเครื่องหมายว่าอ่านแล้ว{% endif %}
+                <i data-lucide="arrow-right" class="h-4 w-4" aria-hidden="true"></i>
+              </a>
+            {% endif %}
+          </div>
+        </article>
+      {% empty %}
+        <div class="px-5 py-14 text-center sm:px-7">
+          <i data-lucide="bell-off" class="mx-auto h-10 w-10 text-slate-300" aria-hidden="true"></i>
+          <h2 class="mt-3 font-semibold text-slate-900">ยังไม่มีการแจ้งเตือน</h2>
+          <p class="mt-1 text-sm text-slate-500">การอัปเดตใหม่จะแสดงที่หน้านี้</p>
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+</section>
+{% endblock %}

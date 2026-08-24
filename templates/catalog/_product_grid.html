@@ -1,0 +1,37 @@
+{% load static %}
+<div class="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+  {% for product in products %}
+    <article class="group min-w-0 overflow-hidden rounded-md border border-stone-200 bg-white transition hover:border-emerald-300 hover:shadow-soft">
+      <a href="{{ product.get_absolute_url }}" class="block h-full">
+        <div class="relative aspect-square overflow-hidden bg-stone-100">
+          {% if product.image %}
+            <img class="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]" src="{{ product.image.url }}" alt="{{ product.name }}" loading="lazy">
+          {% else %}
+            <img class="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]" src="{% static 'images/product-placeholder.svg' %}" alt="{{ product.name }}" loading="lazy">
+          {% endif %}
+          {% if product.stock_quantity <= product.low_stock_threshold %}
+            <span class="absolute left-2 top-2 rounded-md bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-800 shadow-sm">ใกล้หมด</span>
+          {% endif %}
+        </div>
+        <div class="flex min-h-36 flex-col p-3">
+          <p class="truncate text-xs font-medium text-leaf">{{ product.category.name|default:"สินค้าเกษตร" }}</p>
+          <h3 class="mt-1 line-clamp-2 min-h-12 break-words text-sm font-semibold leading-6 text-ink sm:text-base">{{ product.name }}</h3>
+          <p class="mt-1 truncate text-xs text-slate-500">{{ product.community.name }}</p>
+          <div class="mt-auto flex items-end justify-between gap-2 pt-3">
+            <p class="min-w-0 font-semibold text-leaf"><span class="text-base sm:text-lg">฿{{ product.price|floatformat:2 }}</span><span class="ml-1 text-xs font-normal text-slate-500">/{{ product.get_unit_display }}</span></p>
+          </div>
+          <p class="mt-1 truncate text-xs text-slate-500">คงเหลือ {{ product.stock_quantity }} {{ product.get_unit_display }}</p>
+        </div>
+      </a>
+    </article>
+  {% empty %}
+    <section class="col-span-full rounded-md border border-stone-200 bg-white px-6 py-12 text-center">
+      <span class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-leaf">
+        <i data-lucide="package-search" class="h-6 w-6" aria-hidden="true"></i>
+      </span>
+      <h2 class="mt-4 text-xl font-semibold text-ink">ไม่พบสินค้าที่ค้นหา</h2>
+      <p class="mt-2 text-sm text-slate-500">ลองเปลี่ยนคำค้นหา หมวดสินค้า หรือชุมชน</p>
+      <a class="mt-5 inline-flex rounded-md bg-leaf px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800" href="{% url 'catalog:product_list' %}">ดูสินค้าทั้งหมด</a>
+    </section>
+  {% endfor %}
+</div>

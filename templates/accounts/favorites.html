@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}รายการถูกใจ{% endblock %}
+
+{% block content %}
+<section class="space-y-6">
+  <div>
+    <h1 class="text-2xl font-semibold text-slate-950">รายการถูกใจ</h1>
+    <p class="mt-1 text-sm text-slate-600">สินค้าและร้านค้าที่คุณติดตามไว้</p>
+  </div>
+
+  <div class="space-y-4">
+    <h2 class="text-lg font-semibold text-slate-950">สินค้า</h2>
+    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      {% for favorite in product_favorites %}
+        <article class="overflow-hidden rounded-md border border-stone-200 bg-white shadow-soft">
+          <a href="{{ favorite.product.get_absolute_url }}" class="block">
+            <div class="aspect-[4/3] bg-stone-100">
+              {% if favorite.product.image %}
+                <img class="h-full w-full object-cover" src="{{ favorite.product.image.url }}" alt="{{ favorite.product.name }}">
+              {% else %}
+                <img class="h-full w-full object-cover" src="{% static 'images/product-placeholder.svg' %}" alt="{{ favorite.product.name }}">
+              {% endif %}
+            </div>
+            <div class="space-y-2 p-4">
+              <h3 class="font-semibold text-ink">{{ favorite.product.name }}</h3>
+              <p class="text-sm text-slate-600">{{ favorite.product.community.name }}</p>
+              <p class="font-semibold text-leaf">฿{{ favorite.product.price|floatformat:2 }}</p>
+            </div>
+          </a>
+        </article>
+      {% empty %}
+        <p class="rounded-md border border-stone-200 bg-white p-5 text-sm text-slate-600 sm:col-span-2 lg:col-span-3 xl:col-span-4">ยังไม่มีสินค้าถูกใจ</p>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="space-y-4">
+    <h2 class="text-lg font-semibold text-slate-950">ร้านค้า</h2>
+    <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+      {% for favorite in seller_favorites %}
+        <div class="rounded-md border border-stone-200 bg-white p-4 shadow-sm">
+          <p class="font-semibold text-slate-950">{{ favorite.seller }}</p>
+          <p class="mt-1 text-sm text-slate-600">ติดตามเมื่อ {{ favorite.created_at|date:"d M Y" }}</p>
+        </div>
+      {% empty %}
+        <p class="rounded-md border border-stone-200 bg-white p-5 text-sm text-slate-600 md:col-span-2 xl:col-span-3">ยังไม่มีร้านค้าที่ถูกใจ</p>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}

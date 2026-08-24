@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}{% if address.pk %}แก้ไขที่อยู่{% else %}เพิ่มที่อยู่ใหม่{% endif %}{% endblock %}
+
+{% block extra_head %}
+<style>
+  #id_is_default { width: 1rem; height: 1rem; padding: 0; accent-color: #2f6f1d; box-shadow: none; }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
+  {% include "accounts/_account_sidebar.html" %}
+
+  <section class="overflow-hidden rounded-md border border-emerald-900/25 bg-white">
+    <header class="border-b border-stone-200 px-5 py-5 sm:px-7">
+      <h1 class="text-xl font-semibold text-slate-950">{% if address.pk %}แก้ไขที่อยู่{% else %}เพิ่มที่อยู่ใหม่{% endif %}</h1>
+      <p class="mt-1 text-sm text-slate-500">กรอกข้อมูลผู้รับและสถานที่จัดส่งให้ครบถ้วน</p>
+    </header>
+    <form method="post" class="p-5 sm:p-7">
+      {% csrf_token %}
+      {% if form.non_field_errors %}
+        <div class="mb-5 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">{{ form.non_field_errors }}</div>
+      {% endif %}
+      <div class="grid gap-x-5 gap-y-5 md:grid-cols-2">
+        {% for field in form %}
+          {% if field.name != "is_default" %}
+            <div class="{% if field.name == 'address_line' %}md:col-span-2{% endif %}">
+              <label class="block text-sm font-semibold text-slate-700" for="{{ field.id_for_label }}">{{ field.label }}</label>
+              <div class="mt-2">{{ field }}</div>
+              {% for error in field.errors %}<p class="mt-1 text-sm text-red-700">{{ error }}</p>{% endfor %}
+            </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+      <label class="mt-5 flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-700" for="{{ form.is_default.id_for_label }}">
+        {{ form.is_default }}
+        ใช้เป็นที่อยู่เริ่มต้น
+      </label>
+      {% for error in form.is_default.errors %}<p class="mt-1 text-sm text-red-700">{{ error }}</p>{% endfor %}
+
+      <div class="mt-7 flex flex-wrap justify-end gap-3">
+        <a href="{% url 'accounts:addresses' %}" class="inline-flex h-11 items-center rounded-md border border-stone-300 px-5 text-sm font-semibold text-slate-700 hover:bg-stone-50">ยกเลิก</a>
+        <button type="submit" class="inline-flex h-11 items-center gap-2 rounded-md bg-leaf px-5 text-sm font-semibold text-white hover:bg-emerald-800">
+          <i data-lucide="check" class="h-4 w-4" aria-hidden="true"></i>
+          ยืนยัน
+        </button>
+      </div>
+    </form>
+  </section>
+</section>
+{% endblock %}

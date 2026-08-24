@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}ยกเลิก {{ order.reference }}{% endblock %}
+
+{% block content %}
+<section class="mx-auto max-w-xl">
+  <form method="post" class="space-y-5 rounded-md border border-stone-200 bg-white p-6 shadow-soft">
+    {% csrf_token %}
+    <div>
+      <p class="text-sm font-semibold text-red-700">ยกเลิกคำสั่งซื้อ</p>
+      <h1 class="mt-2 text-2xl font-semibold text-ink">{{ order.reference }}</h1>
+      <p class="mt-2 text-sm text-slate-600">ระบบจะคืนสินค้าที่จองไว้กลับเข้าสู่สต็อก</p>
+    </div>
+    {% for field in form %}
+      <div>
+        <label class="text-sm font-semibold text-slate-700" for="{{ field.id_for_label }}">{{ field.label }}</label>
+        <div class="mt-2">{{ field }}</div>
+        {% for error in field.errors %}<p class="mt-1 text-sm text-red-700">{{ error }}</p>{% endfor %}
+      </div>
+    {% endfor %}
+    <div class="flex flex-wrap gap-3">
+      <button class="rounded-md bg-red-700 px-5 py-2.5 font-semibold text-white hover:bg-red-800" type="submit">ยืนยันการยกเลิก</button>
+      <a class="rounded-md border border-stone-300 px-5 py-2.5 font-semibold text-slate-700" href="{{ order.get_absolute_url }}">กลับ</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

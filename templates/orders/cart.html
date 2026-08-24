@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}ตะกร้าสินค้า{% endblock %}
+
+{% block content %}
+<section class="space-y-5">
+  <div>
+    <h1 class="text-2xl font-semibold text-slate-950">ตะกร้าสินค้า</h1>
+    <p class="mt-1 text-sm text-slate-600">ตรวจรายการสินค้าและกรอกข้อมูลจัดส่งก่อนชำระเงิน</p>
+  </div>
+
+  <div class="grid gap-5 lg:grid-cols-[1fr_380px]">
+    <div class="rounded-md border border-stone-200 bg-white shadow-sm">
+      <div class="divide-y divide-stone-100">
+        {% for item in items %}
+          <div class="grid gap-4 p-4 md:grid-cols-[120px_1fr_180px]">
+            <a class="block aspect-square overflow-hidden rounded-md bg-stone-100" href="{{ item.product.get_absolute_url }}">
+              {% if item.product.image %}
+                <img class="h-full w-full object-cover" src="{{ item.product.image.url }}" alt="{{ item.product.name }}">
+              {% else %}
+                <img class="h-full w-full object-cover" src="{% static 'images/product-placeholder.svg' %}" alt="{{ item.product.name }}">
+              {% endif %}
+            </a>
+            <div>
+              <a class="font-semibold text-slate-950" href="{{ item.product.get_absolute_url }}">{{ item.product.name }}</a>
+              <p class="mt-1 text-sm text-slate-600">{{ item.product.seller }} · {{ item.product.community.name }}</p>
+              <p class="mt-2 text-sm font-semibold text-leaf">฿{{ item.product.price|floatformat:2 }} / {{ item.product.get_unit_display }}</p>
+            </div>
+            <div class="space-y-2">
+              <form method="post" action="{% url 'orders:cart_update' item.product.id %}" class="flex gap-2">
+                {% csrf_token %}
+                <input name="quantity" type="number" min="0" step="{{ item.product.quantity_step|floatformat:'-2' }}" value="{{ item.quantity|floatformat:'-2' }}" inputmode="decimal" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm">
+                <button class="rounded-md bg-ink px-3 py-2 text-sm font-semibold text-white" type="submit">อัปเดต</button>
+              </form>
+              <p class="text-sm text-slate-600">รวม ฿{{ item.line_total|floatformat:2 }}</p>
+              <form method="post" action="{% url 'orders:cart_remove' item.product.id %}">
+                {% csrf_token %}
+                <button class="text-sm font-semibold text-red-700" type="submit">นำออก</button>
+              </form>
+            </div>
+          </div>
+        {% empty %}
+          <p class="p-6 text-sm text-slate-600">ยังไม่มีสินค้าในตะกร้า</p>
+        {% endfor %}
+      </div>
+    </div>
+
+    <aside class="h-fit rounded-md border border-stone-200 bg-white p-5 shadow-soft">
+      <div class="flex items-center justify-between border-b border-stone-100 pb-4">
+        <p class="font-semibold text-slate-950">ยอดรวม</p>
+        <p class="text-2xl font-semibold text-leaf">฿{{ total|floatformat:2 }}</p>
+      </div>
+      {% if items %}
+        <form method="post" action="{% url 'orders:cart_checkout' %}" class="mt-5 space-y-4">
+          {% csrf_token %}
+          {% if form.non_field_errors %}<div class="rounded-md bg-red-50 p-3 text-sm text-red-700">{{ form.non_field_errors }}</div>{% endif %}
+          {% for field in form %}
+            <div>
+              <label class="text-sm font-semibold text-slate-700" for="{{ field.id_for_label }}">{{ field.label }}</label>
+              <div class="mt-2">{{ field }}</div>
+              {% for error in field.errors %}<p class="mt-1 text-sm text-red-700">{{ error }}</p>{% endfor %}
+            </div>
+          {% endfor %}
+          <button class="w-full rounded-md bg-leaf px-5 py-2.5 text-sm font-semibold text-white" type="submit">ไปชำระเงิน</button>
+        </form>
+      {% endif %}
+    </aside>
+  </div>
+</section>
+{% endblock %}

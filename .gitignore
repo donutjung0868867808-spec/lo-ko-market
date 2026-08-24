@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+*.sqlite3
+db.sqlite3
+.env
+.venv/
+venv/
+media/
+staticfiles/
+.pytest_cache/
+.coverage
+htmlcov/
+private_media/
+*.log
+cloudflared.exe
+.cloudflared*

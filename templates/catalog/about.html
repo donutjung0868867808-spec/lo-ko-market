@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}เกี่ยวกับเรา{% endblock %}
+
+{% block content %}
+<section class="space-y-6">
+  <div class="rounded-md border border-stone-200 bg-white p-6 shadow-soft lg:p-8">
+    <p class="text-sm font-semibold text-leaf">เกี่ยวกับเรา</p>
+    <h1 class="mt-2 text-3xl font-semibold text-ink md:text-4xl">ตลาดเกษตรชุมชน</h1>
+    <p class="mt-4 max-w-3xl text-base leading-7 text-slate-600">พื้นที่ซื้อขายสินค้าเกษตรจากชุมชนสำหรับผู้บริโภค เกษตรกร และเจ้าหน้าที่ที่ดูแลมาตรฐานสินค้าในพื้นที่</p>
+  </div>
+
+  <div class="grid gap-4 md:grid-cols-3">
+    <article class="rounded-md border border-stone-200 bg-white p-5 shadow-soft">
+      <h2 class="text-xl font-semibold text-ink">แหล่งที่มาชัดเจน</h2>
+      <p class="mt-2 text-sm leading-6 text-slate-600">สินค้าระบุชุมชนและผู้ขาย เพื่อให้เลือกซื้อได้มั่นใจขึ้น</p>
+    </article>
+    <article class="rounded-md border border-stone-200 bg-white p-5 shadow-soft">
+      <h2 class="text-xl font-semibold text-ink">ซื้อขายสะดวก</h2>
+      <p class="mt-2 text-sm leading-6 text-slate-600">ค้นหา ใส่ตะกร้า สั่งซื้อ และติดตามสถานะได้ในระบบเดียว</p>
+    </article>
+    <article class="rounded-md border border-stone-200 bg-white p-5 shadow-soft">
+      <h2 class="text-xl font-semibold text-ink">มีผู้ดูแลชุมชน</h2>
+      <p class="mt-2 text-sm leading-6 text-slate-600">เจ้าหน้าที่ช่วยดูแลสินค้าและรายงานปัญหาในพื้นที่</p>
+    </article>
+  </div>
+</section>
+{% endblock %}

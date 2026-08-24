@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}แก้ไขข้อมูลผู้ขาย{% endblock %}
+
+{% block content %}
+<section class="mx-auto max-w-6xl space-y-6">
+  <header class="rounded-lg border border-stone-300 border-l-4 border-l-emerald-700 bg-white p-6 shadow-sm">
+    <a class="text-sm font-semibold text-leaf hover:underline" href="{% url 'accounts:staff_seller_detail' seller.pk %}">กลับไปหน้าผู้ขาย</a>
+    <h1 class="mt-2 text-3xl font-semibold text-slate-950">แก้ไขข้อมูลผู้ขาย</h1>
+    <p class="mt-1 text-sm font-medium text-slate-600">{{ profile.farm_name }} · {{ profile.community }}</p>
+  </header>
+
+  <form method="post" enctype="multipart/form-data" class="space-y-6">
+    {% csrf_token %}
+    {% if account_form.non_field_errors or profile_form.non_field_errors %}
+      <div class="rounded-md border border-red-300 bg-red-50 p-4 text-sm font-medium text-red-900">
+        {{ account_form.non_field_errors }}{{ profile_form.non_field_errors }}
+      </div>
+    {% endif %}
+
+    <section class="rounded-lg border border-stone-300 bg-white p-6 shadow-sm">
+      <div class="border-b border-stone-200 pb-4">
+        <h2 class="text-xl font-semibold text-slate-950">ข้อมูลบัญชี</h2>
+      </div>
+      <div class="mt-6 grid gap-6 sm:grid-cols-2">
+        {% for field in account_form %}
+          {% if field.name == "is_active" %}
+            <div class="sm:col-span-2">
+              <label class="flex min-h-12 cursor-pointer items-center gap-3 rounded-md border border-stone-300 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900" for="{{ field.id_for_label }}">
+                {{ field }}
+                <span>{{ field.label }}</span>
+              </label>
+              {% for error in field.errors %}<p class="mt-1 text-sm font-medium text-red-700">{{ error }}</p>{% endfor %}
+            </div>
+          {% else %}
+            <div>
+              <label class="text-sm font-semibold text-slate-900" for="{{ field.id_for_label }}">{{ field.label }}</label>
+              <div class="mt-2">{{ field }}</div>
+              {% if field.help_text %}<p class="mt-1 text-xs text-slate-600">{{ field.help_text }}</p>{% endif %}
+              {% for error in field.errors %}<p class="mt-1 text-sm font-medium text-red-700">{{ error }}</p>{% endfor %}
+            </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="rounded-lg border border-stone-300 bg-white p-6 shadow-sm">
+      <div class="border-b border-stone-200 pb-4">
+        <h2 class="text-xl font-semibold text-slate-950">ข้อมูลฟาร์ม</h2>
+      </div>
+      <div class="mt-6 grid gap-6 sm:grid-cols-2">
+        {% for field in profile_form %}
+          <div class="{% if field.name == 'address' or field.name == 'bio' or field.name == 'rejection_reason' %}sm:col-span-2{% endif %}">
+            <label class="text-sm font-semibold text-slate-900" for="{{ field.id_for_label }}">{{ field.label }}</label>
+            <div class="mt-2">{{ field }}</div>
+            {% if field.help_text %}<p class="mt-1 text-xs text-slate-600">{{ field.help_text }}</p>{% endif %}
+            {% for error in field.errors %}<p class="mt-1 text-sm font-medium text-red-700">{{ error }}</p>{% endfor %}
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <div class="sticky bottom-4 z-10 flex flex-wrap justify-end gap-3 rounded-lg border border-stone-300 bg-white p-4 shadow-lg">
+      <a class="rounded-md border border-stone-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-900 hover:bg-slate-50" href="{% url 'accounts:staff_seller_detail' seller.pk %}">ยกเลิก</a>
+      <button class="rounded-md bg-leaf px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800" type="submit">บันทึกข้อมูลผู้ขาย</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

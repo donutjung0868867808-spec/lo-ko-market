@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}สมัครบัญชีผู้ขาย{% endblock %}
+
+{% block extra_head %}
+<style>
+  body:has(.seller-signup-intro) > header,
+  body:has(.seller-signup-intro) > footer,
+  main.seller-signup-intro > nav { display: none; }
+</style>
+{% endblock %}
+
+{% block main_class %}seller-signup-intro flex min-h-screen w-full flex-1 flex-col bg-white p-0{% endblock %}
+
+{% block content %}
+<header class="flex h-[68px] items-center justify-between bg-leaf px-8 text-white sm:px-12">
+  <a href="{% url 'catalog:product_list' %}" class="text-4xl font-light" aria-label="หน้าหลัก">โลโก้</a>
+  <a href="{% url 'login' %}" class="inline-flex items-center gap-3 text-sm font-semibold hover:text-green-100"><i data-lucide="user-round" class="h-7 w-7" aria-hidden="true"></i><span>มีบัญชีแล้ว</span></a>
+</header>
+
+<section class="flex flex-1 items-center justify-center px-5 py-12 text-center">
+  <div class="-mt-16">
+    <p class="text-5xl font-light text-leaf">โลโก้</p>
+    <h1 class="mt-8 text-2xl font-medium text-leaf">ยินดีต้อนรับผู้ขายใหม่</h1>
+    <p class="mt-2 text-base text-stone-600">คุณสามารถเริ่มต้นการขายสินค้าได้ เมื่อได้เตรียมบัญชีผู้ขาย</p>
+    <a href="{% url 'accounts:farmer_signup_create' %}" class="mt-5 inline-flex min-h-12 items-center justify-center rounded-lg bg-[#6fbd19] px-12 text-lg font-semibold text-white transition hover:bg-[#5da414]">สร้างบัญชีผู้ขาย</a>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,65 @@
+{% load i18n %}
+
+{% if app_list %}
+  <div class="agri-app-grid">
+    {% for app in app_list %}
+      <section class="app-{{ app.app_label }} module agri-app-card{% if app.app_url in request.path|urlencode %} current-app{% endif %}">
+        <header class="agri-app-card-header">
+          <a href="{{ app.app_url }}" class="section" title="จัดการข้อมูล {{ app.name }}">{{ app.name }}</a>
+        </header>
+        <div class="agri-model-list">
+          {% for model in app.models %}
+            {% with model_name=model.object_name|lower %}
+              <div class="agri-model-row model-{{ model_name }}{% if model.admin_url in request.path|urlencode %} current-model{% endif %}">
+                <div class="agri-model-title" id="{{ app.app_label }}-{{ model_name }}">
+                  <div class="agri-model-name-line">
+                    {% if model.admin_url %}
+                      <a href="{{ model.admin_url }}"{% if model.admin_url in request.path|urlencode %} aria-current="page"{% endif %}>{{ model.name }}</a>
+                    {% else %}
+                      <span>{{ model.name }}</span>
+                    {% endif %}
+                    {% if model.view_only %}<span class="agri-readonly-badge">ดูอย่างเดียว</span>{% endif %}
+                  </div>
+                  <p class="agri-model-description">
+                    {% if model.object_name == "User" %}ข้อมูลส่วนตัว บทบาท และสถานะสมาชิก
+                    {% elif model.object_name == "FarmerProfile" %}ข้อมูลร้านค้า เอกสาร และผลตรวจสอบผู้ขาย
+                    {% elif model.object_name == "Community" %}ข้อมูลชุมชนและพื้นที่ให้บริการ
+                    {% elif model.object_name == "CommunityStaffProfile" %}กำหนดเจ้าหน้าที่ประจำแต่ละชุมชน
+                    {% elif model.object_name == "DeliveryAddress" %}ที่อยู่จัดส่งที่สมาชิกบันทึกไว้
+                    {% elif model.object_name == "Product" %}รายละเอียด ราคา สต็อก และสถานะการขาย
+                    {% elif model.object_name == "Order" %}ติดตามสถานะ การจัดส่ง และเลขพัสดุ
+                    {% elif model.object_name == "Payment" %}ตรวจสอบผลการชำระเงินจากระบบออนไลน์
+                    {% elif model.object_name == "Refund" %}ตรวจสอบคำขอและผลการคืนเงิน
+                    {% elif model.object_name == "SellerSettlement" %}ตรวจสอบและโอนยอดสุทธิให้ผู้ขาย
+                    {% elif model.object_name == "SellerPaymentAccount" %}สถานะบัญชีรับเงินออนไลน์ของผู้ขาย
+                    {% elif model.object_name == "SavedPaymentMethod" %}ข้อมูลบัตรแบบปกปิดที่สมาชิกบันทึกไว้
+                    {% elif model.object_name == "Report" %}ตรวจสอบเรื่องร้องเรียนและบันทึกผลดำเนินการ
+                    {% elif model.object_name == "Notification" %}ส่งและตรวจสอบการแจ้งเตือนสมาชิก
+                    {% elif model.object_name == "NewsPost" %}จัดการข่าวสารที่แสดงในเว็บไซต์
+                    {% elif model.view_only %}ข้อมูลที่ระบบบันทึกอัตโนมัติสำหรับตรวจสอบ
+                    {% else %}เพิ่ม แก้ไข และจัดการข้อมูลที่เกี่ยวข้อง
+                    {% endif %}
+                  </p>
+                </div>
+                <div class="agri-model-actions">
+                  {% if model.add_url and model.perms.add %}
+                    <a href="{{ model.add_url }}" class="addlink agri-admin-action" aria-describedby="{{ app.app_label }}-{{ model_name }}">เพิ่มข้อมูล</a>
+                  {% endif %}
+                  {% if model.admin_url and show_changelinks %}
+                    {% if model.view_only %}
+                      <a href="{{ model.admin_url }}" class="viewlink agri-admin-action" aria-describedby="{{ app.app_label }}-{{ model_name }}">เปิดดู</a>
+                    {% else %}
+                      <a href="{{ model.admin_url }}" class="changelink agri-admin-action" aria-describedby="{{ app.app_label }}-{{ model_name }}">จัดการ</a>
+                    {% endif %}
+                  {% endif %}
+                </div>
+              </div>
+            {% endwith %}
+          {% endfor %}
+        </div>
+      </section>
+    {% endfor %}
+  </div>
+{% else %}
+  <p class="agri-empty-state">บัญชีนี้ไม่มีสิทธิ์ดูหรือแก้ไขข้อมูลในส่วนนี้</p>
+{% endif %}

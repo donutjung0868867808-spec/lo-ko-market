@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}วิธีใช้งาน{% endblock %}
+
+{% block content %}
+<section class="rounded-md border border-stone-200 bg-white p-6 shadow-soft lg:p-8">
+  <p class="text-sm font-semibold text-leaf">วิธีใช้งาน</p>
+  <h1 class="mt-2 text-3xl font-semibold text-ink md:text-4xl">เริ่มต้นใช้งาน</h1>
+  <div class="mt-6 grid gap-4 md:grid-cols-3">
+    <article class="rounded-md bg-stone-50 p-5">
+      <h2 class="font-semibold text-ink">ผู้ซื้อ</h2>
+      <p class="mt-2 text-sm leading-6 text-slate-600">สมัครสมาชิก เลือกสินค้า ใส่ตะกร้า และติดตามคำสั่งซื้อ</p>
+    </article>
+    <article class="rounded-md bg-stone-50 p-5">
+      <h2 class="font-semibold text-ink">เกษตรกร</h2>
+      <p class="mt-2 text-sm leading-6 text-slate-600">สมัครบัญชีผู้ขาย รอการยืนยัน แล้วเพิ่มสินค้าเพื่อเปิดขาย</p>
+    </article>
+    <article class="rounded-md bg-stone-50 p-5">
+      <h2 class="font-semibold text-ink">เจ้าหน้าที่</h2>
+      <p class="mt-2 text-sm leading-6 text-slate-600">ตรวจสอบเกษตรกร สินค้า และรายงานปัญหาในชุมชน</p>
+    </article>
+  </div>
+</section>
+{% endblock %}

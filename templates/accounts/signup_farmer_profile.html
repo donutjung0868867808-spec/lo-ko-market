@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}ข้อมูลผู้ขาย/ร้านค้า{% endblock %}
+
+{% block extra_head %}
+<style>
+  body:has(.market-farmer-profile) > header,
+  body:has(.market-farmer-profile) > footer,
+  main.market-farmer-profile > nav { display: none; }
+  .market-farmer-profile .profile-field input:not([type="file"]), .market-farmer-profile .profile-field select, .market-farmer-profile .profile-field textarea { border-color: #bfd0b7; background: #f0f0f0; box-shadow: none; font-size: .875rem; }
+  .market-farmer-profile .profile-field input:not([type="file"]), .market-farmer-profile .profile-field select { height: 2.5rem; padding: 0 .75rem; }
+  .market-farmer-profile .profile-field textarea { min-height: 4rem; padding: .75rem; }
+  .market-farmer-profile .profile-field input:focus, .market-farmer-profile .profile-field select:focus, .market-farmer-profile .profile-field textarea:focus { border-color: #2f6f1d; background: #fff; box-shadow: 0 0 0 2px rgba(47, 111, 29, .12); }
+</style>
+{% endblock %}
+
+{% block main_class %}market-farmer-profile flex min-h-screen w-full flex-1 items-center bg-white px-5 py-10 sm:px-10 lg:px-16 xl:px-24{% endblock %}
+
+{% block content %}
+<button type="button" class="fixed left-5 top-5 z-10 inline-flex min-h-10 items-center gap-2 rounded-md bg-white px-3.5 py-2 text-sm font-semibold text-slate-600 shadow-sm transition hover:bg-mint hover:text-leaf sm:left-8 sm:top-8" onclick="window.location.href='{% url 'accounts:farmer_signup_create' %}'"><i data-lucide="arrow-left" class="h-4 w-4" aria-hidden="true"></i><span>ย้อนกลับ</span></button>
+<section class="mx-auto grid w-full max-w-7xl items-center gap-12 lg:grid-cols-[minmax(0,1fr)_460px] lg:gap-24">
+  <div class="hidden justify-center lg:flex" aria-hidden="true"><p class="text-6xl font-light text-leaf">โลโก้</p></div>
+  <form method="post" enctype="multipart/form-data" class="w-full rounded-[2.5rem] border-2 border-leaf bg-white px-10 py-7 shadow-[0_12px_32px_rgba(23,33,29,0.05)] sm:px-14">
+    {% csrf_token %}
+    <h1 class="text-center text-2xl font-semibold text-stone-600">ข้อมูลผู้ขาย/ร้านค้า</h1>
+    {% if profile_form.non_field_errors %}<div class="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{{ profile_form.non_field_errors }}</div>{% endif %}
+    <div class="mt-4 grid gap-x-4 gap-y-2.5 sm:grid-cols-2">
+      <div class="profile-field"><label class="text-sm text-stone-600" for="{{ profile_form.farm_name.id_for_label }}">ชื่อสวน/ฟาร์ม</label><div class="mt-1">{{ profile_form.farm_name }}</div>{% for error in profile_form.farm_name.errors %}<p class="mt-1 text-xs text-red-700">{{ error }}</p>{% endfor %}</div>
+      <div class="profile-field"><label class="text-sm text-stone-600" for="{{ profile_form.community.id_for_label }}">ชุมชน</label><div class="mt-1">{{ profile_form.community }}</div>{% for error in profile_form.community.errors %}<p class="mt-1 text-xs text-red-700">{{ error }}</p>{% endfor %}</div>
+      <div class="profile-field"><label class="text-sm text-stone-600" for="{{ profile_form.province.id_for_label }}">จังหวัด</label><div class="mt-1">{{ profile_form.province }}</div>{% for error in profile_form.province.errors %}<p class="mt-1 text-xs text-red-700">{{ error }}</p>{% endfor %}</div>
+      <div class="profile-field"><label class="text-sm text-stone-600" for="{{ profile_form.district.id_for_label }}">อำเภอ</label><div class="mt-1">{{ profile_form.district }}</div>{% for error in profile_form.district.errors %}<p class="mt-1 text-xs text-red-700">{{ error }}</p>{% endfor %}</div>
+      <div class="profile-field sm:col-span-2"><label class="text-sm text-stone-600" for="{{ profile_form.address.id_for_label }}">ที่อยู่ที่ตั้ง (สวน,ฟาร์ม)</label><div class="mt-1">{{ profile_form.address }}</div>{% for error in profile_form.address.errors %}<p class="mt-1 text-xs text-red-700">{{ error }}</p>{% endfor %}</div>
+      <div class="profile-field"><label class="text-sm text-stone-600" for="{{ profile_form.document_type.id_for_label }}">ประเภทเอกสาร</label><div class="mt-1">{{ profile_form.document_type }}</div>{% for error in profile_form.document_type.errors %}<p class="mt-1 text-xs text-red-700">{{ error }}</p>{% endfor %}</div>
+      <div class="profile-field"><label class="text-sm text-stone-600" for="{{ profile_form.verification_document.id_for_label }}">เอกสารยืนยัน</label><div class="mt-1">{{ profile_form.verification_document }}</div>{% for error in profile_form.verification_document.errors %}<p class="mt-1 text-xs text-red-700">{{ error }}</p>{% endfor %}</div>
+    </div>
+    {{ profile_form.bio.as_hidden }}
+    <button class="mt-5 h-11 w-full rounded-lg bg-[#6fbd19] px-4 text-base font-semibold text-white transition hover:bg-[#5da414]" type="submit">ยืนยันการสมัคร</button>
+  </form>
+</section>
+{% endblock %}

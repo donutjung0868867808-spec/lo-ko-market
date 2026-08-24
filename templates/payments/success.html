@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block title %}ชำระเงินสำเร็จ{% endblock %}
+
+{% block content %}
+<section class="mx-auto max-w-xl rounded-md border border-stone-200 bg-white p-6 shadow-sm">
+  <h1 class="text-2xl font-semibold text-slate-950">ชำระเงินสำเร็จ</h1>
+  {% if payment %}
+    <p class="mt-2 text-slate-700">คำสั่งซื้อ #{{ payment.order.id }} ได้รับการชำระเงินแล้ว</p>
+    <a class="mt-5 inline-flex rounded-md bg-leaf px-4 py-2 font-medium text-white hover:bg-emerald-800" href="{{ payment.order.get_absolute_url }}">ดูคำสั่งซื้อ</a>
+  {% else %}
+    <p class="mt-2 text-slate-700">ระบบกำลังรอการยืนยันจากผู้ให้บริการชำระเงิน</p>
+  {% endif %}
+</section>
+{% endblock %}

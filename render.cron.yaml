@@ -1,0 +1,75 @@
+# ไฟล์นี้เป็นตัวเลือกสำหรับ Render Cron Job ซึ่งมีค่าใช้จ่ายแยกจากเว็บแผนฟรี
+services:
+  - type: cron
+    name: agri-market-maintenance
+    runtime: python
+    region: singapore
+    schedule: "*/5 * * * *"
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python manage.py run_maintenance"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.10
+      - key: DEBUG
+        value: "False"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: agri-market-db
+          property: connectionString
+      - key: STRIPE_SECRET_KEY
+        fromService:
+          type: web
+          name: agri-market
+          envVarKey: STRIPE_SECRET_KEY
+      - key: STRIPE_CONNECT_TRANSFERS_ENABLED
+        fromService:
+          type: web
+          name: agri-market
+          envVarKey: STRIPE_CONNECT_TRANSFERS_ENABLED
+      - key: PLATFORM_FEE_PERCENT
+        fromService:
+          type: web
+          name: agri-market
+          envVarKey: PLATFORM_FEE_PERCENT
+      - key: SETTLEMENT_HOLD_DAYS
+        fromService:
+          type: web
+          name: agri-market
+          envVarKey: SETTLEMENT_HOLD_DAYS
+      - key: EMAIL_BACKEND
+        fromService:
+          type: web
+          name: agri-market
+          envVarKey: EMAIL_BACKEND
+      - key: EMAIL_HOST
+        fromService:
+          type: web
+          name: agri-market
+          envVarKey: EMAIL_HOST
+      - key: EMAIL_PORT
+        fromService:
+          type: web
+          name: agri-market
+          envVarKey: EMAIL_PORT
+      - key: EMAIL_HOST_USER
+        fromService:
+          type: web
+          name: agri-market
+          envVarKey: EMAIL_HOST_USER
+      - key: EMAIL_HOST_PASSWORD
+        fromService:
+          type: web
+          name: agri-market
+          envVarKey: EMAIL_HOST_PASSWORD
+      - key: DEFAULT_FROM_EMAIL
+        fromService:
+          type: web
+          name: agri-market
+          envVarKey: DEFAULT_FROM_EMAIL
+      - key: SENTRY_DSN
+        fromService:
+          type: web
+          name: agri-market
+          envVarKey: SENTRY_DSN

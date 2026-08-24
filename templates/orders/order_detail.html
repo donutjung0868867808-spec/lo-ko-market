@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}{{ order.reference }}{% endblock %}
+{% block content %}
+<section class="space-y-5">
+  <header class="flex flex-wrap items-end justify-between gap-4">
+    <div>
+      <p class="text-sm text-slate-500">{{ order.created_at|date:"d M Y H:i" }}</p>
+      <h1 class="mt-1 text-2xl font-semibold text-slate-950">{{ order.reference }}</h1>
+      <p class="mt-1 text-sm text-slate-600">{{ order.get_status_display }} · {{ order.get_payment_status_display }}</p>
+    </div>
+    <div class="flex flex-wrap gap-2">
+      {% if order.payment_status == 'paid' %}
+        <a class="inline-flex items-center gap-2 rounded-md border border-leaf bg-white px-4 py-2 text-sm font-semibold text-leaf hover:bg-emerald-50" href="{% url 'orders:order_receipt' order.id %}"><i data-lucide="receipt-text" class="h-4 w-4" aria-hidden="true"></i>ใบเสร็จและใบจัดส่ง</a>
+      {% endif %}
+      {% if user.is_owner or user == order.seller or user.is_cooperative_staff %}
+        <a class="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold" href="{% url 'orders:order_update_status' order.id %}">ปรับสถานะ</a>
+      {% endif %}
+      {% if user == order.buyer and order.status == 'pending_payment' %}
+        <a class="rounded-md bg-leaf px-4 py-2 text-sm font-semibold text-white" href="{% url 'payments:create_checkout' order.id %}">ชำระเงิน</a>
+        <a class="rounded-md border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-700" href="{% url 'orders:cancel_order' order.id %}">ยกเลิก</a>
+      {% endif %}
+      {% if user == order.buyer and order.status == 'shipped' %}
+        <form method="post" action="{% url 'orders:confirm_received' order.id %}">{% csrf_token %}<button class="rounded-md bg-leaf px-4 py-2 text-sm font-semibold text-white" type="submit">ได้รับสินค้าแล้ว</button></form>
+      {% endif %}
+      {% if user == order.buyer and order.payment_status == 'paid' %}
+        <a class="rounded-md border border-amber-300 bg-white px-4 py-2 text-sm font-semibold text-amber-800" href="{% url 'payments:request_refund' order.id %}">ขอคืนเงิน</a>
+      {% endif %}
+      {% if user.is_owner or user == order.seller or user.is_cooperative_staff %}
+        <a class="rounded-md border border-amber-300 bg-white px-4 py-2 text-sm font-semibold text-amber-800" href="{% url 'orders:report_buyer' order.id %}">รายงานผู้ซื้อ</a>
+      {% endif %}
+    </div>
+  </header>
+
+  <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
+    <main class="space-y-5">
+      <div class="overflow-hidden rounded-md border border-stone-200 bg-white shadow-sm">
+        <div class="border-b border-stone-200 px-5 py-4"><h2 class="font-semibold">รายการสินค้า</h2></div>
+        <div class="divide-y divide-stone-100">
+          {% for item in order.items.all %}
+            <div class="grid gap-2 px-5 py-4 sm:grid-cols-[1fr_120px_120px]">
+              <div><p class="font-medium">{{ item.product_name }}</p><p class="text-sm text-slate-500">{{ item.quantity|floatformat:'-2' }} {{ item.unit }}</p></div>
+              <p>{{ item.unit_price|floatformat:2 }} บาท</p><p class="font-semibold">{{ item.line_total|floatformat:2 }} บาท</p>
+            </div>
+          {% endfor %}
+        </div>
+        <dl class="space-y-2 border-t border-stone-200 px-5 py-4 text-sm">
+          <div class="flex justify-between"><dt>ค่าสินค้า</dt><dd>{{ order.subtotal|floatformat:2 }} บาท</dd></div>
+          <div class="flex justify-between"><dt>ค่าจัดส่ง</dt><dd>{{ order.shipping_fee|floatformat:2 }} บาท</dd></div>
+          {% if order.discount_amount %}<div class="flex justify-between text-emerald-700"><dt>ส่วนลด</dt><dd>-{{ order.discount_amount|floatformat:2 }} บาท</dd></div>{% endif %}
+          <div class="flex justify-between border-t border-stone-100 pt-3 text-lg font-semibold"><dt>ยอดรวม</dt><dd>{{ order.total_amount|floatformat:2 }} บาท</dd></div>
+        </dl>
+      </div>
+
+      <div class="rounded-md border border-stone-200 bg-white p-5 shadow-sm">
+        <h2 class="font-semibold">ประวัติสถานะ</h2>
+        <ol class="mt-4 space-y-4 border-l-2 border-emerald-200 pl-5">
+          {% for item in order.status_history.all %}
+            <li><p class="font-semibold">{{ item.get_status_display }}</p><p class="text-sm text-slate-500">{{ item.created_at|date:"d M Y H:i" }}{% if item.changed_by %} · {{ item.changed_by }}{% endif %}</p>{% if item.note %}<p class="mt-1 text-sm text-slate-700">{{ item.note }}</p>{% endif %}</li>
+          {% empty %}<li class="text-sm text-slate-500">ยังไม่มีประวัติเพิ่มเติม</li>{% endfor %}
+        </ol>
+      </div>
+
+      {% if user.is_owner and order.payment %}
+        <div class="rounded-md border border-stone-200 bg-white p-5 shadow-sm">
+          <h2 class="font-semibold">คำขอคืนเงิน</h2>
+          <div class="mt-3 space-y-3">
+            {% for refund in order.payment.refunds.all %}
+              <div class="flex flex-wrap items-center justify-between gap-3 border-t border-stone-100 pt-3">
+                <div>
+                  <p class="font-medium">{{ refund.amount|floatformat:2 }} บาท · {{ refund.get_status_display }}</p>
+                  <p class="text-sm text-slate-600">{{ refund.reason }}</p>
+                  {% if refund.resolution_note %}<p class="mt-1 text-sm text-slate-700">ผลการพิจารณา: {{ refund.resolution_note }}</p>{% endif %}
+                  {% if refund.handled_by %}<p class="mt-1 text-xs text-slate-500">พิจารณาโดย {{ refund.handled_by }}{% if refund.handled_at %} · {{ refund.handled_at|date:"d M Y H:i" }}{% endif %}</p>{% endif %}
+                </div>
+                {% if refund.status == 'requested' or refund.status == 'failed' %}
+                  <div class="flex flex-wrap gap-2">
+                    <form method="post" action="{% url 'payments:process_refund' refund.id %}">{% csrf_token %}<button class="rounded-md bg-leaf px-4 py-2 text-sm font-semibold text-white" type="submit">อนุมัติและคืนเงิน</button></form>
+                    <a class="rounded-md border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-700" href="{% url 'payments:reject_refund' refund.id %}">ไม่อนุมัติ</a>
+                  </div>
+                {% endif %}
+              </div>
+            {% empty %}<p class="text-sm text-slate-500">ไม่มีคำขอคืนเงิน</p>{% endfor %}
+          </div>
+        </div>
+      {% endif %}
+    </main>
+
+    <aside class="space-y-4">
+      <div class="rounded-md border border-stone-200 bg-white p-5 shadow-sm">
+        <h2 class="font-semibold">การจัดส่ง</h2>
+        <p class="mt-3 font-medium">{{ order.shipping_name }}</p>
+        <p class="text-sm text-slate-600">{{ order.shipping_phone }}</p>
+        <p class="mt-2 whitespace-pre-line text-sm text-slate-700">{{ order.shipping_address }}</p>
+        {% if order.shipping_province %}<p class="text-sm text-slate-700">{{ order.shipping_province }} {{ order.shipping_postal_code }}</p>{% endif %}
+        {% if order.tracking_number %}
+          <div class="mt-4 border-t border-stone-100 pt-4"><p class="text-sm text-slate-500">{{ order.shipping_carrier }}</p><p class="mt-1 font-semibold">{{ order.tracking_number }}</p></div>
+        {% endif %}
+      </div>
+      <div class="rounded-md border border-stone-200 bg-white p-5 shadow-sm">
+        <h2 class="font-semibold">ผู้ขาย</h2><p class="mt-2">{{ order.seller }}</p><p class="text-sm text-slate-500">{{ order.community.name }}</p>
+      </div>
+    </aside>
+  </div>
+</section>
+{% endblock %}

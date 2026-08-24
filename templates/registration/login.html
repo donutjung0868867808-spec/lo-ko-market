@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}เข้าสู่ระบบ{% endblock %}
+
+{% block extra_head %}
+<style>
+  body:has(.market-login) > header,
+  body:has(.market-login) > footer,
+  main.market-login > nav {
+    display: none;
+  }
+</style>
+{% endblock %}
+
+{% block main_class %}market-login flex min-h-screen w-full flex-1 items-center bg-white px-5 py-10 sm:px-10 lg:px-16 xl:px-24{% endblock %}
+
+{% block content %}
+<button
+  type="button"
+  class="fixed left-5 top-5 z-10 inline-flex min-h-10 items-center gap-2 rounded-md bg-white px-3.5 py-2 text-sm font-semibold text-slate-600 shadow-sm transition hover:bg-mint hover:text-leaf sm:left-8 sm:top-8"
+  onclick="if (new URLSearchParams(window.location.search).has('from_reset')) { window.location.href='{% url 'catalog:product_list' %}'; } else if (document.referrer && document.referrer.indexOf(window.location.origin) === 0) { window.history.back(); } else { window.location.href='{% url 'catalog:product_list' %}'; }"
+>
+  <i data-lucide="arrow-left" class="h-4 w-4" aria-hidden="true"></i>
+  <span>ย้อนกลับ</span>
+</button>
+<section class="mx-auto grid w-full max-w-7xl items-center gap-12 lg:grid-cols-[minmax(0,1fr)_460px] lg:gap-24">
+  <div class="hidden justify-center lg:flex" aria-hidden="true">
+    <p class="text-6xl font-light text-leaf">โลโก้</p>
+  </div>
+
+  <div class="w-full rounded-[2.5rem] border-2 border-leaf bg-white px-10 py-11 shadow-[0_12px_32px_rgba(23,33,29,0.05)] sm:px-14">
+    <h1 class="text-center text-2xl font-semibold text-stone-600">เข้าสู่ระบบ</h1>
+    <p class="mt-5 text-base leading-7 text-stone-600">เข้าสู่ระบบสำหรับผู้บริโภค เกษตรกร หรือเจ้าหน้าที่ชุมชนด้วยบัญชีของคุณ</p>
+
+    <form method="post" class="mt-6 space-y-5">
+      {% csrf_token %}
+      {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+      {% if form.non_field_errors %}
+        <div class="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{{ form.non_field_errors }}</div>
+      {% endif %}
+
+      <div>
+        <label class="sr-only" for="{{ form.username.id_for_label }}">ชื่อผู้ใช้</label>
+        <input class="h-12 w-full rounded-lg border border-[#bfd0b7] bg-stone-100 px-4 text-base text-slate-900 outline-none placeholder:text-stone-300 focus:border-leaf focus:bg-white focus:ring-2 focus:ring-leaf/15" type="text" name="{{ form.username.name }}" id="{{ form.username.id_for_label }}" value="{{ form.username.value|default_if_none:'' }}" placeholder="ชื่อผู้ใช้/อีเมล/เบอร์โทรศัพท์มือถือ" autocomplete="username" required autofocus>
+        {% for error in form.username.errors %}<p class="mt-1 text-xs text-red-700">{{ error }}</p>{% endfor %}
+      </div>
+
+      <div>
+        <label class="sr-only" for="{{ form.password.id_for_label }}">รหัสผ่าน</label>
+        <input class="h-12 w-full rounded-lg border border-[#bfd0b7] bg-stone-100 px-4 text-base text-slate-900 outline-none placeholder:text-stone-300 focus:border-leaf focus:bg-white focus:ring-2 focus:ring-leaf/15" type="password" name="{{ form.password.name }}" id="{{ form.password.id_for_label }}" placeholder="รหัสผ่าน" autocomplete="current-password" required>
+        {% for error in form.password.errors %}<p class="mt-1 text-xs text-red-700">{{ error }}</p>{% endfor %}
+      </div>
+
+      <a class="block w-fit text-sm font-medium text-leaf underline underline-offset-2 hover:text-emerald-800" href="{% url 'password_reset' %}">ลืมรหัสผ่าน</a>
+      <button class="h-12 w-full rounded-lg bg-[#6fbd19] px-4 text-base font-semibold text-white transition hover:bg-[#5da414] focus:outline-none focus:ring-2 focus:ring-[#6fbd19] focus:ring-offset-2" type="submit">เข้าสู่ระบบ</button>
+    </form>
+
+    <p class="mt-14 text-center text-base text-stone-600">เพิ่งเคยมาที่นี่ (ชื่อเว็บ) <a class="font-semibold text-leaf hover:underline" href="{% url 'accounts:signup' %}">สมัครบัญชีใหม่</a></p>
+  </div>
+</section>
+{% endblock %}

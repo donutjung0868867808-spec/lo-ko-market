@@ -1,0 +1,65 @@
+{% extends "admin/base.html" %}
+{% load static %}
+
+{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | ศูนย์เจ้าของระบบ{% endblock %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'admin/admin-theme.css' %}?v=20260819-3">
+{% endblock %}
+
+{% block extrahead %}
+  {{ block.super }}
+  <script defer src="{% static 'vendor/lucide.min.js' %}"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      if (window.lucide) window.lucide.createIcons();
+    });
+  </script>
+{% endblock %}
+
+{% block branding %}
+  <a class="owner-brand" href="{% url 'admin:index' %}" aria-label="หน้าหลักศูนย์เจ้าของระบบ">
+    <span class="owner-brand-logo"><img src="{% static 'logo.svg' %}" alt=""></span>
+    <span class="owner-brand-copy">
+      <strong id="site-name">ศูนย์เจ้าของระบบ</strong>
+      <small>ตลาดเกษตรชุมชน</small>
+    </span>
+  </a>
+{% endblock %}
+
+{% block usertools %}
+  {% if has_permission %}
+    <div id="user-tools" class="owner-user-tools">
+      <span class="owner-user-name">{{ user.get_short_name|default:user.get_username }}</span>
+      {% if site_url %}
+        <a href="{{ site_url }}" title="ดูเว็บไซต์">
+          <i data-lucide="external-link" aria-hidden="true"></i><span>ดูเว็บไซต์</span>
+        </a>
+      {% endif %}
+      {% if user.has_usable_password %}
+        <a href="{% url 'admin:password_change' %}" title="เปลี่ยนรหัสผ่าน">
+          <i data-lucide="key-round" aria-hidden="true"></i><span>เปลี่ยนรหัสผ่าน</span>
+        </a>
+      {% endif %}
+      <form id="logout-form" method="post" action="{% url 'admin:logout' %}">
+        {% csrf_token %}
+        <button type="submit" title="ออกจากระบบ">
+          <i data-lucide="log-out" aria-hidden="true"></i><span>ออกจากระบบ</span>
+        </button>
+      </form>
+    </div>
+  {% endif %}
+{% endblock %}
+
+{% block nav-global %}{% endblock %}
+
+{% block nav-breadcrumbs %}
+  <div class="owner-admin-backbar">
+    <button type="button" class="owner-back-button" onclick="if (window.history.length > 1) { window.history.back(); } else { window.location.href='{% url 'admin:index' %}'; }" title="ย้อนกลับ">
+      <i data-lucide="arrow-left" aria-hidden="true"></i>
+      <span>ย้อนกลับ</span>
+    </button>
+  </div>
+  {{ block.super }}
+{% endblock %}

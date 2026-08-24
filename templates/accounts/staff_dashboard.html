@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block title %}ศูนย์เจ้าหน้าที่ชุมชน{% endblock %}
+
+{% block content %}
+<section class="space-y-6">
+  <header class="rounded-lg border border-stone-300 border-l-4 border-l-emerald-700 bg-white p-6 shadow-sm">
+    <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <div>
+        <p class="text-sm font-semibold text-leaf">ศูนย์เจ้าหน้าที่วิสาหกิจชุมชน</p>
+        <h1 class="mt-1 text-3xl font-semibold text-slate-950">{{ community|default:"ยังไม่ได้กำหนดชุมชน" }}</h1>
+        <p class="mt-2 text-sm text-slate-600">{{ user.display_name|default:user.username }} · {{ user.community_staff_profile.title|default:"เจ้าหน้าที่ชุมชน" }}</p>
+      </div>
+      <nav class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+        <a class="inline-flex min-h-10 items-center justify-center rounded-md bg-leaf px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800" href="{% url 'catalog:product_review' %}">ตรวจสินค้า</a>
+        <a class="inline-flex min-h-10 items-center justify-center rounded-md border border-stone-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-stone-50" href="{% url 'accounts:members' 'farmers' %}">จัดการผู้ขาย</a>
+        <a class="inline-flex min-h-10 items-center justify-center rounded-md border border-stone-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-stone-50" href="{% url 'accounts:send_notification' %}">ติดต่อสมาชิก</a>
+      </nav>
+    </div>
+  </header>
+
+  {% if not community %}
+    <div class="rounded-md border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+      บัญชีนี้ยังไม่ได้ผูกกับชุมชน กรุณาติดต่อเจ้าของระบบ
+    </div>
+  {% endif %}
+
+  <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <a class="rounded-lg border border-stone-300 border-l-4 bg-white p-5 shadow-sm transition border-l-emerald-600 hover:-translate-y-0.5 hover:shadow-md" href="{% url 'accounts:members' 'farmers' %}">
+      <p class="text-sm font-medium text-slate-600">เกษตรกรในชุมชน</p>
+      <p class="mt-2 text-3xl font-semibold text-slate-950">{{ farmer_count }}</p>
+    </a>
+    <a class="rounded-lg border border-stone-300 border-l-4 bg-white p-5 shadow-sm transition border-l-sky-600 hover:-translate-y-0.5 hover:shadow-md" href="{% url 'catalog:product_review' %}">
+      <p class="text-sm font-medium text-slate-600">สินค้าในชุมชน</p>
+      <p class="mt-2 text-3xl font-semibold text-slate-950">{{ product_count }}</p>
+    </a>
+    <a class="rounded-lg border border-stone-300 border-l-4 bg-white p-5 shadow-sm transition border-l-amber-500 hover:-translate-y-0.5 hover:shadow-md" href="{% url 'orders:order_list' %}">
+      <p class="text-sm font-medium text-slate-600">คำสั่งซื้อ</p>
+      <p class="mt-2 text-3xl font-semibold text-slate-950">{{ order_count }}</p>
+    </a>
+    <a class="rounded-lg border border-stone-300 border-l-4 bg-white p-5 shadow-sm transition border-l-red-600 hover:-translate-y-0.5 hover:shadow-md" href="{% url 'accounts:reports' %}">
+      <p class="text-sm font-medium text-slate-600">รายงานที่ต้องจัดการ</p>
+      <p class="mt-2 text-3xl font-semibold text-slate-950">{{ open_report_count }}</p>
+    </a>
+  </div>
+
+  <div class="grid gap-6 xl:grid-cols-2">
+    <section class="overflow-hidden rounded-lg border border-stone-300 bg-white shadow-sm">
+      <div class="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 bg-slate-50 px-6 py-4">
+        <h2 class="text-xl font-semibold text-slate-950">เกษตรกรรอตรวจสอบ</h2>
+        <a class="text-sm font-semibold text-leaf hover:underline" href="{% url 'accounts:members' 'farmers' %}">ดูผู้ขายทั้งหมด</a>
+      </div>
+      <div class="divide-y divide-stone-200">
+        {% for profile in pending_farmers %}
+          <article class="px-6 py-5 transition hover:bg-slate-50">
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <a class="font-semibold text-slate-900 hover:text-leaf hover:underline" href="{% url 'accounts:staff_seller_detail' profile.user_id %}">{{ profile.farm_name }}</a>
+                <p class="text-sm text-slate-600">{{ profile.user }}</p>
+                {% if profile.verification_document %}
+                  <a class="mt-1 inline-block text-sm font-semibold text-leaf hover:underline" href="{% url 'accounts:farmer_document' profile.id %}" target="_blank" rel="noopener">เปิดเอกสารยืนยัน</a>
+                {% else %}
+                  <p class="mt-1 text-sm text-amber-700">ยังไม่มีเอกสารยืนยัน</p>
+                {% endif %}
+              </div>
+              <div class="flex flex-col gap-2 sm:w-56">
+                <form method="post" action="{% url 'accounts:farmer_verification' profile.id 'approve' %}">
+                  {% csrf_token %}
+                  <button class="min-h-10 w-full rounded-md bg-leaf px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800" type="submit">อนุมัติ</button>
+                </form>
+                <form method="post" action="{% url 'accounts:farmer_verification' profile.id 'reject' %}" class="grid gap-2">
+                  {% csrf_token %}
+                  <input class="min-h-10 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" name="rejection_reason" placeholder="เหตุผลที่ไม่อนุมัติ" required>
+                  <button class="min-h-10 rounded-md border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50" type="submit">ไม่อนุมัติ</button>
+                </form>
+              </div>
+            </div>
+          </article>
+        {% empty %}
+          <p class="px-6 py-8 text-sm text-slate-600">ไม่มีเกษตรกรรอตรวจสอบ</p>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="overflow-hidden rounded-lg border border-stone-300 bg-white shadow-sm">
+      <div class="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 bg-slate-50 px-6 py-4">
+        <h2 class="text-xl font-semibold text-slate-950">สินค้ารอตรวจสอบ</h2>
+        <a class="text-sm font-semibold text-leaf hover:underline" href="{% url 'catalog:product_review' %}">เปิดหน้าตรวจสินค้า</a>
+      </div>
+      <div class="divide-y divide-stone-200">
+        {% for product in pending_products %}
+          <a class="flex items-center justify-between gap-4 px-6 py-5 transition hover:bg-slate-50 hover:text-leaf" href="{% url 'catalog:product_review' %}">
+            <span>
+              <span class="block font-semibold text-slate-900">{{ product.name }}</span>
+              <span class="block text-sm text-slate-600">{{ product.seller }} · ฿{{ product.price|floatformat:2 }}/{{ product.get_unit_display }}</span>
+            </span>
+            <span class="rounded-md bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-900">รอตรวจ</span>
+          </a>
+        {% empty %}
+          <p class="px-6 py-8 text-sm text-slate-600">ไม่มีสินค้ารอตรวจสอบ</p>
+        {% endfor %}
+      </div>
+    </section>
+  </div>
+
+  <div class="grid gap-6 xl:grid-cols-2">
+    <section class="overflow-hidden rounded-lg border border-stone-300 bg-white shadow-sm">
+      <div class="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 bg-slate-50 px-6 py-4">
+        <h2 class="text-xl font-semibold text-slate-950">คำสั่งซื้อล่าสุด</h2>
+        <a class="text-sm font-semibold text-leaf hover:underline" href="{% url 'orders:order_list' %}">ดูทั้งหมด</a>
+      </div>
+      <div class="divide-y divide-stone-200">
+        {% for order in recent_orders %}
+          <a class="flex items-center justify-between gap-4 px-6 py-5 transition hover:bg-slate-50" href="{{ order.get_absolute_url }}">
+            <span>
+              <span class="block font-semibold text-slate-900">{{ order.reference }}</span>
+              <span class="block text-sm text-slate-600">{{ order.seller }} · {{ order.created_at|date:"d/m/Y H:i" }}</span>
+            </span>
+            <span class="text-right text-sm">
+              <span class="block font-semibold text-slate-900">฿{{ order.total_amount|floatformat:2 }}</span>
+              <span class="block text-slate-600">{{ order.get_status_display }}</span>
+            </span>
+          </a>
+        {% empty %}
+          <p class="px-6 py-8 text-sm text-slate-600">ยังไม่มีคำสั่งซื้อ</p>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="overflow-hidden rounded-lg border border-stone-300 bg-white shadow-sm">
+      <div class="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 bg-slate-50 px-6 py-4">
+        <h2 class="text-xl font-semibold text-slate-950">รายงานที่ต้องจัดการ</h2>
+        <a class="text-sm font-semibold text-leaf hover:underline" href="{% url 'accounts:reports' %}">ดูทั้งหมด</a>
+      </div>
+      <div class="divide-y divide-stone-200">
+        {% for report in active_reports %}
+          <a class="flex items-center justify-between gap-4 px-6 py-5 transition hover:bg-slate-50" href="{% url 'accounts:report_detail' report.pk %}">
+            <span>
+              <span class="block font-semibold text-slate-900">{{ report }}</span>
+              <span class="block text-sm text-slate-600">{{ report.get_reason_display }} · {{ report.created_at|date:"d/m/Y H:i" }}</span>
+            </span>
+            <span class="rounded-md bg-red-100 px-3 py-1 text-xs font-semibold text-red-900">{{ report.get_status_display }}</span>
+          </a>
+        {% empty %}
+          <p class="px-6 py-8 text-sm text-slate-600">ไม่มีรายงานที่ต้องจัดการ</p>
+        {% endfor %}
+      </div>
+    </section>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}ที่อยู่ของฉัน{% endblock %}
+
+{% block content %}
+<section class="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
+  {% include "accounts/_account_sidebar.html" %}
+
+  <section class="overflow-hidden rounded-md border border-emerald-900/25 bg-white">
+    <header class="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 px-5 py-5 sm:px-7">
+      <div>
+        <h1 class="text-xl font-semibold text-slate-950">ที่อยู่ของฉัน</h1>
+        <p class="mt-1 text-sm text-slate-500">เลือกที่อยู่สำหรับรับสินค้าและใบเสร็จ</p>
+      </div>
+      <a href="{% url 'accounts:address_create' %}" class="inline-flex h-10 items-center gap-2 rounded-md bg-leaf px-4 text-sm font-semibold text-white hover:bg-emerald-800">
+        <i data-lucide="plus" class="h-4 w-4" aria-hidden="true"></i>
+        เพิ่มที่อยู่ใหม่
+      </a>
+    </header>
+
+    <div class="divide-y divide-stone-200">
+      {% for address in addresses %}
+        <article class="grid gap-4 px-5 py-5 sm:px-7 md:grid-cols-[minmax(0,1fr)_auto]">
+          <div class="min-w-0">
+            <div class="flex flex-wrap items-center gap-2">
+              <h2 class="font-semibold text-slate-950">{{ address.recipient_name }}</h2>
+              <span class="text-sm text-slate-500">{{ address.phone }}</span>
+              {% if address.label %}<span class="rounded-md bg-stone-100 px-2 py-0.5 text-xs text-slate-600">{{ address.label }}</span>{% endif %}
+              {% if address.is_default %}<span class="rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-leaf">ที่อยู่เริ่มต้น</span>{% endif %}
+            </div>
+            <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-600">{{ address.full_address }}</p>
+          </div>
+          <div class="flex flex-wrap items-start gap-2 md:justify-end">
+            <a href="{% url 'accounts:address_edit' address.pk %}" class="inline-flex h-9 items-center gap-1.5 rounded-md border border-stone-300 px-3 text-sm font-medium text-slate-700 hover:border-leaf hover:text-leaf">
+              <i data-lucide="pencil" class="h-4 w-4" aria-hidden="true"></i>
+              แก้ไข
+            </a>
+            {% if not address.is_default %}
+              <form method="post" action="{% url 'accounts:address_set_default' address.pk %}">
+                {% csrf_token %}
+                <button type="submit" class="inline-flex h-9 items-center rounded-md border border-emerald-200 bg-emerald-50 px-3 text-sm font-medium text-leaf hover:bg-emerald-100">ตั้งเป็นค่าเริ่มต้น</button>
+              </form>
+              <form method="post" action="{% url 'accounts:address_delete' address.pk %}" onsubmit="return confirm('ต้องการลบที่อยู่นี้หรือไม่?')">
+                {% csrf_token %}
+                <button type="submit" class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-red-200 text-red-700 hover:bg-red-50" title="ลบที่อยู่">
+                  <i data-lucide="trash-2" class="h-4 w-4" aria-hidden="true"></i>
+                  <span class="sr-only">ลบที่อยู่</span>
+                </button>
+              </form>
+            {% endif %}
+          </div>
+        </article>
+      {% empty %}
+        <div class="px-5 py-14 text-center sm:px-7">
+          <i data-lucide="map-pin" class="mx-auto h-10 w-10 text-slate-300" aria-hidden="true"></i>
+          <h2 class="mt-3 font-semibold text-slate-900">ยังไม่มีที่อยู่จัดส่ง</h2>
+          <p class="mt-1 text-sm text-slate-500">เพิ่มที่อยู่เพื่อให้กรอกข้อมูลตอนสั่งซื้อได้สะดวกขึ้น</p>
+          <a href="{% url 'accounts:address_create' %}" class="mt-4 inline-flex h-10 items-center rounded-md bg-leaf px-4 text-sm font-semibold text-white hover:bg-emerald-800">เพิ่มที่อยู่แรก</a>
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+</section>
+{% endblock %}

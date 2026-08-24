@@ -1,0 +1,56 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}เข้าสู่ศูนย์เจ้าของระบบ{% endblock %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'admin/css/login.css' %}">{{ form.media }}{% endblock %}
+{% block bodyclass %}{{ block.super }} login owner-login-page{% endblock %}
+{% block usertools %}{% endblock %}
+{% block nav-global %}{% endblock %}
+{% block nav-sidebar %}{% endblock %}
+{% block content_title %}{% endblock %}
+{% block nav-breadcrumbs %}{% endblock %}
+
+{% block content %}
+  <div id="content-main" class="owner-login-content">
+    <a class="owner-login-back" href="{% url 'catalog:product_list' %}">
+      <i data-lucide="arrow-left" aria-hidden="true"></i>
+      <span>กลับหน้าตลาด</span>
+    </a>
+
+    <div class="owner-login-heading">
+      <span>สำหรับเจ้าของระบบ</span>
+      <h1>เข้าสู่ศูนย์จัดการ</h1>
+      <p>ใช้บัญชีเจ้าของระบบที่ได้รับอนุญาตเท่านั้น</p>
+    </div>
+
+    {% if form.errors and not form.non_field_errors %}
+      <p class="errornote">กรุณาตรวจสอบข้อมูลที่กรอก</p>
+    {% endif %}
+    {% for error in form.non_field_errors %}<p class="errornote">{{ error }}</p>{% endfor %}
+
+    {% if user.is_authenticated %}
+      <p class="errornote">บัญชี {{ username }} ไม่มีสิทธิ์เข้าส่วนนี้ กรุณาใช้บัญชีเจ้าของระบบ</p>
+    {% endif %}
+
+    <form action="{{ app_path }}" method="post" id="login-form">
+      {% csrf_token %}
+      <div class="form-row">
+        {{ form.username.errors }}
+        <label for="{{ form.username.id_for_label }}">ชื่อผู้ใช้</label>
+        {{ form.username }}
+      </div>
+      <div class="form-row">
+        {{ form.password.errors }}
+        <label for="{{ form.password.id_for_label }}">รหัสผ่าน</label>
+        {{ form.password }}
+        <input type="hidden" name="next" value="{{ next }}">
+      </div>
+      <div class="owner-login-links">
+        <a href="{% url 'password_reset' %}">ลืมรหัสผ่าน</a>
+      </div>
+      <div class="submit-row">
+        <input type="submit" value="เข้าสู่ระบบ">
+      </div>
+    </form>
+  </div>
+{% endblock %}

@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}จัดการรายงาน #{{ report.id }}{% endblock %}
+
+{% block content %}
+<section class="mx-auto max-w-3xl space-y-5">
+  <div class="rounded-md border border-stone-200 bg-white p-5 shadow-sm">
+    <p class="text-sm font-semibold text-leaf">รายงาน #{{ report.id }}</p>
+    <h1 class="mt-2 text-2xl font-semibold text-slate-950">{{ report.get_target_type_display }} · {{ report.get_reason_display }}</h1>
+    <p class="mt-3 whitespace-pre-line text-sm leading-7 text-slate-700">{{ report.details }}</p>
+  </div>
+  <form method="post" class="rounded-md border border-stone-200 bg-white p-6 shadow-soft">
+    {% csrf_token %}
+    <div class="space-y-4">
+      {% for field in form %}
+        <div>
+          <label class="text-sm font-semibold text-slate-700" for="{{ field.id_for_label }}">{{ field.label }}</label>
+          <div class="mt-2">{{ field }}</div>
+          {% for error in field.errors %}<p class="mt-1 text-sm text-red-700">{{ error }}</p>{% endfor %}
+        </div>
+      {% endfor %}
+    </div>
+    <button class="mt-6 rounded-md bg-leaf px-5 py-2.5 text-sm font-semibold text-white" type="submit">บันทึกผล</button>
+  </form>
+</section>
+{% endblock %}

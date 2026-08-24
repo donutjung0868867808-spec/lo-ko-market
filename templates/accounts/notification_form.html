@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}ติดต่อสมาชิก{% endblock %}
+
+{% block content %}
+<section class="mx-auto max-w-3xl">
+  <form method="post" class="rounded-md border border-stone-200 bg-white p-6 shadow-soft">
+    {% csrf_token %}
+    <h1 class="text-2xl font-semibold text-slate-950">ติดต่อสมาชิก</h1>
+    <p class="mt-1 text-sm text-slate-600">ส่งข้อความแจ้งเตือนเข้าบัญชีสมาชิกในระบบ</p>
+    <div class="mt-6 space-y-4">
+      {% for field in form %}
+        <div>
+          <label class="text-sm font-semibold text-slate-700" for="{{ field.id_for_label }}">{{ field.label }}</label>
+          <div class="mt-2">{{ field }}</div>
+          {% if field.help_text %}<p class="mt-1 text-xs text-slate-500">{{ field.help_text }}</p>{% endif %}
+          {% for error in field.errors %}<p class="mt-1 text-sm text-red-700">{{ error }}</p>{% endfor %}
+        </div>
+      {% endfor %}
+    </div>
+    <button class="mt-6 rounded-md bg-leaf px-5 py-2.5 text-sm font-semibold text-white" type="submit">ส่งแจ้งเตือน</button>
+  </form>
+</section>
+{% endblock %}

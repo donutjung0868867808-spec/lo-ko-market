@@ -1,0 +1,32 @@
+<button class="sticky toggle-nav-sidebar" id="toggle-nav-sidebar" aria-label="เปิดหรือปิดเมนูด้านข้าง"></button>
+<nav class="sticky" id="nav-sidebar" aria-label="เมนูจัดการข้อมูล">
+  <div class="agri-sidebar-heading">
+    <strong>เมนูจัดการข้อมูล</strong>
+    <span>เลือกหมวดที่ต้องการ</span>
+  </div>
+  <input type="search" id="nav-filter"
+         placeholder="ค้นหาเมนู..."
+         aria-label="ค้นหาเมนูจัดการข้อมูล">
+  <div class="agri-sidebar-groups">
+    {% for app in available_apps %}
+      <section class="agri-sidebar-group app-{{ app.app_label }}{% if app.app_url in request.path|urlencode %} current-app{% endif %}">
+        <a class="agri-sidebar-app-link" href="{{ app.app_url }}">{{ app.name }}</a>
+        <ul class="agri-sidebar-models">
+          {% for model in app.models %}
+            {% with model_name=model.object_name|lower %}
+              <li class="model-{{ model_name }}{% if model.admin_url in request.path|urlencode %} current-model{% endif %}">
+                {% if model.admin_url %}
+                  <a href="{{ model.admin_url }}"{% if model.admin_url in request.path|urlencode %} aria-current="page"{% endif %}>{{ model.name }}</a>
+                {% else %}
+                  <span>{{ model.name }}</span>
+                {% endif %}
+              </li>
+            {% endwith %}
+          {% endfor %}
+        </ul>
+      </section>
+    {% empty %}
+      <p class="agri-empty-state">ไม่มีเมนูที่บัญชีนี้สามารถใช้งานได้</p>
+    {% endfor %}
+  </div>
+</nav>

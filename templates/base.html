@@ -1,0 +1,199 @@
+{% load static %}
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}ตลาดเกษตรชุมชน{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            leaf: "#2f6f1d",
+            mint: "#edf7e8",
+            soil: "#805336",
+            rice: "#f4c95d",
+            ink: "#17211d"
+          },
+          boxShadow: {
+            soft: "0 10px 28px rgba(23, 33, 29, 0.08)"
+          }
+        }
+      }
+    }
+  </script>
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <script src="{% static 'vendor/lucide.min.js' %}"></script>
+  {% block extra_head %}{% endblock %}
+  <style>
+    summary::-webkit-details-marker { display: none; }
+    .icon-fallback { display: inline-flex; font-size: 0.75rem; font-weight: 600; line-height: 1; }
+    :where(button, a, summary, span):has(> svg[data-lucide]) > .icon-fallback { display: none; }
+  </style>
+</head>
+<body class="flex min-h-screen flex-col bg-white text-ink">
+  <header class="sticky top-0 z-40 bg-leaf text-white shadow-sm">
+    <div class="relative mx-auto grid min-h-[68px] w-full max-w-[1500px] grid-cols-1 items-center gap-x-3 gap-y-2 px-4 py-2 sm:px-6 lg:grid-cols-[220px_minmax(420px,1fr)_auto] lg:px-8">
+      <a href="{% url 'catalog:product_list' %}" class="flex min-w-0 items-center gap-2.5" aria-label="หน้าหลักตลาดเกษตรชุมชน">
+        <span class="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-md bg-white p-0.5">
+          <img src="{% static 'logo.svg' %}" alt="" class="h-full w-full object-contain">
+        </span>
+        <span class="hidden min-w-0 sm:block">
+          <span class="block whitespace-nowrap text-base font-semibold leading-tight">ตลาดเกษตรชุมชน</span>
+          <span class="block whitespace-nowrap text-xs text-green-100">ซื้อขายตรงจากชุมชน</span>
+        </span>
+      </a>
+
+      <form method="get" action="{% url 'catalog:product_list' %}" class="order-3 col-span-1 grid w-full grid-cols-[minmax(105px,0.72fr)_minmax(0,1.6fr)] gap-2 lg:order-none lg:grid-cols-[180px_minmax(280px,1fr)]">
+        <div class="relative min-w-0">
+          <label class="sr-only" for="province-search">ค้นหาจังหวัด</label>
+          <i data-lucide="map-pin" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-leaf" aria-hidden="true"></i>
+          <input id="province-search" class="h-10 w-full rounded-md border-0 bg-white pl-9 pr-3 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-rice" type="search" name="province" value="{{ request.GET.province }}" placeholder="ค้นหาจังหวัด" list="province-options" autocomplete="off">
+          <datalist id="province-options">
+            {% for province in provinces %}<option value="{{ province }}">{% endfor %}
+          </datalist>
+        </div>
+        <div class="relative min-w-0">
+          <label class="sr-only" for="global-product-search">ค้นหาสินค้า</label>
+          <input id="global-product-search" class="h-10 w-full rounded-md border-0 bg-white px-4 pr-12 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-rice" type="search" name="q" value="{{ request.GET.q }}" placeholder="ค้นหาสินค้า">
+          <button type="submit" class="absolute right-0 top-0 flex h-10 w-11 items-center justify-center rounded-r-md text-leaf hover:bg-emerald-50" title="ค้นหา">
+            <i data-lucide="search" class="h-5 w-5" aria-hidden="true"></i><span class="icon-fallback">ค้น</span>
+            <span class="sr-only">ค้นหา</span>
+          </button>
+        </div>
+      </form>
+
+      <nav class="absolute right-4 top-2 flex shrink-0 items-center justify-end gap-1 sm:right-6 sm:gap-2 lg:static" aria-label="เมนูผู้ใช้">
+        {% if user.is_authenticated %}
+          <a data-notification-bell class="relative flex h-11 w-11 items-center justify-center rounded-md hover:bg-white/10" href="{% url 'accounts:notifications' %}" title="การแจ้งเตือน">
+        {% else %}
+          <a data-notification-bell class="relative flex h-11 w-11 items-center justify-center rounded-md hover:bg-white/10" href="{% url 'login' %}?next={% url 'accounts:notifications' %}" title="การแจ้งเตือน">
+        {% endif %}
+            <i data-lucide="bell" class="h-7 w-7" aria-hidden="true"></i><span class="icon-fallback">แจ้งเตือน</span>
+            {% if unread_notification_count %}
+              <span data-notification-count="{{ unread_notification_count }}" class="absolute right-0 top-0 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-leaf bg-rice px-1 text-[10px] font-bold leading-none text-emerald-950" aria-label="มีการแจ้งเตือนที่ยังไม่อ่าน {{ unread_notification_count }} รายการ">
+                {% if unread_notification_count > 99 %}99+{% else %}{{ unread_notification_count }}{% endif %}
+              </span>
+            {% endif %}
+            <span class="sr-only">การแจ้งเตือน</span>
+          </a>
+
+        {% if user.is_authenticated %}
+          <a class="flex h-11 w-11 items-center justify-center rounded-md hover:bg-white/10" href="{% url 'accounts:favorites' %}" title="สินค้าที่ถูกใจ">
+        {% else %}
+          <a class="flex h-11 w-11 items-center justify-center rounded-md hover:bg-white/10" href="{% url 'login' %}?next={% url 'accounts:favorites' %}" title="สินค้าที่ถูกใจ">
+        {% endif %}
+            <i data-lucide="heart" class="h-7 w-7" aria-hidden="true"></i><span class="icon-fallback text-lg">♡</span>
+            <span class="sr-only">สินค้าที่ถูกใจ</span>
+          </a>
+
+        {% if user.is_authenticated %}
+          <a class="flex h-11 w-11 items-center justify-center rounded-md hover:bg-white/10" href="{% url 'orders:cart' %}" title="ตะกร้าสินค้า">
+        {% else %}
+          <a class="flex h-11 w-11 items-center justify-center rounded-md hover:bg-white/10" href="{% url 'login' %}?next={% url 'orders:cart' %}" title="ตะกร้าสินค้า">
+        {% endif %}
+            <i data-lucide="shopping-cart" class="h-7 w-7" aria-hidden="true"></i><span class="icon-fallback">ตะกร้า</span>
+            <span class="sr-only">ตะกร้าสินค้า</span>
+          </a>
+
+        <details class="group relative">
+          <summary class="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-md hover:bg-white/10" title="โปรไฟล์">
+            {% if user.is_authenticated and user.avatar %}
+              <img src="{{ user.avatar.url }}" alt="รูปโปรไฟล์ของ {{ user.display_name|default:user.username }}" class="h-9 w-9 rounded-full border-2 border-white/80 object-cover shadow-sm">
+            {% else %}
+              <i data-lucide="user-round" class="h-7 w-7" aria-hidden="true"></i><span class="icon-fallback">โปรไฟล์</span>
+            {% endif %}
+            <span class="sr-only">เปิดเมนูโปรไฟล์</span>
+          </summary>
+          <div class="absolute right-0 mt-2 w-64 overflow-hidden rounded-md border border-stone-200 bg-white py-2 text-sm text-slate-800 shadow-xl">
+            {% if user.is_authenticated %}
+              <div class="border-b border-stone-100 px-4 py-3">
+                <p class="truncate font-semibold">{{ user.display_name|default:user.username }}</p>
+                <p class="mt-0.5 text-xs text-slate-500">{{ user.get_role_display }}</p>
+              </div>
+              <a class="block px-4 py-3 font-medium text-slate-800 hover:bg-stone-50" href="{% url 'accounts:account_history' %}">บัญชีของฉัน</a>
+              {% if user.is_cooperative_staff %}
+                <a class="block px-4 py-3 font-medium text-leaf hover:bg-emerald-50" href="{% url 'accounts:staff_dashboard' %}">ศูนย์เจ้าหน้าที่วิสาหกิจชุมชน</a>
+              {% endif %}
+              {% if user.is_farmer %}
+                <a class="block px-4 py-3 font-medium text-slate-800 hover:bg-stone-50" href="{% url 'catalog:seller_store' user.pk %}">หน้าร้านค้าของฉัน</a>
+                <a class="block px-4 py-3 font-medium text-slate-800 hover:bg-stone-50" href="{% url 'accounts:farmer_shop_center' %}">ร้านค้าของฉัน</a>
+              {% endif %}
+              <a class="block px-4 py-3 font-medium text-slate-800 hover:bg-stone-50" href="{% url 'orders:order_list' %}">การซื้อของฉัน</a>
+              {% if user.is_farmer %}
+                <a class="block px-4 py-3 font-medium text-leaf hover:bg-emerald-50" href="{% url 'catalog:product_create' %}">เพิ่มสินค้า</a>
+              {% endif %}
+              {% if not request.admin_preview %}
+                <form method="post" action="{% url 'logout' %}" class="border-t border-stone-100 pt-1">
+                  {% csrf_token %}
+                  <button class="w-full px-4 py-2.5 text-left font-medium text-red-700 hover:bg-red-50" type="submit">ออกจากระบบ</button>
+                </form>
+              {% endif %}
+            {% else %}
+              <a class="block px-4 py-2.5 font-semibold text-leaf hover:bg-emerald-50" href="{% url 'login' %}">เข้าสู่ระบบ</a>
+              <a class="block px-4 py-2.5 hover:bg-stone-50" href="{% url 'accounts:signup' %}">สมัครสมาชิก</a>
+              <a class="block px-4 py-2.5 hover:bg-stone-50" href="{% url 'accounts:news_list' %}">ข่าวสาร</a>
+              <a class="block px-4 py-2.5 hover:bg-stone-50" href="{% url 'catalog:contact' %}">ติดต่อเรา</a>
+            {% endif %}
+          </div>
+        </details>
+      </nav>
+    </div>
+
+    {% if request.admin_preview %}
+      <div class="bg-amber-50 text-amber-950">
+        <div class="mx-auto flex max-w-[1500px] flex-wrap items-center justify-between gap-2 px-4 py-2 text-sm sm:px-6 lg:px-8">
+          <span class="font-semibold">กำลังดูเว็บไซต์ในโหมดผู้ดูแลระบบ</span>
+          <div class="flex items-center gap-3">
+            <a class="font-semibold underline" href="{% url 'admin:index' %}">กลับศูนย์เจ้าของระบบ</a>
+            <form method="post" action="{% url 'exit_admin_site_preview' %}">
+              {% csrf_token %}
+              <button class="font-semibold underline" type="submit">ออกจากโหมดนี้</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+  </header>
+
+  <main class="{% block main_class %}mx-auto w-full max-w-[1500px] flex-1 px-4 py-6 sm:px-6 lg:px-8{% endblock %}">
+    {% if request.path != '/' %}
+      <nav class="mx-auto mb-5 flex w-full max-w-[1500px] items-center" aria-label="การนำทางย้อนกลับ">
+        <button
+          type="button"
+          data-site-back
+          class="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-leaf hover:bg-mint hover:text-leaf focus:outline-none focus:ring-2 focus:ring-leaf/20"
+          onclick="if (document.referrer && document.referrer.indexOf(window.location.origin) === 0) { window.history.back(); } else { window.location.href='{% url 'catalog:product_list' %}'; }"
+          title="ย้อนกลับ"
+        >
+          <i data-lucide="arrow-left" class="h-4 w-4" aria-hidden="true"></i>
+          <span>ย้อนกลับ</span>
+        </button>
+      </nav>
+    {% endif %}
+    {% if messages %}
+      <div class="mx-auto mb-5 w-full max-w-[1500px] space-y-2 px-4 pt-4 sm:px-6 lg:px-8">
+        {% for message in messages %}
+          <div class="rounded-md border border-stone-200 bg-white px-4 py-3 text-sm shadow-soft">{{ message }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="mt-auto border-t border-stone-200 bg-white">
+    <div class="mx-auto flex w-full max-w-[1500px] items-center px-4 py-5 text-sm text-slate-600 sm:px-6 lg:px-8">
+      <p>ตลาดเกษตรชุมชน</p>
+    </div>
+  </footer>
+
+  <script>
+    if (window.lucide) {
+      window.lucide.createIcons();
+    }
+  </script>
+  {% block extra_scripts %}{% endblock %}
+</body>
+</html>

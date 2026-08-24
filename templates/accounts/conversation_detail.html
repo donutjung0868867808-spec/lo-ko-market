@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}สนทนากับ {{ other_participant }}{% endblock %}
+
+{% block content %}
+<section class="mx-auto flex w-full max-w-4xl flex-col overflow-hidden rounded-md border border-stone-200 bg-white shadow-sm" style="min-height: calc(100vh - 190px);">
+  <header class="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 px-4 py-4 sm:px-6">
+    <div class="flex min-w-0 items-center gap-3">
+      <a class="grid h-10 w-10 shrink-0 place-items-center rounded-md border border-stone-200 text-slate-700" href="{% url 'accounts:conversations' %}" title="กลับไปกล่องข้อความ" aria-label="กลับไปกล่องข้อความ"><i data-lucide="arrow-left" class="h-5 w-5" aria-hidden="true"></i></a>
+      <div class="min-w-0"><h1 class="truncate font-semibold text-slate-950">{{ other_participant }}</h1><p class="truncate text-xs text-slate-500">{{ conversation.product.name }}</p></div>
+    </div>
+    <a class="text-sm font-semibold text-leaf hover:underline" href="{% url 'catalog:product_detail' conversation.product_id %}">ดูสินค้า</a>
+  </header>
+
+  <div class="flex-1 space-y-3 overflow-y-auto bg-stone-50 px-4 py-5 sm:px-6" id="message-list">
+    {% for item in conversation_messages %}
+      <div class="flex {% if item.sender_id == user.id %}justify-end{% else %}justify-start{% endif %}">
+        <div class="max-w-[82%] rounded-md px-4 py-3 {% if item.sender_id == user.id %}bg-leaf text-white{% else %}border border-stone-200 bg-white text-slate-900{% endif %}">
+          <p class="whitespace-pre-wrap break-words text-sm leading-6">{{ item.body }}</p>
+          <time class="mt-1 block text-right text-[11px] {% if item.sender_id == user.id %}text-emerald-100{% else %}text-slate-400{% endif %}" datetime="{{ item.created_at|date:'c' }}">{{ item.created_at|date:"d/m/Y H:i" }}</time>
+        </div>
+      </div>
+    {% empty %}
+      <div class="py-12 text-center text-sm text-slate-600">เริ่มส่งข้อความเกี่ยวกับสินค้า {{ conversation.product.name }}</div>
+    {% endfor %}
+  </div>
+
+  <form method="post" class="border-t border-stone-200 bg-white p-4 sm:p-5">
+    {% csrf_token %}
+    <label class="sr-only" for="{{ form.body.id_for_label }}">ข้อความ</label>
+    <div class="flex items-end gap-3">{{ form.body }}<button class="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-leaf text-white hover:bg-emerald-800" type="submit" title="ส่งข้อความ" aria-label="ส่งข้อความ"><i data-lucide="send" class="h-5 w-5" aria-hidden="true"></i></button></div>
+    {% for error in form.body.errors %}<p class="mt-2 text-sm text-red-700">{{ error }}</p>{% endfor %}
+  </form>
+</section>
+<script>document.addEventListener("DOMContentLoaded", function () { const list = document.getElementById("message-list"); if (list) list.scrollTop = list.scrollHeight; });</script>
+{% endblock %}

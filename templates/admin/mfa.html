@@ -1,0 +1,49 @@
+{% load static %}
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ยืนยันการเข้าสู่ระบบผู้ดูแล</title>
+  <link rel="stylesheet" href="{% static 'admin/admin-theme.css' %}?v=20260819-2">
+  <script defer src="{% static 'vendor/lucide.min.js' %}"></script>
+  <style>
+    .owner-mfa-page { min-height: 100vh; display: grid; place-items: center; margin: 0; padding: 24px; background: var(--page); }
+    .owner-mfa-card { width: min(100%, 440px); overflow: hidden; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); box-shadow: var(--shadow); }
+    .owner-mfa-head { background: var(--forest); color: #fff; padding: 22px; }
+    .owner-mfa-head h1 { margin: 0; color: #fff; font-size: 1.45rem; }
+    .owner-mfa-head p { margin: 7px 0 0; color: rgba(255,255,255,.78); line-height: 1.5; }
+    .owner-mfa-body { padding: 22px; }
+    .owner-mfa-back { display: inline-flex; align-items: center; gap: 7px; margin-bottom: 18px; color: var(--primary); font-weight: 800; text-decoration: none; }
+    .owner-mfa-body label { display: block; margin: 0 0 8px; color: var(--ink); font-weight: 850; }
+    .owner-mfa-code { width: 100%; min-height: 50px; font-size: 1.3rem; text-align: center; letter-spacing: .16em; }
+    .owner-mfa-submit { width: 100%; margin-top: 14px; border-color: var(--primary) !important; background: var(--primary) !important; color: #fff !important; }
+    .owner-mfa-resend { width: 100%; margin-top: 9px; border: 0; background: transparent; color: var(--primary); cursor: pointer; font-weight: 800; }
+    .owner-mfa-message { border-left: 4px solid var(--primary); background: var(--primary-soft); color: var(--ink); padding: 10px 12px; }
+  </style>
+</head>
+<body class="owner-mfa-page">
+  <main class="owner-mfa-card">
+    <div class="owner-mfa-head">
+      <h1>ยืนยันการเข้าสู่ระบบ</h1>
+      <p>กรอกรหัส 6 หลักที่ส่งไปยัง {{ email }}</p>
+    </div>
+    <div class="owner-mfa-body">
+      <a class="owner-mfa-back" href="{% url 'admin_login' %}"><i data-lucide="arrow-left" aria-hidden="true"></i><span>กลับหน้าเข้าสู่ระบบ</span></a>
+      {% for message in messages %}<p class="owner-mfa-message">{{ message }}</p>{% endfor %}
+      <form method="post">
+        {% csrf_token %}
+        <label for="id_code">รหัสยืนยัน</label>
+        <input class="owner-mfa-code" id="id_code" name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" required autofocus>
+        <button class="owner-mfa-submit" type="submit">ยืนยัน</button>
+      </form>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="resend">
+        <button class="owner-mfa-resend" type="submit">ส่งรหัสใหม่</button>
+      </form>
+    </div>
+  </main>
+  <script>document.addEventListener("DOMContentLoaded", function () { if (window.lucide) window.lucide.createIcons(); });</script>
+</body>
+</html>

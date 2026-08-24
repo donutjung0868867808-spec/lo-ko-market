@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}รายงาน{% endblock %}
+
+{% block content %}
+<section class="space-y-5">
+  <div>
+    <h1 class="text-2xl font-semibold text-slate-950">รายงาน</h1>
+    <p class="mt-1 text-sm text-slate-600">ติดตามรายการแจ้งปัญหาและผลการดำเนินการ</p>
+  </div>
+  <div class="overflow-hidden rounded-md border border-stone-200 bg-white shadow-sm">
+    <div class="divide-y divide-stone-100">
+      {% for report in reports %}
+        <div class="grid gap-3 px-4 py-4 lg:grid-cols-[120px_1fr_160px_120px] lg:items-center">
+          <div>
+            <p class="text-sm font-semibold text-slate-950">#{{ report.id }}</p>
+            <p class="text-xs text-slate-500">{{ report.created_at|date:"d M Y" }}</p>
+          </div>
+          <div>
+            <p class="font-medium text-slate-950">{{ report.get_target_type_display }} · {{ report.get_reason_display }}</p>
+            <p class="mt-1 text-sm text-slate-600">{{ report.details|truncatechars:120 }}</p>
+            {% if report.product %}<p class="mt-1 text-xs text-slate-500">สินค้า: {{ report.product.name }}</p>{% endif %}
+            {% if report.reported_user %}<p class="mt-1 text-xs text-slate-500">สมาชิก: {{ report.reported_user }}</p>{% endif %}
+          </div>
+          <p class="text-sm text-slate-600">{{ report.community|default:"-" }}</p>
+          <div class="flex flex-wrap gap-2 lg:justify-end">
+            <span class="rounded-md bg-stone-100 px-3 py-1 text-xs font-semibold text-slate-700">{{ report.get_status_display }}</span>
+            <a class="rounded-md border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700" href="{% url 'accounts:report_detail' report.id %}">เปิดรายงาน</a>
+            {% if user.is_owner or user.is_cooperative_staff %}
+              <a class="rounded-md border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700" href="{% url 'accounts:resolve_report' report.id %}">จัดการ</a>
+            {% endif %}
+          </div>
+        </div>
+      {% empty %}
+        <p class="p-5 text-sm text-slate-600">ยังไม่มีรายงาน</p>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}

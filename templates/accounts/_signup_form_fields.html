@@ -1,0 +1,15 @@
+<div class="grid gap-4 sm:grid-cols-2">
+  {% for field in form.hidden_fields %}{{ field }}{% endfor %}
+  {% for field in form.visible_fields %}
+    <div class="{% if field.name == 'password1' or field.name == 'password2' %}sm:col-span-1{% else %}sm:col-span-2{% endif %}">
+      <label class="text-sm font-semibold text-slate-700" for="{{ field.id_for_label }}">{{ field.label }}</label>
+      <div class="mt-1.5">{{ field }}</div>
+      {% if field.help_text %}
+        <p class="mt-1 text-xs leading-5 text-slate-500">{{ field.help_text }}</p>
+      {% endif %}
+      {% for error in field.errors %}
+        <p class="mt-1 text-sm text-red-700">{{ error }}</p>
+      {% endfor %}
+    </div>
+  {% endfor %}
+</div>

@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}ตรวจสินค้า{% endblock %}
+
+{% block content %}
+<section class="space-y-5">
+  <div>
+    <h1 class="text-2xl font-semibold text-slate-950">ตรวจสินค้า</h1>
+    {% if community %}<p class="mt-1 text-sm text-slate-600">{{ community.name }}</p>{% endif %}
+  </div>
+  <div class="space-y-4">
+    {% for product in products %}
+      <article class="rounded-md border border-stone-200 bg-white p-4 shadow-sm">
+        <div class="grid gap-4 lg:grid-cols-[140px_1fr_280px]">
+          <div class="aspect-square overflow-hidden rounded-md bg-stone-100">
+            {% if product.image %}
+              <img class="h-full w-full object-cover" src="{{ product.image.url }}" alt="{{ product.name }}">
+            {% endif %}
+          </div>
+          <div>
+            <p class="text-sm text-slate-600">{{ product.community.name }} · {{ product.seller }}</p>
+            <h2 class="mt-1 text-lg font-semibold">{{ product.name }}</h2>
+            <p class="mt-2 text-sm text-slate-700">{{ product.description }}</p>
+            <p class="mt-2 font-medium text-leaf">฿{{ product.price|floatformat:2 }} / {{ product.get_unit_display }}</p>
+          </div>
+          <form method="post" class="space-y-3">
+            {% csrf_token %}
+            <input type="hidden" name="product_id" value="{{ product.id }}">
+            {{ form.decision }}
+            {{ form.rejection_reason }}
+            <button class="w-full rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700" type="submit">บันทึกผล</button>
+          </form>
+        </div>
+      </article>
+    {% empty %}
+      <div class="rounded-md border border-stone-200 bg-white p-6 text-sm text-slate-600 shadow-sm">ไม่มีสินค้ารอตรวจสอบ</div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

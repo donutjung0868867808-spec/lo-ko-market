@@ -1,0 +1,289 @@
+{% extends "base.html" %}
+
+{% block title %}{{ product.name }}{% endblock %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-[1320px]">
+  <nav class="mb-5 flex flex-wrap items-center gap-2 text-sm text-slate-500" aria-label="เส้นทางหน้าเว็บ">
+    <a class="hover:text-leaf" href="{% url 'catalog:product_list' %}">สินค้า</a>
+    <i data-lucide="chevron-right" class="h-4 w-4" aria-hidden="true"></i>
+    {% if product.category %}<a class="hover:text-leaf" href="{% url 'catalog:product_list' %}?category={{ product.category_id }}">{{ product.category.name }}</a><i data-lucide="chevron-right" class="h-4 w-4" aria-hidden="true"></i>{% endif %}
+    <span class="font-medium text-slate-800">{{ product.name }}</span>
+  </nav>
+
+  <section class="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(420px,0.92fr)] lg:gap-12" aria-labelledby="product-title">
+    <div class="min-w-0">
+      <div class="flex aspect-square max-h-[620px] w-full items-center justify-center overflow-hidden rounded-md border border-stone-200 bg-white">
+        {% if product.image %}
+          <img id="main-product-image" class="h-full w-full object-contain p-3" src="{{ product.image.url }}" alt="{{ product.name }}">
+        {% elif product.images.first %}
+          <img id="main-product-image" class="h-full w-full object-contain p-3" src="{{ product.images.first.image.url }}" alt="{{ product.images.first.alt_text|default:product.name }}">
+        {% else %}
+          <div class="flex h-full w-full flex-col items-center justify-center gap-3 bg-stone-50 text-slate-500">
+            <i data-lucide="image" class="h-12 w-12" aria-hidden="true"></i>
+            <span class="text-sm font-medium">ยังไม่มีรูปสินค้า</span>
+          </div>
+        {% endif %}
+      </div>
+
+      {% if product.image or product.images.all %}
+        <div class="mt-3 grid grid-cols-[44px_minmax(0,1fr)_44px] items-center gap-2">
+          <button type="button" class="gallery-scroll grid h-11 w-11 place-items-center rounded-md border border-stone-300 bg-white text-leaf hover:border-leaf" data-gallery-direction="-1" title="รูปก่อนหน้า" aria-label="รูปก่อนหน้า">
+            <i data-lucide="chevron-left" class="h-5 w-5" aria-hidden="true"></i>
+          </button>
+          <div id="product-thumbnails" class="flex min-w-0 gap-2 overflow-x-auto scroll-smooth py-1 [scrollbar-width:none]">
+            {% if product.image %}
+              <button type="button" class="gallery-thumb h-20 w-20 shrink-0 overflow-hidden rounded-md border-2 border-leaf bg-white" data-gallery-thumb data-gallery-src="{{ product.image.url }}" data-gallery-alt="{{ product.name }}" aria-label="ดูรูปหลัก">
+                <img class="h-full w-full object-cover" src="{{ product.image.url }}" alt="">
+              </button>
+            {% endif %}
+            {% for item in product.images.all %}
+              <div class="relative h-20 w-20 shrink-0">
+                <button type="button" class="gallery-thumb h-full w-full overflow-hidden rounded-md border border-stone-300 bg-white hover:border-leaf" data-gallery-thumb data-gallery-src="{{ item.image.url }}" data-gallery-alt="{{ item.alt_text|default:product.name }}" aria-label="ดูรูปสินค้า {{ forloop.counter }}">
+                  <img class="h-full w-full object-cover" src="{{ item.image.url }}" alt="">
+                </button>
+                {% if can_manage_product %}
+                  <form method="post" action="{% url 'catalog:product_image_delete' product.id item.id %}" class="absolute right-1 top-1">
+                    {% csrf_token %}
+                    <button class="grid h-7 w-7 place-items-center rounded-md bg-white text-red-700 shadow" type="submit" title="ลบรูป" aria-label="ลบรูป">
+                      <i data-lucide="trash-2" class="h-4 w-4" aria-hidden="true"></i>
+                    </button>
+                  </form>
+                {% endif %}
+              </div>
+            {% endfor %}
+          </div>
+          <button type="button" class="gallery-scroll grid h-11 w-11 place-items-center rounded-md border border-stone-300 bg-white text-leaf hover:border-leaf" data-gallery-direction="1" title="รูปถัดไป" aria-label="รูปถัดไป">
+            <i data-lucide="chevron-right" class="h-5 w-5" aria-hidden="true"></i>
+          </button>
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="min-w-0 py-1 lg:py-3">
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <p class="text-sm font-semibold text-leaf">{{ product.category.name|default:"สินค้าเกษตรชุมชน" }}</p>
+          <h1 id="product-title" class="mt-2 text-2xl font-semibold leading-snug text-ink sm:text-3xl">{{ product.name }}</h1>
+          <p class="mt-2 text-sm text-slate-600">จาก {{ product.community.name }}</p>
+        </div>
+        {% if user.is_authenticated %}
+          <form method="post" action="{% url 'catalog:toggle_product_favorite' product.id %}">
+            {% csrf_token %}
+            <button class="grid h-11 w-11 place-items-center rounded-md border {% if is_product_favorite %}border-red-300 bg-red-50 text-red-600{% else %}border-stone-300 bg-white text-slate-600{% endif %} hover:border-red-400 hover:text-red-600" type="submit" title="{% if is_product_favorite %}นำออกจากรายการโปรด{% else %}เพิ่มในรายการโปรด{% endif %}" aria-label="{% if is_product_favorite %}นำออกจากรายการโปรด{% else %}เพิ่มในรายการโปรด{% endif %}">
+              <i data-lucide="heart" class="h-5 w-5" aria-hidden="true"></i>
+            </button>
+          </form>
+        {% endif %}
+      </div>
+
+      <div class="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 border-y border-stone-200 py-4 text-sm">
+        <span class="inline-flex items-center gap-1 font-semibold text-slate-900"><i data-lucide="star" class="h-4 w-4 fill-amber-400 text-amber-400" aria-hidden="true"></i>{{ product.average_rating|floatformat:1 }}</span>
+        <span class="text-slate-600"><strong class="font-semibold text-slate-900">{{ review_count }}</strong> รีวิว</span>
+        <span class="text-slate-600">ขายแล้ว <strong class="font-semibold text-slate-900">{{ sold_quantity|floatformat:"-2" }}</strong> {{ product.get_unit_display }}</span>
+      </div>
+
+      <div class="mt-6">
+        <p class="text-3xl font-semibold text-leaf">฿{{ product.price|floatformat:2 }}<span class="ml-2 text-base font-normal text-slate-500">/ {{ product.get_unit_display }}</span></p>
+        <p class="mt-2 text-sm text-slate-500">สั่งขั้นต่ำ {{ product.minimum_order_quantity|floatformat:"-2" }} {{ product.get_unit_display }} · เหลือ {{ product.stock_quantity|floatformat:"-2" }} {{ product.get_unit_display }}</p>
+      </div>
+
+      {% if product.is_available %}
+        <form id="product-cart-form" method="post" action="{% url 'orders:cart_add' product.id %}" class="mt-7">
+          {% csrf_token %}
+          <div class="flex flex-wrap items-center gap-4">
+            <label class="text-sm font-semibold text-slate-700" for="product-quantity">จำนวน</label>
+            <div class="grid h-12 grid-cols-[46px_96px_46px] overflow-hidden rounded-md border border-stone-300 bg-white">
+              <button id="quantity-minus" type="button" class="grid place-items-center border-r border-stone-300 text-slate-700 hover:bg-stone-50" title="ลดจำนวน" aria-label="ลดจำนวน"><i data-lucide="minus" class="h-4 w-4" aria-hidden="true"></i></button>
+              <input id="product-quantity" name="quantity" type="number" min="{{ product.minimum_order_quantity|floatformat:'-2' }}" max="{{ product.stock_quantity|floatformat:'-2' }}" step="{{ product.quantity_step|floatformat:'-2' }}" value="{{ product.minimum_order_quantity|floatformat:'-2' }}" inputmode="decimal" class="w-full border-0 bg-white px-2 text-center text-sm font-semibold outline-none" aria-describedby="quantity-help">
+              <button id="quantity-plus" type="button" class="grid place-items-center border-l border-stone-300 text-slate-700 hover:bg-stone-50" title="เพิ่มจำนวน" aria-label="เพิ่มจำนวน"><i data-lucide="plus" class="h-4 w-4" aria-hidden="true"></i></button>
+            </div>
+          </div>
+          <p id="quantity-help" class="sr-only">เลือกจำนวนตั้งแต่ {{ product.minimum_order_quantity }} ถึง {{ product.stock_quantity }} {{ product.get_unit_display }}</p>
+          <div class="mt-6 grid gap-3 sm:grid-cols-2">
+            <button class="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-leaf bg-white px-5 py-3 text-sm font-semibold text-leaf hover:bg-emerald-50" type="submit">
+              <i data-lucide="shopping-cart" class="h-5 w-5" aria-hidden="true"></i>เพิ่มลงตะกร้า
+            </button>
+            <a id="buy-now-link" class="inline-flex min-h-12 items-center justify-center rounded-md bg-leaf px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-800" data-buy-url="{% url 'orders:checkout' product.id %}" href="{% url 'orders:checkout' product.id %}?quantity={{ product.minimum_order_quantity|floatformat:'-2' }}">ซื้อทันที</a>
+          </div>
+        </form>
+      {% else %}
+        <div class="mt-7 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">สินค้านี้ยังไม่พร้อมจำหน่าย</div>
+      {% endif %}
+
+      <div class="mt-7 divide-y divide-stone-200 rounded-md border border-stone-200 bg-white">
+        <div class="flex gap-3 p-4">
+          <i data-lucide="truck" class="mt-0.5 h-5 w-5 shrink-0 text-leaf" aria-hidden="true"></i>
+          <div><p class="text-sm font-semibold text-slate-900">การจัดส่ง</p><p class="mt-1 text-sm text-slate-600">คำนวณค่าจัดส่งตามจังหวัดปลายทางในขั้นตอนสั่งซื้อ</p></div>
+        </div>
+        <div class="flex gap-3 p-4">
+          <i data-lucide="map-pin" class="mt-0.5 h-5 w-5 shrink-0 text-leaf" aria-hidden="true"></i>
+          <div><p class="text-sm font-semibold text-slate-900">จัดส่งจาก</p><p class="mt-1 text-sm text-slate-600">{{ product.community.district|default:"ชุมชน" }}{% if product.community.province %}, {{ product.community.province }}{% endif %}</p></div>
+        </div>
+        <div class="flex gap-3 p-4">
+          <i data-lucide="store" class="mt-0.5 h-5 w-5 shrink-0 text-leaf" aria-hidden="true"></i>
+          <div class="min-w-0"><p class="text-sm font-semibold text-slate-900">ผู้ขาย {{ product.seller }}</p><p class="mt-1 truncate text-sm text-slate-600">{{ product.community.name }}</p></div>
+        </div>
+      </div>
+
+      {% if user.is_authenticated and user != product.seller %}
+        <div class="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm">
+          <form method="post" action="{% url 'catalog:toggle_seller_favorite' product.id %}">{% csrf_token %}<button class="font-semibold text-leaf hover:underline" type="submit">{% if is_seller_favorite %}เลิกติดตามร้านค้า{% else %}ติดตามร้านค้า{% endif %}</button></form>
+          <a class="text-slate-600 hover:text-red-700" href="{% url 'catalog:report_product' product.id %}">รายงานสินค้า</a>
+          <a class="text-slate-600 hover:text-red-700" href="{% url 'catalog:report_seller' product.id %}">รายงานผู้ขาย</a>
+        </div>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="mt-12 rounded-md border border-emerald-200 bg-white p-5 sm:p-6" aria-labelledby="seller-profile-title">
+    <div class="grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(420px,0.85fr)] lg:items-center">
+      <div class="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center">
+        <div class="grid h-20 w-20 shrink-0 place-items-center rounded-full bg-emerald-50 text-leaf ring-1 ring-emerald-200"><i data-lucide="sprout" class="h-9 w-9" aria-hidden="true"></i></div>
+        <div class="min-w-0 flex-1">
+          <div class="flex flex-wrap items-center gap-2">
+            <h2 id="seller-profile-title" class="truncate text-lg font-semibold text-slate-950">{{ seller_profile.farm_name|default:product.seller }}</h2>
+            {% if seller_profile.is_verified %}<span class="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-1 text-xs font-semibold text-leaf"><i data-lucide="badge-check" class="h-3.5 w-3.5" aria-hidden="true"></i>ยืนยันแล้ว</span>{% endif %}
+          </div>
+          <p class="mt-1 truncate text-sm text-slate-600">{{ product.community.name }}</p>
+          <div class="mt-3 flex flex-wrap gap-2">
+            {% if user.is_authenticated and user != product.seller and user.is_consumer %}
+              <form method="post" action="{% url 'accounts:conversation_start' product.id %}">{% csrf_token %}<button class="inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-leaf px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-800" type="submit"><i data-lucide="message-circle" class="h-4 w-4" aria-hidden="true"></i>แชทกับผู้ขาย</button></form>
+            {% elif not user.is_authenticated %}
+              <a class="inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-leaf px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-800" href="{% url 'login' %}?next={{ request.path|urlencode }}"><i data-lucide="message-circle" class="h-4 w-4" aria-hidden="true"></i>แชทกับผู้ขาย</a>
+            {% endif %}
+            <a class="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-leaf bg-white px-5 py-2 text-sm font-semibold text-leaf hover:bg-emerald-50" href="{% url 'catalog:seller_store' product.seller_id %}"><i data-lucide="store" class="h-4 w-4" aria-hidden="true"></i>ดูร้านค้า</a>
+          </div>
+        </div>
+      </div>
+      <dl class="grid grid-cols-2 gap-x-4 gap-y-5 border-t border-stone-200 pt-5 text-sm sm:grid-cols-4 lg:border-l lg:border-t-0 lg:pl-7 lg:pt-0">
+        <div><dt class="text-slate-500">คะแนน</dt><dd class="mt-1 font-semibold text-slate-950">{{ seller_rating|floatformat:1 }}</dd></div>
+        <div><dt class="text-slate-500">เปิดร้านเมื่อ</dt><dd class="mt-1 font-semibold text-slate-950">{{ product.seller.date_joined|date:"m/Y" }}</dd></div>
+        <div><dt class="text-slate-500">รายการสินค้า</dt><dd class="mt-1 font-semibold text-slate-950">{{ seller_product_count }}</dd></div>
+        <div><dt class="text-slate-500">ผู้ติดตาม</dt><dd class="mt-1 font-semibold text-slate-950">{{ seller_follower_count }}</dd></div>
+      </dl>
+    </div>
+  </section>
+  <section class="mt-12 grid gap-8 border-t border-stone-200 pt-9 lg:grid-cols-[minmax(0,1fr)_340px]" aria-labelledby="product-information-title">
+    <div>
+      <h2 id="product-information-title" class="text-xl font-semibold text-ink">รายละเอียดสินค้า</h2>
+      <p class="mt-4 whitespace-pre-line text-sm leading-7 text-slate-700">{{ product.description|default:"ผู้ขายยังไม่ได้เพิ่มรายละเอียดสินค้า" }}</p>
+    </div>
+    <dl class="grid grid-cols-2 gap-x-5 gap-y-4 text-sm">
+      <div><dt class="text-slate-500">รหัสสินค้า</dt><dd class="mt-1 font-semibold text-slate-900">{{ product.sku|default:"-" }}</dd></div>
+      <div><dt class="text-slate-500">สถานะ</dt><dd class="mt-1 font-semibold text-slate-900">{{ product.get_status_display }}</dd></div>
+      <div><dt class="text-slate-500">วันที่เก็บเกี่ยว</dt><dd class="mt-1 font-semibold text-slate-900">{{ product.harvest_date|date:"d/m/Y"|default:"-" }}</dd></div>
+      <div><dt class="text-slate-500">ควรบริโภคก่อน</dt><dd class="mt-1 font-semibold text-slate-900">{{ product.expiry_date|date:"d/m/Y"|default:"-" }}</dd></div>
+    </dl>
+  </section>
+
+  {% if recommended_products %}
+    <section class="mt-10" aria-labelledby="recommended-products-title">
+      <div class="flex flex-wrap items-end justify-between gap-3 border-b border-stone-200 pb-4"><div><p class="text-sm font-semibold text-leaf">เลือกซื้อเพิ่มเติม</p><h2 id="recommended-products-title" class="mt-1 text-xl font-semibold text-ink">สินค้าแนะนำ</h2></div><a class="text-sm font-semibold text-leaf hover:underline" href="{% url 'catalog:product_list' %}">ดูสินค้าทั้งหมด</a></div>
+      <div class="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        {% for item in recommended_products %}
+          <a class="group min-w-0 overflow-hidden rounded-md border border-stone-200 bg-white hover:border-emerald-400 hover:shadow-sm" href="{% url 'catalog:product_detail' item.pk %}">
+            <div class="aspect-square overflow-hidden bg-stone-50">
+              {% if item.image %}<img class="h-full w-full object-cover transition duration-200 group-hover:scale-[1.02]" src="{{ item.image.url }}" alt="{{ item.name }}">{% elif item.images.first %}<img class="h-full w-full object-cover transition duration-200 group-hover:scale-[1.02]" src="{{ item.images.first.image.url }}" alt="{{ item.name }}">{% else %}<div class="grid h-full place-items-center text-leaf"><i data-lucide="package" class="h-7 w-7" aria-hidden="true"></i></div>{% endif %}
+            </div>
+            <div class="p-3"><h3 class="truncate text-sm font-semibold text-slate-950">{{ item.name }}</h3><p class="mt-2 font-semibold text-leaf">฿{{ item.price|floatformat:2 }}</p><p class="mt-1 truncate text-xs text-slate-500">{{ item.community.name }}</p></div>
+          </a>
+        {% endfor %}
+      </div>
+    </section>
+  {% endif %}
+  <section class="mt-10 border-t border-stone-200 pt-9" aria-labelledby="review-title">
+    <div class="flex flex-wrap items-end justify-between gap-3">
+      <div><h2 id="review-title" class="text-xl font-semibold text-ink">รีวิวสินค้า</h2><p class="mt-1 text-sm text-slate-600">ความคิดเห็นจากผู้ซื้อที่ชำระเงินแล้ว</p></div>
+      <p class="inline-flex items-center gap-1 text-sm font-semibold"><i data-lucide="star" class="h-4 w-4 fill-amber-400 text-amber-400" aria-hidden="true"></i>{{ product.average_rating|floatformat:1 }} จาก {{ review_count }} รีวิว</p>
+    </div>
+    <div class="mt-6 divide-y divide-stone-200 border-y border-stone-200">
+      {% for review in reviews %}
+        <article class="py-5">
+          <div class="flex flex-wrap items-center justify-between gap-3"><p class="font-semibold text-slate-900">{{ review.user }}</p><p class="inline-flex items-center gap-1 text-sm font-semibold text-leaf"><i data-lucide="star" class="h-4 w-4 fill-amber-400 text-amber-400" aria-hidden="true"></i>{{ review.rating }}/5</p></div>
+          {% if review.comment %}<p class="mt-2 text-sm leading-6 text-slate-700">{{ review.comment }}</p>{% endif %}
+        </article>
+      {% empty %}
+        <p class="py-6 text-sm text-slate-600">ยังไม่มีรีวิวสำหรับสินค้านี้</p>
+      {% endfor %}
+    </div>
+    {% if user.is_authenticated and user != product.seller %}
+      <form method="post" action="{% url 'catalog:submit_review' product.id %}" class="mt-6 grid gap-3 sm:grid-cols-[140px_minmax(0,1fr)_auto]">
+        {% csrf_token %}
+        <label class="sr-only" for="review-rating">คะแนน</label>
+        <select id="review-rating" name="rating" class="rounded-md border border-slate-300 bg-white px-3 py-2.5 text-sm"><option value="5">5 ดาว</option><option value="4">4 ดาว</option><option value="3">3 ดาว</option><option value="2">2 ดาว</option><option value="1">1 ดาว</option></select>
+        <label class="sr-only" for="review-comment">ความคิดเห็น</label>
+        <input id="review-comment" name="comment" class="rounded-md border border-slate-300 px-3 py-2.5 text-sm" placeholder="เขียนความคิดเห็นเกี่ยวกับสินค้า">
+        <button class="rounded-md bg-ink px-5 py-2.5 text-sm font-semibold text-white" type="submit">ส่งรีวิว</button>
+      </form>
+    {% endif %}
+  </section>
+
+  {% if can_manage_product or can_moderate_product %}
+    <section class="mt-10 border-t border-stone-200 pt-8" aria-labelledby="manage-product-title">
+      <div class="flex flex-wrap items-center justify-between gap-3"><h2 id="manage-product-title" class="text-lg font-semibold text-ink">เครื่องมือจัดการสินค้า</h2>{% if can_manage_product %}<a class="rounded-md border border-stone-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-stone-50" href="{% url 'catalog:product_update' product.id %}">แก้ไขสินค้า</a>{% endif %}</div>
+      {% if can_manage_product %}
+        <form method="post" enctype="multipart/form-data" action="{% url 'catalog:product_image_upload' product.id %}" class="mt-5 grid gap-3 rounded-md border border-stone-200 bg-white p-4 sm:grid-cols-[1fr_1fr_auto]">
+          {% csrf_token %}{{ image_form.image }}{{ image_form.alt_text }}<button class="rounded-md bg-leaf px-4 py-2 text-sm font-semibold text-white" type="submit">เพิ่มรูปสินค้า</button>
+        </form>
+      {% endif %}
+      {% if can_moderate_product %}
+        <div class="mt-4">
+          {% if product.status == 'blocked' %}
+            <form method="post" action="{% url 'catalog:product_moderation_action' product.id 'unblock' %}">{% csrf_token %}<button class="rounded-md bg-leaf px-4 py-2 text-sm font-semibold text-white" type="submit">ปลดบล็อกสินค้า</button></form>
+          {% else %}
+            <form method="post" action="{% url 'catalog:product_moderation_action' product.id 'block' %}" class="flex flex-col gap-2 sm:flex-row">{% csrf_token %}<input name="reason" class="min-w-0 flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm" placeholder="ระบุเหตุผลการบล็อกสินค้า"><button class="rounded-md bg-red-700 px-4 py-2 text-sm font-semibold text-white" type="submit">บล็อกสินค้า</button></form>
+          {% endif %}
+        </div>
+      {% endif %}
+    </section>
+  {% endif %}
+</div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const mainImage = document.getElementById("main-product-image");
+    const thumbnails = document.getElementById("product-thumbnails");
+    document.querySelectorAll("[data-gallery-thumb]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        if (!mainImage) return;
+        mainImage.src = button.dataset.gallerySrc;
+        mainImage.alt = button.dataset.galleryAlt;
+        document.querySelectorAll("[data-gallery-thumb]").forEach(function (thumb) {
+          thumb.classList.remove("border-2", "border-leaf");
+          thumb.classList.add("border", "border-stone-300");
+        });
+        button.classList.remove("border", "border-stone-300");
+        button.classList.add("border-2", "border-leaf");
+      });
+    });
+    document.querySelectorAll("[data-gallery-direction]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        if (thumbnails) thumbnails.scrollBy({ left: Number(button.dataset.galleryDirection) * 184, behavior: "smooth" });
+      });
+    });
+
+    const quantity = document.getElementById("product-quantity");
+    const buyNow = document.getElementById("buy-now-link");
+    function normalizeQuantity(value) {
+      if (!quantity) return value;
+      const step = Number(quantity.step || 0.5);
+      const minimum = Math.ceil(Number(quantity.min) / step) * step;
+      const maximum = Math.floor(Number(quantity.max) / step) * step;
+      const numeric = Math.round(Number(value) / step) * step;
+      return Number(Math.min(maximum, Math.max(minimum, Number.isFinite(numeric) ? numeric : minimum)).toFixed(2));
+    }
+    function updateQuantity(value) {
+      if (!quantity) return;
+      quantity.value = String(normalizeQuantity(value));
+      if (buyNow) buyNow.href = buyNow.dataset.buyUrl + "?quantity=" + encodeURIComponent(quantity.value);
+    }
+    if (quantity) {
+      document.getElementById("quantity-minus").addEventListener("click", function () { updateQuantity(Number(quantity.value) - Number(quantity.step || 1)); });
+      document.getElementById("quantity-plus").addEventListener("click", function () { updateQuantity(Number(quantity.value) + Number(quantity.step || 1)); });
+      quantity.addEventListener("change", function () { updateQuantity(quantity.value); });
+      updateQuantity(quantity.value);
+    }
+  });
+</script>
+{% endblock %}

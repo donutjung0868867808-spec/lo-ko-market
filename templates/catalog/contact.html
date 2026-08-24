@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}ติดต่อเรา{% endblock %}
+
+{% block content %}
+<section class="space-y-6">
+  <div class="rounded-md border border-stone-200 bg-white p-6 shadow-soft lg:p-8">
+    <p class="text-sm font-semibold text-leaf">ติดต่อเรา</p>
+    <h1 class="mt-2 text-3xl font-semibold text-ink md:text-4xl">ติดต่อผู้ดูแลตลาด</h1>
+    <p class="mt-4 max-w-2xl text-base leading-7 text-slate-600">หากพบปัญหาเกี่ยวกับสินค้า คำสั่งซื้อ หรือบัญชีผู้ใช้ สามารถติดต่อผู้ดูแลระบบได้</p>
+  </div>
+
+  <div class="grid gap-4 md:grid-cols-3">
+    <article class="rounded-md border border-stone-200 bg-white p-5 shadow-soft">
+      <p class="text-sm font-semibold text-leaf">อีเมล</p>
+      <p class="mt-2 text-lg font-semibold text-ink">{{ contact_email }}</p>
+    </article>
+    <article class="rounded-md border border-stone-200 bg-white p-5 shadow-soft">
+      <p class="text-sm font-semibold text-leaf">เวลาทำการ</p>
+      <p class="mt-2 text-lg font-semibold text-ink">จันทร์-ศุกร์ 09:00-17:00</p>
+    </article>
+    <article class="rounded-md border border-stone-200 bg-white p-5 shadow-soft">
+      <p class="text-sm font-semibold text-leaf">รายงานปัญหา</p>
+      <p class="mt-2 text-lg font-semibold text-ink">ผ่านบัญชีผู้ใช้</p>
+    </article>
+  </div>
+</section>
+{% endblock %}
