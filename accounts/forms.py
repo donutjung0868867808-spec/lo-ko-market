@@ -1,6 +1,6 @@
 from django import forms
 from django.conf import settings
-from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.forms import PasswordResetForm, UserCreationForm
 from django.utils import timezone
 
 from .models import AVATAR_MAX_SIZE, Community, DeliveryAddress, DirectMessage, FarmerProfile, NewsPost, Report, ReportMessage, User
@@ -45,6 +45,21 @@ class StyledFormMixin:
                 field.help_text = help_texts[name]
             if name in {"display_name", "email", "phone"}:
                 field.required = True
+
+
+class PasswordResetRequestForm(PasswordResetForm):
+    """Password reset request form styled for the public marketplace pages."""
+
+    email = forms.EmailField(
+        label="อีเมล",
+        widget=forms.EmailInput(
+            attrs={
+                "placeholder": "อีเมลที่ใช้สมัครสมาชิก",
+                "autocomplete": "email",
+                "inputmode": "email",
+            }
+        ),
+    )
 
 
 class BaseSignupForm(StyledFormMixin, UserCreationForm):

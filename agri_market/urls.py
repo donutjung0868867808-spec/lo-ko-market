@@ -4,6 +4,7 @@ from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.urls import include, path
 
+from accounts.forms import PasswordResetRequestForm
 from accounts.views import admin_login, public_login
 from agri_market.admin_dashboard import build_admin_dashboard_context
 from agri_market.admin_localization import apply_admin_thai_labels
@@ -66,6 +67,7 @@ urlpatterns = [
     path(
         "password_reset/",
         auth_views.PasswordResetView.as_view(
+            form_class=PasswordResetRequestForm,
             template_name="registration/password_reset.html",
             email_template_name="registration/password_reset_email.html",
             success_url="/password_reset/done/",
