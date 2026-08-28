@@ -1,0 +1,39 @@
+{% extends "admin/base_site.html" %}
+
+{% block nav-breadcrumbs %}
+  <nav aria-label="เส้นทางนำทาง">
+    <a href="{% url 'admin:index' %}">หน้าหลัก</a>
+    &rsaquo; <a href="{% url 'admin:payments_refund_changelist' %}">คำขอคืนเงิน</a>
+    &rsaquo; <a href="{{ change_url }}">{{ refund }}</a>
+    &rsaquo; ปฏิเสธคำขอ
+  </nav>
+{% endblock %}
+
+{% block content %}
+  <div id="content-main">
+    <div class="module aligned">
+      <h2>ปฏิเสธคำขอคืนเงิน {{ order.reference }}</h2>
+      <div class="form-row">
+        <p><strong>ผู้ขอคืนเงิน:</strong> {{ refund.requested_by }}</p>
+        <p><strong>จำนวนเงิน:</strong> {{ refund.amount|floatformat:2 }} บาท</p>
+        <p><strong>เหตุผลจากผู้ซื้อ:</strong> {{ refund.reason }}</p>
+      </div>
+      <form method="post" novalidate>
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+        <div class="form-row{% if form.resolution_note.errors %} errors{% endif %}">
+          {{ form.resolution_note.errors }}
+          {{ form.resolution_note.label_tag }}
+          {{ form.resolution_note }}
+          {% if form.resolution_note.help_text %}
+            <div class="help">{{ form.resolution_note.help_text }}</div>
+          {% endif %}
+        </div>
+        <div class="submit-row">
+          <a href="{{ change_url }}" class="button cancel-link">ยกเลิก</a>
+          <input type="submit" value="ยืนยันการปฏิเสธ" class="deletelink-box">
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock %}

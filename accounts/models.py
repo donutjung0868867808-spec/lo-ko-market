@@ -506,21 +506,24 @@ class ReportMessage(models.Model):
 class Conversation(models.Model):
     buyer = models.ForeignKey(
         settings.AUTH_USER_MODEL,
+        verbose_name="ผู้ซื้อ",
         on_delete=models.CASCADE,
         related_name="buyer_conversations",
     )
     seller = models.ForeignKey(
         settings.AUTH_USER_MODEL,
+        verbose_name="ผู้ขาย",
         on_delete=models.CASCADE,
         related_name="seller_conversations",
     )
     product = models.ForeignKey(
         "catalog.Product",
+        verbose_name="สินค้า",
         on_delete=models.PROTECT,
         related_name="conversations",
     )
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField("วันที่เริ่มสนทนา", auto_now_add=True)
+    updated_at = models.DateTimeField("วันที่อัปเดตล่าสุด", auto_now=True)
 
     class Meta:
         verbose_name = "บทสนทนาผู้ซื้อและผู้ขาย"
@@ -551,17 +554,19 @@ class Conversation(models.Model):
 class DirectMessage(models.Model):
     conversation = models.ForeignKey(
         Conversation,
+        verbose_name="บทสนทนา",
         on_delete=models.CASCADE,
         related_name="messages",
     )
     sender = models.ForeignKey(
         settings.AUTH_USER_MODEL,
+        verbose_name="ผู้ส่ง",
         on_delete=models.CASCADE,
         related_name="direct_messages",
     )
-    body = models.TextField(max_length=2000)
-    read_at = models.DateTimeField(null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    body = models.TextField("ข้อความ", max_length=2000)
+    read_at = models.DateTimeField("วันที่อ่าน", null=True, blank=True)
+    created_at = models.DateTimeField("วันที่ส่ง", auto_now_add=True)
 
     class Meta:
         verbose_name = "ข้อความระหว่างผู้ซื้อและผู้ขาย"

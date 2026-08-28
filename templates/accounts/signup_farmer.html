@@ -8,6 +8,7 @@
   body:has(.market-farmer-signup) > footer,
   main.market-farmer-signup > nav { display: none; }
   .market-farmer-signup .signup-field input:not([type="checkbox"]) { height: 2.5rem; border-color: #bfd0b7; background: #f0f0f0; padding: 0 .75rem; font-size: .875rem; box-shadow: none; }
+  .market-farmer-signup .password-field input { padding-right: 3rem; }
   .market-farmer-signup .signup-field input:focus { border-color: #2f6f1d; background: #fff; box-shadow: 0 0 0 2px rgba(47, 111, 29, .12); }
 </style>
 {% endblock %}
@@ -28,8 +29,20 @@
       <div class="signup-field sm:col-span-2"><label class="text-sm text-stone-600" for="{{ form.username.id_for_label }}">ชื่อร้านค้า</label><div class="mt-1">{{ form.username }}</div>{% for error in form.username.errors %}<p class="mt-1 text-xs text-red-700">{{ error }}</p>{% endfor %}</div>
       <div class="signup-field"><label class="text-sm text-stone-600" for="{{ form.email.id_for_label }}">อีเมล</label><div class="mt-1">{{ form.email }}</div>{% for error in form.email.errors %}<p class="mt-1 text-xs text-red-700">{{ error }}</p>{% endfor %}</div>
       <div class="signup-field"><label class="text-sm text-stone-600" for="{{ form.phone.id_for_label }}">หมายเลขโทรศัพท์</label><div class="mt-1">{{ form.phone }}</div>{% for error in form.phone.errors %}<p class="mt-1 text-xs text-red-700">{{ error }}</p>{% endfor %}</div>
-      <div class="signup-field sm:col-span-2"><label class="text-sm text-stone-600" for="{{ form.password1.id_for_label }}">ตั้งค่ารหัสผ่าน</label>{% if form.password1.help_text %}<p class="mt-0.5 text-[11px] leading-4 text-stone-500">{{ form.password1.help_text }}</p>{% endif %}<div class="mt-1">{{ form.password1 }}</div>{% for error in form.password1.errors %}<p class="mt-1 text-xs text-red-700">{{ error }}</p>{% endfor %}</div>
-      <div class="signup-field sm:col-span-2"><label class="text-sm text-stone-600" for="{{ form.password2.id_for_label }}">ยืนยันรหัสผ่านอีกครั้ง</label><div class="mt-1">{{ form.password2 }}</div>{% for error in form.password2.errors %}<p class="mt-1 text-xs text-red-700">{{ error }}</p>{% endfor %}</div>
+      <div class="signup-field sm:col-span-2"><label class="text-sm text-stone-600" for="{{ form.password1.id_for_label }}">ตั้งค่ารหัสผ่าน</label>{% if form.password1.help_text %}<p class="mt-0.5 text-[11px] leading-4 text-stone-500">{{ form.password1.help_text }}</p>{% endif %}<div class="password-field relative mt-1">
+  {{ form.password1 }}
+  <button type="button" data-password-toggle data-password-input="{{ form.password1.id_for_label }}" aria-label="แสดงรหัสผ่าน" aria-pressed="false" title="แสดงรหัสผ่าน" class="absolute inset-y-0 right-0 inline-flex w-11 items-center justify-center text-slate-500 transition hover:text-leaf focus:outline-none focus:text-leaf">
+    <i data-lucide="eye" data-password-eye class="h-5 w-5" aria-hidden="true"></i>
+    <i data-lucide="eye-off" data-password-eye-off class="hidden h-5 w-5" aria-hidden="true"></i>
+  </button>
+</div>{% for error in form.password1.errors %}<p class="mt-1 text-xs text-red-700">{{ error }}</p>{% endfor %}</div>
+      <div class="signup-field sm:col-span-2"><label class="text-sm text-stone-600" for="{{ form.password2.id_for_label }}">ยืนยันรหัสผ่านอีกครั้ง</label><div class="password-field relative mt-1">
+  {{ form.password2 }}
+  <button type="button" data-password-toggle data-password-input="{{ form.password2.id_for_label }}" aria-label="แสดงรหัสผ่าน" aria-pressed="false" title="แสดงรหัสผ่าน" class="absolute inset-y-0 right-0 inline-flex w-11 items-center justify-center text-slate-500 transition hover:text-leaf focus:outline-none focus:text-leaf">
+    <i data-lucide="eye" data-password-eye class="h-5 w-5" aria-hidden="true"></i>
+    <i data-lucide="eye-off" data-password-eye-off class="hidden h-5 w-5" aria-hidden="true"></i>
+  </button>
+</div>{% for error in form.password2.errors %}<p class="mt-1 text-xs text-red-700">{{ error }}</p>{% endfor %}</div>
     </div>
     <button class="mt-5 h-11 w-full rounded-lg bg-[#6fbd19] px-4 text-base font-semibold text-white transition hover:bg-[#5da414]" type="submit">ยืนยัน</button>
   </form>

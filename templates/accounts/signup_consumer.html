@@ -15,6 +15,7 @@
     font-size: .875rem;
     box-shadow: none;
   }
+  .market-consumer-signup .password-field input { padding-right: 3rem; }
   .market-consumer-signup .signup-field input:focus {
     border-color: #2f6f1d;
     background: #fff;
@@ -72,12 +73,24 @@
       <div class="signup-field sm:col-span-2">
         <label class="text-sm text-stone-600" for="{{ form.password1.id_for_label }}">ตั้งค่ารหัสผ่าน</label>
         {% if form.password1.help_text %}<p class="mt-0.5 text-[11px] leading-4 text-stone-500">{{ form.password1.help_text }}</p>{% endif %}
-        <div class="mt-1">{{ form.password1 }}</div>
+        <div class="password-field relative mt-1">
+          {{ form.password1 }}
+          <button type="button" data-password-toggle data-password-input="{{ form.password1.id_for_label }}" aria-label="แสดงรหัสผ่าน" aria-pressed="false" title="แสดงรหัสผ่าน" class="absolute inset-y-0 right-0 inline-flex w-11 items-center justify-center text-slate-500 transition hover:text-leaf focus:outline-none focus:text-leaf">
+            <i data-lucide="eye" data-password-eye class="h-5 w-5" aria-hidden="true"></i>
+            <i data-lucide="eye-off" data-password-eye-off class="hidden h-5 w-5" aria-hidden="true"></i>
+          </button>
+        </div>
         {% for error in form.password1.errors %}<p class="mt-1 text-xs text-red-700">{{ error }}</p>{% endfor %}
       </div>
       <div class="signup-field sm:col-span-2">
         <label class="text-sm text-stone-600" for="{{ form.password2.id_for_label }}">ยืนยันรหัสผ่านอีกครั้ง</label>
-        <div class="mt-1">{{ form.password2 }}</div>
+        <div class="password-field relative mt-1">
+          {{ form.password2 }}
+          <button type="button" data-password-toggle data-password-input="{{ form.password2.id_for_label }}" aria-label="แสดงรหัสผ่าน" aria-pressed="false" title="แสดงรหัสผ่าน" class="absolute inset-y-0 right-0 inline-flex w-11 items-center justify-center text-slate-500 transition hover:text-leaf focus:outline-none focus:text-leaf">
+            <i data-lucide="eye" data-password-eye class="h-5 w-5" aria-hidden="true"></i>
+            <i data-lucide="eye-off" data-password-eye-off class="hidden h-5 w-5" aria-hidden="true"></i>
+          </button>
+        </div>
         {% for error in form.password2.errors %}<p class="mt-1 text-xs text-red-700">{{ error }}</p>{% endfor %}
       </div>
     </div>

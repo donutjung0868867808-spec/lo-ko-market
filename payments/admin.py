@@ -1,7 +1,12 @@
 from django.contrib import admin, messages
+from django.http import HttpResponseNotAllowed
+from django.shortcuts import redirect
+from django.template.response import TemplateResponse
+from django.urls import path, reverse
 
 from accounts.admin_permissions import CsvExportAdminMixin, OwnerOnlyAdminMixin
 
+from .forms import RefundDecisionForm
 from .models import (
     CustomerPaymentProfile,
     Payment,
@@ -12,6 +17,7 @@ from .models import (
     StripeEvent,
 )
 from .services import process_seller_settlement
+from .views import process_refund, reject_refund
 
 
 class ReadOnlyOwnerAdminMixin(OwnerOnlyAdminMixin):
@@ -133,6 +139,7 @@ class PaymentAdmin(CsvExportAdminMixin, ReadOnlyOwnerAdminMixin, admin.ModelAdmi
 
 @admin.register(Refund)
 class RefundAdmin(CsvExportAdminMixin, ReadOnlyOwnerAdminMixin, admin.ModelAdmin):
+    change_form_template = "admin/payments/refund/change_form.html"
     list_display = ("payment", "amount", "status", "requested_by", "handled_by", "created_at")
     list_filter = ("status", "created_at")
     search_fields = ("payment__order__reference", "reason", "stripe_refund_id")
@@ -171,6 +178,84 @@ class RefundAdmin(CsvExportAdminMixin, ReadOnlyOwnerAdminMixin, admin.ModelAdmin
         ("created_at", "วันที่ยื่นคำขอ"),
     )
 
+    def get_urls(self):
+        custom_urls = [
+            path(
+                "<path:object_id>/process-refund/",
+                self.admin_site.admin_view(self.process_refund_admin),
+                name="payments_refund_process",
+            ),
+            path(
+                "<path:object_id>/reject-refund/",
+                self.admin_site.admin_view(self.reject_refund_admin),
+                name="payments_refund_reject",
+            ),
+        ]
+        return custom_urls + super().get_urls()
+
+    def change_view(self, request, object_id, form_url="", extra_context=None):
+        refund = self.get_object(request, object_id)
+        extra_context = dict(extra_context or {})
+        can_decide = bool(
+            refund
+            and refund.status in (Refund.Status.REQUESTED, Refund.Status.FAILED)
+        )
+        extra_context.update(
+            {
+                "refund_can_decide": can_decide,
+                "refund_process_url": reverse(
+                    "admin:payments_refund_process", args=[object_id]
+                ),
+                "refund_reject_url": reverse(
+                    "admin:payments_refund_reject", args=[object_id]
+                ),
+            }
+        )
+        return super().change_view(request, object_id, form_url, extra_context)
+
+    def _change_url(self, refund):
+        return reverse("admin:payments_refund_change", args=[refund.pk])
+
+    def process_refund_admin(self, request, object_id):
+        if request.method != "POST":
+            return HttpResponseNotAllowed(["POST"])
+        refund = self.get_object(request, object_id)
+        if refund is None:
+            return redirect("admin:payments_refund_changelist")
+        if refund.status not in (Refund.Status.REQUESTED, Refund.Status.FAILED):
+            self.message_user(request, "คำขอนี้ได้รับการพิจารณาแล้ว", messages.WARNING)
+            return redirect(self._change_url(refund))
+        process_refund(request, refund.pk)
+        return redirect(self._change_url(refund))
+
+    def reject_refund_admin(self, request, object_id):
+        refund = self.get_object(request, object_id)
+        if refund is None:
+            return redirect("admin:payments_refund_changelist")
+        if refund.status not in (Refund.Status.REQUESTED, Refund.Status.FAILED):
+            self.message_user(request, "คำขอนี้ได้รับการพิจารณาแล้ว", messages.WARNING)
+            return redirect(self._change_url(refund))
+
+        form = RefundDecisionForm(request.POST or None)
+        if request.method == "POST" and form.is_valid():
+            reject_refund(request, refund.pk)
+            return redirect(self._change_url(refund))
+
+        context = {
+            **self.admin_site.each_context(request),
+            "title": "ปฏิเสธคำขอคืนเงิน",
+            "opts": self.model._meta,
+            "original": refund,
+            "refund": refund,
+            "order": refund.payment.order,
+            "form": form,
+            "change_url": self._change_url(refund),
+        }
+        return TemplateResponse(
+            request,
+            "admin/payments/refund/reject_form.html",
+            context,
+        )
 
 @admin.register(CustomerPaymentProfile)
 class CustomerPaymentProfileAdmin(ReadOnlyOwnerAdminMixin, admin.ModelAdmin):

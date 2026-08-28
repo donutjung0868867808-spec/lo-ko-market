@@ -1,0 +1,16 @@
+{% extends "admin/change_form.html" %}
+
+{% block object-tools-items %}
+  {{ block.super }}
+  {% if refund_can_decide %}
+    <li>
+      <a href="{{ refund_reject_url }}" class="refund-reject-link">ปฏิเสธคำขอ</a>
+    </li>
+    <li>
+      <form method="post" action="{{ refund_process_url }}" class="refund-process-form" onsubmit="return confirm('ยืนยันดำเนินการคืนเงินผ่านช่องทางชำระเงินเดิมหรือไม่?');">
+        {% csrf_token %}
+        <button type="submit" class="refund-process-button">อนุมัติและคืนเงิน</button>
+      </form>
+    </li>
+  {% endif %}
+{% endblock %}

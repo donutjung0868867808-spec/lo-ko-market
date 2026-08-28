@@ -193,6 +193,22 @@
     if (window.lucide) {
       window.lucide.createIcons();
     }
+
+    document.addEventListener("click", function (event) {
+      const toggle = event.target.closest("[data-password-toggle]");
+      if (!toggle) return;
+
+      const input = document.getElementById(toggle.dataset.passwordInput);
+      if (!input) return;
+
+      const isHidden = input.type === "password";
+      input.type = isHidden ? "text" : "password";
+      toggle.setAttribute("aria-pressed", String(isHidden));
+      toggle.setAttribute("aria-label", isHidden ? "ซ่อนรหัสผ่าน" : "แสดงรหัสผ่าน");
+      toggle.setAttribute("title", isHidden ? "ซ่อนรหัสผ่าน" : "แสดงรหัสผ่าน");
+      toggle.querySelector("[data-password-eye]").classList.toggle("hidden", isHidden);
+      toggle.querySelector("[data-password-eye-off]").classList.toggle("hidden", !isHidden);
+    });
   </script>
   {% block extra_scripts %}{% endblock %}
 </body>

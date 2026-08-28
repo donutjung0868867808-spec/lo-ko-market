@@ -1,7 +1,10 @@
+from django import forms
 from django.contrib import admin, messages
+from django.contrib.admin.helpers import ActionForm
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import Group
 from django.contrib.admin.sites import NotRegistered
+from django.db.models import Count
 from django.utils import timezone
 
 from .admin_permissions import (
@@ -10,13 +13,15 @@ from .admin_permissions import (
     RoleScopedAdminMixin,
     staff_community,
 )
-from .services import deliver_email
+from .services import deliver_email, notify_user, record_audit
 
 from .models import (
     AuditEvent,
     Community,
     CommunityStaffProfile,
+    Conversation,
     DeliveryAddress,
+    DirectMessage,
     EmailDelivery,
     FarmerProfile,
     LoginAttempt,
@@ -34,11 +39,25 @@ except NotRegistered:
     pass
 
 
+class UserModerationActionForm(ActionForm):
+    suspension_reason = forms.CharField(
+        required=False,
+        label="เหตุผลที่ระงับหรือปลดระงับ",
+        widget=forms.TextInput(
+            attrs={
+                "placeholder": "ระบุเหตุผลก่อนเลือกคำสั่งระงับบัญชี",
+                "size": 42,
+            }
+        ),
+    )
+
 @admin.register(User)
 class CustomUserAdmin(CsvExportAdminMixin, RoleScopedAdminMixin, UserAdmin):
     staff_access = True
     staff_can_change = True
     community_filter = "farmer_profile__community"
+    action_form = UserModerationActionForm
+    actions = ("suspend_selected_users", "restore_selected_users", "export_as_csv")
 
     fieldsets = (
         ("ข้อมูลเข้าสู่ระบบ", {"fields": ("username", "password")}),
@@ -146,9 +165,94 @@ class CustomUserAdmin(CsvExportAdminMixin, RoleScopedAdminMixin, UserAdmin):
             return ("username",)
         fields = list(super().get_readonly_fields(request, obj))
         if obj:
-            fields.append("username")
+            fields.extend(("username", "is_active"))
         return tuple(dict.fromkeys(fields))
 
+    @staticmethod
+    def _user_community(user):
+        profile = getattr(user, "farmer_profile", None)
+        return getattr(profile, "community", None)
+
+    @admin.action(permissions=["change"], description="ระงับบัญชีที่เลือก")
+    def suspend_selected_users(self, request, queryset):
+        reason = (request.POST.get("suspension_reason") or "").strip()
+        if not reason:
+            self.message_user(
+                request,
+                "กรุณาระบุเหตุผลก่อนระงับบัญชี",
+                level=messages.ERROR,
+            )
+            return
+
+        users = list(
+            queryset.filter(is_active=True)
+            .exclude(role=User.Roles.OWNER)
+            .exclude(is_superuser=True)
+        )
+        for user in users:
+            user.is_active = False
+            user.save(update_fields=["is_active"])
+            record_audit(
+                request,
+                AuditEvent.Action.BLOCK,
+                user,
+                description=reason,
+                before={"is_active": True},
+                after={"is_active": False},
+                community=self._user_community(user),
+            )
+            notify_user(
+                user,
+                "บัญชีถูกระงับการใช้งาน",
+                f"เหตุผล: {reason}",
+                send_email_message=True,
+            )
+
+        skipped = queryset.count() - len(users)
+        self.message_user(request, f"ระงับบัญชีแล้ว {len(users)} บัญชี", messages.SUCCESS)
+        if skipped:
+            self.message_user(
+                request,
+                f"ข้าม {skipped} บัญชีที่ระงับอยู่แล้วหรือเป็นเจ้าของระบบ",
+                messages.WARNING,
+            )
+
+    @admin.action(permissions=["change"], description="ปลดระงับบัญชีที่เลือก")
+    def restore_selected_users(self, request, queryset):
+        reason = (request.POST.get("suspension_reason") or "").strip()
+        reason = reason or "ปลดระงับโดยเจ้าของระบบ"
+        users = list(
+            queryset.filter(is_active=False)
+            .exclude(role=User.Roles.OWNER)
+            .exclude(is_superuser=True)
+        )
+        for user in users:
+            user.is_active = True
+            user.save(update_fields=["is_active"])
+            record_audit(
+                request,
+                AuditEvent.Action.UNBLOCK,
+                user,
+                description=reason,
+                before={"is_active": False},
+                after={"is_active": True},
+                community=self._user_community(user),
+            )
+            notify_user(
+                user,
+                "บัญชีกลับมาใช้งานได้แล้ว",
+                f"รายละเอียด: {reason}",
+                send_email_message=True,
+            )
+
+        skipped = queryset.count() - len(users)
+        self.message_user(request, f"ปลดระงับบัญชีแล้ว {len(users)} บัญชี", messages.SUCCESS)
+        if skipped:
+            self.message_user(
+                request,
+                f"ข้าม {skipped} บัญชีที่เปิดใช้งานอยู่แล้วหรือเป็นเจ้าของระบบ",
+                messages.WARNING,
+            )
 
 @admin.register(DeliveryAddress)
 class DeliveryAddressAdmin(OwnerOnlyAdminMixin, admin.ModelAdmin):
@@ -429,6 +533,70 @@ class ReportAdmin(CsvExportAdminMixin, RoleScopedAdminMixin, admin.ModelAdmin):
             obj.handled_at = timezone.now()
         super().save_model(request, obj, form, change)
 
+
+class DirectMessageInline(admin.TabularInline):
+    model = DirectMessage
+    extra = 0
+    can_delete = False
+    fields = ("sender", "body", "read_at", "created_at")
+    readonly_fields = fields
+    verbose_name = "ข้อความ"
+    verbose_name_plural = "ข้อความในบทสนทนา"
+
+    def has_view_permission(self, request, obj=None):
+        return bool(getattr(request.user, "is_owner", False))
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(Conversation)
+class ConversationAdmin(OwnerOnlyAdminMixin, admin.ModelAdmin):
+    list_display = ("product", "buyer", "seller", "message_count", "updated_at")
+    list_filter = ("created_at", "updated_at")
+    search_fields = (
+        "buyer__username",
+        "buyer__display_name",
+        "seller__username",
+        "seller__display_name",
+        "product__name",
+        "messages__body",
+    )
+    readonly_fields = ("buyer", "seller", "product", "created_at", "updated_at")
+    inlines = (DirectMessageInline,)
+    actions = None
+    fieldsets = (
+        (
+            "ผู้เข้าร่วมและสินค้า",
+            {"fields": ("buyer", "seller", "product")},
+        ),
+        (
+            "ข้อมูลระบบ",
+            {"fields": ("created_at", "updated_at"), "classes": ("collapse",)},
+        ),
+    )
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).annotate(_message_count=Count("messages"))
+
+    @admin.display(description="จำนวนข้อความ", ordering="_message_count")
+    def message_count(self, obj):
+        return obj._message_count
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 @admin.register(LoginAttempt)
 class LoginAttemptAdmin(OwnerOnlyAdminMixin, admin.ModelAdmin):

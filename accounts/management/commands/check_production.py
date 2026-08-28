@@ -24,7 +24,6 @@ class Command(BaseCommand):
             "DEFAULT_FROM_EMAIL",
             "CONTACT_EMAIL",
             "CSRF_TRUSTED_ORIGINS",
-            "SENTRY_DSN",
         ]
         for name in required_env:
             if not os.environ.get(name):
@@ -47,7 +46,10 @@ class Command(BaseCommand):
         if settings.EMAIL_BACKEND != "django.core.mail.backends.smtp.EmailBackend":
             errors.append("Production ต้องใช้ SMTP email backend")
         if not settings.STRIPE_CONNECT_TRANSFERS_ENABLED:
-            errors.append("ยังไม่ได้เปิด STRIPE_CONNECT_TRANSFERS_ENABLED สำหรับโอนเงินให้ผู้ขาย")
+            warnings.append(
+                "ยังไม่ได้เปิด STRIPE_CONNECT_TRANSFERS_ENABLED "
+                "ระบบจะพักยอดผู้ขายไว้และยังไม่โอนอัตโนมัติ"
+            )
         if not settings.TERMS_VERSION or not settings.PRIVACY_VERSION:
             errors.append("ต้องกำหนดเวอร์ชันเงื่อนไขการใช้งานและนโยบายความเป็นส่วนตัว")
 
@@ -58,6 +60,8 @@ class Command(BaseCommand):
         except (InvalidOperation, TypeError):
             errors.append("PLATFORM_FEE_PERCENT ต้องเป็นตัวเลข")
 
+        if not os.environ.get("SENTRY_DSN"):
+            warnings.append("ยังไม่ได้กำหนด SENTRY_DSN จึงยังไม่มีระบบติดตามข้อผิดพลาดภายนอก")
         if settings.ALLOWED_HOSTS == [".onrender.com"]:
             warnings.append("ควรเพิ่มโดเมนจริงใน ALLOWED_HOSTS ก่อนเปิดให้ลูกค้า")
         if settings.SETTLEMENT_HOLD_DAYS < 1:

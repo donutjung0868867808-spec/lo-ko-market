@@ -140,6 +140,9 @@ class Refund(models.Model):
         ]
 
 
+    def __str__(self):
+        return f"คำขอคืนเงิน {self.payment.order.reference}"
+
 class CustomerPaymentProfile(models.Model):
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,

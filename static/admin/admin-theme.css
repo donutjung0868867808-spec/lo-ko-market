@@ -1541,3 +1541,31 @@ ul.errorlist {
     position: static;
   }
 }
+/* Refund decisions stay inside the owner console. */
+.object-tools .refund-process-form {
+  display: inline;
+  margin: 0;
+}
+
+.object-tools .refund-process-button {
+  min-height: 36px;
+  padding: 8px 14px;
+  border: 1px solid #11613f;
+  border-radius: 6px;
+  background: #11613f;
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.object-tools .refund-process-button:hover,
+.object-tools .refund-process-button:focus-visible {
+  background: #0b4930;
+}
+
+.object-tools .refund-reject-link:link,
+.object-tools .refund-reject-link:visited {
+  border-color: #b42318;
+  color: #b42318;
+}

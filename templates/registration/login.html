@@ -47,7 +47,13 @@
 
       <div>
         <label class="sr-only" for="{{ form.password.id_for_label }}">รหัสผ่าน</label>
-        <input class="h-12 w-full rounded-lg border border-[#bfd0b7] bg-stone-100 px-4 text-base text-slate-900 outline-none placeholder:text-stone-300 focus:border-leaf focus:bg-white focus:ring-2 focus:ring-leaf/15" type="password" name="{{ form.password.name }}" id="{{ form.password.id_for_label }}" placeholder="รหัสผ่าน" autocomplete="current-password" required>
+        <div class="relative">
+          <input class="h-12 w-full rounded-lg border border-[#bfd0b7] bg-stone-100 py-0 pl-4 pr-12 text-base text-slate-900 outline-none placeholder:text-stone-300 focus:border-leaf focus:bg-white focus:ring-2 focus:ring-leaf/15" type="password" name="{{ form.password.name }}" id="{{ form.password.id_for_label }}" placeholder="รหัสผ่าน" autocomplete="current-password" required>
+          <button type="button" data-password-toggle data-password-input="{{ form.password.id_for_label }}" aria-label="แสดงรหัสผ่าน" aria-pressed="false" title="แสดงรหัสผ่าน" class="absolute inset-y-0 right-0 inline-flex w-12 items-center justify-center text-slate-500 transition hover:text-leaf focus:outline-none focus:text-leaf">
+            <i data-lucide="eye" data-password-eye class="h-5 w-5" aria-hidden="true"></i>
+            <i data-lucide="eye-off" data-password-eye-off class="hidden h-5 w-5" aria-hidden="true"></i>
+          </button>
+        </div>
         {% for error in form.password.errors %}<p class="mt-1 text-xs text-red-700">{{ error }}</p>{% endfor %}
       </div>
 

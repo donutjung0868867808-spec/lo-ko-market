@@ -3,7 +3,7 @@ from django.urls import reverse
 from accounts.models import EmailDelivery, FarmerProfile, Report, User
 from catalog.models import Product
 from orders.models import Order
-from payments.models import Payment
+from payments.models import Payment, Refund, SellerSettlement, StripeEvent
 
 
 def build_admin_dashboard_context():
@@ -24,6 +24,16 @@ def build_admin_dashboard_context():
     ).count()
     failed_payments = Payment.objects.filter(status=Payment.Status.FAILED).count()
     failed_emails = EmailDelivery.objects.filter(status=EmailDelivery.Status.FAILED).count()
+    pending_refunds = Refund.objects.filter(
+        status__in=(Refund.Status.REQUESTED, Refund.Status.FAILED)
+    ).count()
+    ready_settlements = SellerSettlement.objects.filter(
+        status=SellerSettlement.Status.READY
+    ).count()
+    failed_settlements = SellerSettlement.objects.filter(
+        status=SellerSettlement.Status.FAILED
+    ).count()
+    pending_stripe_events = StripeEvent.objects.filter(processed=False).count()
 
     return {
         "admin_stats": (
@@ -69,6 +79,29 @@ def build_admin_dashboard_context():
                 "value": failed_payments,
                 "url": reverse("admin:payments_payment_changelist")
                 + "?status__exact=failed",
+            },
+            {
+                "label": "คำขอคืนเงินรอดำเนินการ",
+                "value": pending_refunds,
+                "url": reverse("admin:payments_refund_changelist"),
+            },
+            {
+                "label": "ยอดผู้ขายพร้อมโอน",
+                "value": ready_settlements,
+                "url": reverse("admin:payments_sellersettlement_changelist")
+                + "?status__exact=ready",
+            },
+            {
+                "label": "ยอดผู้ขายโอนไม่สำเร็จ",
+                "value": failed_settlements,
+                "url": reverse("admin:payments_sellersettlement_changelist")
+                + "?status__exact=failed",
+            },
+            {
+                "label": "เหตุการณ์ Stripe รอประมวลผล",
+                "value": pending_stripe_events,
+                "url": reverse("admin:payments_stripeevent_changelist")
+                + "?processed__exact=0",
             },
             {
                 "label": "อีเมลที่ส่งไม่สำเร็จ",
