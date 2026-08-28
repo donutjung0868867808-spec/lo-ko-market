@@ -81,7 +81,7 @@ class AccountCenterTests(TestCase):
         self.assertContains(farmer_page, "หน้าร้านค้าของฉัน")
         self.assertContains(farmer_page, reverse("catalog:seller_store", args=[farmer.pk]))
         self.assertContains(farmer_page, "ร้านค้าของฉัน")
-        self.assertContains(farmer_page, f'{reverse("accounts:account_history")}#store-information')
+        self.assertContains(farmer_page, reverse("accounts:farmer_shop_center"))
         self.assertContains(farmer_page, "เพิ่มสินค้า")
         self.assertContains(farmer_page, reverse("catalog:product_create"))
 
