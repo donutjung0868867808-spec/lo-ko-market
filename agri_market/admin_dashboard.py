@@ -5,6 +5,150 @@ from catalog.models import Product
 from orders.models import Order
 from payments.models import Payment, Refund, SellerSettlement, StripeEvent
 
+ADMIN_WORKFLOWS = (
+    {
+        "key": "members",
+        "name": "สมาชิกและชุมชน",
+        "description": "ดูแลบัญชีผู้ใช้ ผู้ขาย เจ้าหน้าที่ และพื้นที่ชุมชน",
+        "icon": "users",
+        "models": (
+            "accounts.user",
+            "accounts.farmerprofile",
+            "accounts.communitystaffprofile",
+            "accounts.community",
+            "accounts.deliveryaddress",
+        ),
+    },
+    {
+        "key": "catalog",
+        "name": "สินค้าและร้านค้า",
+        "description": "ตรวจสอบสินค้า หมวดสินค้า รีวิว และรายการที่สมาชิกสนใจ",
+        "icon": "package-search",
+        "models": (
+            "catalog.product",
+            "catalog.category",
+            "catalog.productreview",
+            "catalog.productfavorite",
+            "catalog.sellerfavorite",
+        ),
+    },
+    {
+        "key": "orders",
+        "name": "คำสั่งซื้อและการจัดส่ง",
+        "description": "ติดตามคำสั่งซื้อ สถานะพัสดุ และค่าจัดส่ง",
+        "icon": "clipboard-list",
+        "models": ("orders.order", "orders.shippingrate"),
+    },
+    {
+        "key": "payments",
+        "name": "การเงินและการชำระเงิน",
+        "description": "ตรวจสอบการชำระเงิน คืนเงิน และยอดที่ต้องจ่ายผู้ขาย",
+        "icon": "wallet-cards",
+        "models": (
+            "payments.payment",
+            "payments.refund",
+            "payments.sellersettlement",
+            "payments.sellerpaymentaccount",
+            "payments.customerpaymentprofile",
+            "payments.savedpaymentmethod",
+        ),
+    },
+    {
+        "key": "care",
+        "name": "การดูแลสมาชิก",
+        "description": "ตอบแชท จัดการรายงานปัญหา ข่าวสาร และการแจ้งเตือน",
+        "icon": "messages-square",
+        "models": (
+            "accounts.supportticket",
+            "accounts.report",
+            "accounts.notification",
+            "accounts.newspost",
+            "accounts.conversation",
+            "accounts.chatblock",
+        ),
+    },
+    {
+        "key": "system",
+        "name": "ตรวจสอบการทำงานของระบบ",
+        "description": "ข้อมูลบันทึกอัตโนมัติสำหรับตรวจสอบเมื่อเกิดปัญหา",
+        "icon": "shield-check",
+        "is_system": True,
+        "models": (
+            "accounts.auditevent",
+            "accounts.loginattempt",
+            "accounts.emaildelivery",
+            "payments.stripeevent",
+        ),
+    },
+)
+
+
+ADMIN_MODEL_DESCRIPTIONS = {
+    "accounts.user": "ข้อมูลส่วนตัว บทบาท และสถานะสมาชิก",
+    "accounts.farmerprofile": "ข้อมูลร้านค้า เอกสาร และผลตรวจสอบผู้ขาย",
+    "accounts.communitystaffprofile": "กำหนดเจ้าหน้าที่ประจำแต่ละชุมชน",
+    "accounts.community": "ข้อมูลชุมชนและพื้นที่ให้บริการ",
+    "accounts.deliveryaddress": "ที่อยู่จัดส่งที่สมาชิกบันทึกไว้",
+    "catalog.product": "รายละเอียด ราคา สต็อก และสถานะการขาย",
+    "catalog.category": "หมวดหมู่ที่ใช้ค้นหาและแสดงสินค้า",
+    "catalog.productreview": "ความคิดเห็นและคะแนนจากผู้ซื้อ",
+    "catalog.productfavorite": "รายการสินค้าที่สมาชิกบันทึกไว้",
+    "catalog.sellerfavorite": "ร้านค้าที่สมาชิกติดตาม",
+    "orders.order": "ติดตามสถานะ การจัดส่ง และเลขพัสดุ",
+    "orders.shippingrate": "กำหนดค่าจัดส่งตามพื้นที่และน้ำหนัก",
+    "payments.payment": "ตรวจสอบผลการชำระเงินออนไลน์",
+    "payments.refund": "พิจารณาคำขอและผลการคืนเงิน",
+    "payments.sellersettlement": "ตรวจสอบและโอนยอดสุทธิให้ผู้ขาย",
+    "payments.sellerpaymentaccount": "สถานะบัญชีรับเงินออนไลน์ของผู้ขาย",
+    "payments.customerpaymentprofile": "บัญชีลูกค้าในระบบชำระเงิน",
+    "payments.savedpaymentmethod": "ข้อมูลบัตรแบบปกปิดที่สมาชิกบันทึกไว้",
+    "accounts.supportticket": "พูดคุยและตอบคำถามจากผู้ขาย",
+    "accounts.report": "ตรวจสอบเรื่องร้องเรียนและบันทึกผลดำเนินการ",
+    "accounts.notification": "ส่งและตรวจสอบการแจ้งเตือนสมาชิก",
+    "accounts.newspost": "จัดการข่าวสารที่แสดงในเว็บไซต์",
+    "accounts.conversation": "ตรวจสอบบทสนทนาเมื่อมีการรายงานปัญหา",
+    "accounts.chatblock": "ตรวจสอบการบล็อกระหว่างสมาชิก",
+    "accounts.auditevent": "ประวัติการเปลี่ยนแปลงข้อมูลสำคัญ",
+    "accounts.loginattempt": "ประวัติการเข้าสู่ระบบที่ผิดปกติ",
+    "accounts.emaildelivery": "สถานะอีเมลที่ระบบส่งให้สมาชิก",
+    "payments.stripeevent": "เหตุการณ์จากระบบชำระเงินสำหรับตรวจสอบ",
+}
+
+
+def build_admin_navigation(app_list):
+    """Turn Django's model-oriented app list into task-oriented workflows."""
+    available_models = {}
+    for app in app_list:
+        for model in app.get("models", ()):
+            model_class = model.get("model")
+            if model_class is not None:
+                available_models[model_class._meta.label_lower] = model
+
+    navigation = []
+    for workflow in ADMIN_WORKFLOWS:
+        models = []
+        for model_label in workflow["models"]:
+            model = available_models.get(model_label)
+            if model is None:
+                continue
+            item = dict(model)
+            item["description"] = ADMIN_MODEL_DESCRIPTIONS.get(
+                model_label, "จัดการข้อมูลที่เกี่ยวข้องกับระบบ"
+            )
+            item["model_label"] = model_label
+            models.append(item)
+        if not models:
+            continue
+        group = {key: value for key, value in workflow.items() if key != "models"}
+        group["models"] = models
+        group["app_label"] = f"workflow-{workflow['key']}"
+        group["app_url"] = next(
+            (model.get("admin_url") for model in models if model.get("admin_url")),
+            "#",
+        )
+        navigation.append(group)
+    return navigation
+
 
 def build_admin_dashboard_context():
     active_order_statuses = (

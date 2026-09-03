@@ -3,10 +3,11 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.urls import include, path
+from django.views.i18n import JavaScriptCatalog
 
 from accounts.forms import PasswordResetRequestForm
 from accounts.views import admin_login, public_login
-from agri_market.admin_dashboard import build_admin_dashboard_context
+from agri_market.admin_dashboard import build_admin_dashboard_context, build_admin_navigation
 from agri_market.admin_localization import apply_admin_thai_labels
 from agri_market.views import (
     admin_mfa,
@@ -34,6 +35,17 @@ def owner_admin_permission(request):
 
 
 admin.site.has_permission = owner_admin_permission
+_default_admin_get_app_list = admin.site.get_app_list
+
+
+def owner_admin_get_app_list(request, app_label=None):
+    app_list = _default_admin_get_app_list(request, app_label)
+    if app_label:
+        return app_list
+    return build_admin_navigation(app_list)
+
+
+admin.site.get_app_list = owner_admin_get_app_list
 
 _default_admin_index = admin.site.index
 
@@ -45,6 +57,12 @@ def owner_admin_index(request, extra_context=None):
 
 
 admin.site.index = owner_admin_index
+
+def project_admin_i18n_javascript(request, extra_context=None):
+    return JavaScriptCatalog.as_view()(request)
+
+
+admin.site.i18n_javascript = project_admin_i18n_javascript
 
 urlpatterns = [
     path("health/", health, name="health"),

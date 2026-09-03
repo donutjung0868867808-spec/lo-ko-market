@@ -1,5 +1,6 @@
 import logging
 import mimetypes
+from datetime import timedelta
 import uuid
 from pathlib import Path
 
@@ -11,7 +12,7 @@ from django.contrib.auth.tokens import default_token_generator
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm
 from django.db import transaction
-from django.db.models import Count, F, Q, Sum
+from django.db.models import Count, F, OuterRef, Q, Subquery, Sum
 from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -34,13 +35,16 @@ from .forms import (
     FarmerSignupForm,
     NewsPostForm,
     NotificationForm,
+    ReportForm,
     ReportMessageForm,
     ReportResolutionForm,
     StaffFarmerProfileForm,
+    SupportMessageForm,
+    SupportTicketCreateForm,
     StaffSellerAccountForm,
     UserProfileForm,
 )
-from .models import AuditEvent, Conversation, DeliveryAddress, DirectMessage, FarmerProfile, NewsPost, Notification, Report, ReportMessage, User
+from .models import AuditEvent, ChatBlock, Conversation, DeliveryAddress, DirectMessage, FarmerProfile, NewsPost, Notification, Report, ReportMessage, SupportMessage, SupportTicket, User
 from .services import (
     clear_login_failures,
     is_login_blocked,
@@ -390,8 +394,139 @@ def farmer_shop_center(request):
         ).count(),
         "shipped_total": sales.filter(status=Order.Status.SHIPPED).count(),
         "gross_sales": gross_sales,
+        "support_open_count": SupportTicket.objects.filter(seller=request.user, status__in=[SupportTicket.Status.OPEN, SupportTicket.Status.IN_PROGRESS]).count(),
     }
     return render(request, "accounts/farmer_shop_center.html", context)
+
+@login_required
+@role_required(User.Roles.FARMER)
+def support_chat(request):
+    ticket = (
+        SupportTicket.objects.filter(
+            seller=request.user,
+            status__in=[SupportTicket.Status.OPEN, SupportTicket.Status.IN_PROGRESS],
+        )
+        .order_by("-updated_at")
+        .first()
+    )
+    if ticket is None:
+        community = getattr(getattr(request.user, "farmer_profile", None), "community", None)
+        ticket = SupportTicket.objects.create(
+            seller=request.user,
+            community=community,
+            category=SupportTicket.Category.GENERAL,
+            subject="แชทกับผู้ดูแลระบบ",
+        )
+        record_audit(
+            request,
+            AuditEvent.Action.CREATE,
+            ticket,
+            description="ผู้ขายเริ่มแชทกับผู้ดูแล",
+            community=community,
+        )
+    return redirect("accounts:support_ticket_detail", pk=ticket.pk)
+
+
+@login_required
+@role_required(User.Roles.FARMER)
+def support_ticket_list(request):
+    tickets = SupportTicket.objects.filter(seller=request.user).prefetch_related("messages").select_related("handled_by")
+    return render(request, "accounts/support_ticket_list.html", {"tickets": tickets})
+
+
+@login_required
+@role_required(User.Roles.FARMER)
+def support_ticket_create(request):
+    form = SupportTicketCreateForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        community = getattr(getattr(request.user, "farmer_profile", None), "community", None)
+        ticket = SupportTicket.objects.create(
+            seller=request.user,
+            community=community,
+            category=form.cleaned_data["category"],
+            subject=form.cleaned_data["subject"],
+        )
+        message = SupportMessage(ticket=ticket, sender=request.user, body=form.cleaned_data["message"])
+        message.full_clean()
+        message.save()
+        record_audit(
+            request,
+            AuditEvent.Action.CREATE,
+            ticket,
+            description="ผู้ขายเปิดคำขอถึงผู้ดูแล",
+            community=community,
+        )
+        owners = User.objects.filter(Q(role=User.Roles.OWNER) | Q(is_superuser=True), is_active=True)
+        for owner in owners:
+            notify_user(
+                owner,
+                title=f"คำขอใหม่จากผู้ขาย: {ticket.get_category_display()}",
+                message=f"{request.user} · {ticket.subject}",
+                link=reverse("admin:accounts_supportticket_change", args=[ticket.pk]),
+                send_email_message=False,
+            )
+        messages.success(request, "ส่งคำขอถึงผู้ดูแลแล้ว")
+        return redirect("accounts:support_ticket_detail", pk=ticket.pk)
+    return render(request, "accounts/support_ticket_form.html", {"form": form})
+
+
+def _support_ticket_for_user(request, pk):
+    tickets = SupportTicket.objects.select_related("seller", "community", "handled_by").prefetch_related("messages__sender")
+    if request.user.is_owner:
+        return get_object_or_404(tickets, pk=pk)
+    return get_object_or_404(tickets, pk=pk, seller=request.user)
+
+
+@login_required
+def support_ticket_detail(request, pk):
+    ticket = _support_ticket_for_user(request, pk)
+    can_manage = request.user.is_owner
+    form = SupportMessageForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        recent_messages = SupportMessage.objects.filter(
+            ticket=ticket,
+            sender=request.user,
+            created_at__gte=timezone.now() - timedelta(minutes=1),
+        ).count()
+        if recent_messages >= 12:
+            form.add_error(None, "คุณส่งข้อความเร็วเกินไป กรุณารอประมาณ 1 นาทีแล้วลองใหม่")
+        else:
+            message = form.save(commit=False)
+            message.ticket = ticket
+            message.sender = request.user
+            message.full_clean()
+            message.save()
+            if can_manage:
+                ticket.status = SupportTicket.Status.IN_PROGRESS
+                ticket.handled_by = request.user
+                recipient = ticket.seller
+                recipients = [recipient]
+                title = "ผู้ดูแลตอบกลับคำขอของคุณ"
+                note = ticket.subject
+            else:
+                ticket.status = SupportTicket.Status.OPEN
+                recipient = ticket.handled_by
+                recipients = [recipient] if recipient else list(User.objects.filter(Q(role=User.Roles.OWNER) | Q(is_superuser=True), is_active=True))
+                title = "ผู้ขายตอบกลับคำขอ"
+                note = f"{ticket.seller} · {ticket.subject}"
+            ticket.save(update_fields=["status", "handled_by", "updated_at"])
+            for recipient in recipients:
+                if not recipient:
+                    continue
+                notify_user(
+                    recipient,
+                    title=title,
+                    message=note,
+                    link=reverse("accounts:support_ticket_detail", args=[ticket.pk]),
+                    send_email_message=False,
+                )
+            messages.success(request, "ส่งข้อความแล้ว")
+            return redirect("accounts:support_ticket_detail", pk=ticket.pk)
+    return render(
+        request,
+        "accounts/support_ticket_detail.html",
+        {"ticket": ticket, "form": form, "can_manage": can_manage},
+    )
 
 @login_required
 def addresses_list(request):
@@ -1162,18 +1297,55 @@ def deactivate_my_account(request):
     return redirect("catalog:product_list")
 @login_required
 def conversations_list(request):
+    latest_message = DirectMessage.objects.filter(conversation=OuterRef("pk")).order_by("-created_at")
     conversations = (
         Conversation.objects.filter(Q(buyer=request.user) | Q(seller=request.user))
-        .select_related("buyer", "seller", "product", "product__community")
+        .select_related("buyer", "seller", "seller__farmer_profile__community", "product", "product__community", "order")
         .annotate(
             unread_count=Count(
                 "messages",
                 filter=Q(messages__read_at__isnull=True) & ~Q(messages__sender=request.user),
-            )
+            ),
+            last_message_body=Subquery(latest_message.values("body")[:1]),
+            last_message_at=Subquery(latest_message.values("created_at")[:1]),
         )
         .order_by("-updated_at")
     )
     return render(request, "accounts/conversations.html", {"conversations": conversations})
+
+
+def _chat_is_blocked(first_user, second_user):
+    return ChatBlock.objects.filter(
+        Q(blocker=first_user, blocked=second_user)
+        | Q(blocker=second_user, blocked=first_user)
+    ).exists()
+
+
+def _conversation_community(conversation):
+    if conversation.product_id:
+        return conversation.product.community
+    seller_profile = getattr(conversation.seller, "farmer_profile", None)
+    return getattr(seller_profile, "community", None)
+
+def _conversation_for_user(request, pk):
+    return get_object_or_404(
+        Conversation.objects.select_related("buyer", "seller", "seller__farmer_profile__community", "product", "product__community", "order"),
+        Q(buyer=request.user) | Q(seller=request.user),
+        pk=pk,
+    )
+
+
+def _start_conversation(request, *, buyer, seller, product=None, order=None):
+    if _chat_is_blocked(buyer, seller):
+        messages.error(request, "ไม่สามารถเริ่มบทสนทนานี้ได้")
+        return None
+    conversation, _ = Conversation.objects.get_or_create(
+        buyer=buyer,
+        seller=seller,
+        product=product,
+        order=order,
+    )
+    return conversation
 
 
 @login_required
@@ -1188,53 +1360,189 @@ def conversation_start(request, product_id):
         messages.info(request, "นี่คือสินค้าของคุณ")
         return redirect(product)
     if not request.user.is_consumer:
-        messages.error(request, "การแชทกับผู้ขายเปิดให้บัญชีผู้บริโภค")
+        messages.error(request, "การเริ่มแชทจากหน้าสินค้าเปิดให้บัญชีผู้บริโภค")
         return redirect(product)
 
-    conversation, _ = Conversation.objects.get_or_create(
+    conversation = _start_conversation(
+        request,
         buyer=request.user,
         seller=product.seller,
         product=product,
     )
+    if not conversation:
+        return redirect(product)
     return redirect("accounts:conversation_detail", pk=conversation.pk)
 
 
 @login_required
-def conversation_detail(request, pk):
-    conversation = get_object_or_404(
-        Conversation.objects.select_related("buyer", "seller", "product", "product__community"),
-        Q(buyer=request.user) | Q(seller=request.user),
-        pk=pk,
+@require_POST
+def conversation_start_seller(request, seller_id):
+    seller = get_object_or_404(
+        User.objects.select_related("farmer_profile__community"),
+        pk=seller_id,
+        role=User.Roles.FARMER,
+        is_active=True,
     )
+    if seller.pk == request.user.pk:
+        messages.info(request, "นี่คือร้านค้าของคุณ")
+        return redirect("catalog:seller_store", seller_id=seller.pk)
+    if not request.user.is_consumer:
+        messages.error(request, "การเริ่มแชทกับร้านค้าเปิดให้บัญชีผู้บริโภค")
+        return redirect("catalog:seller_store", seller_id=seller.pk)
+
+    conversation = _start_conversation(
+        request,
+        buyer=request.user,
+        seller=seller,
+    )
+    if not conversation:
+        return redirect("catalog:seller_store", seller_id=seller.pk)
+    return redirect("accounts:conversation_detail", pk=conversation.pk)
+@login_required
+@require_POST
+def conversation_start_order(request, order_id):
+    order = get_object_or_404(
+        Order.objects.select_related("buyer", "seller").prefetch_related("items__product"),
+        pk=order_id,
+    )
+    if request.user.pk not in {order.buyer_id, order.seller_id}:
+        messages.error(request, "คุณไม่มีสิทธิ์เริ่มบทสนทนาสำหรับคำสั่งซื้อนี้")
+        return redirect("orders:order_list")
+
+    first_item = next(iter(order.items.all()), None)
+    if not first_item:
+        messages.error(request, "คำสั่งซื้อนี้ไม่มีรายการสินค้า")
+        return redirect(order)
+
+    conversation = _start_conversation(
+        request,
+        buyer=order.buyer,
+        seller=order.seller,
+        product=first_item.product,
+        order=order,
+    )
+    if not conversation:
+        return redirect(order)
+    return redirect("accounts:conversation_detail", pk=conversation.pk)
+
+
+@login_required
+@require_POST
+def conversation_block(request, pk):
+    conversation = _conversation_for_user(request, pk)
+    other_participant = conversation.other_participant(request.user)
+    block, created = ChatBlock.objects.get_or_create(
+        blocker=request.user,
+        blocked=other_participant,
+    )
+    if created:
+        record_audit(
+            request,
+            AuditEvent.Action.BLOCK,
+            block,
+            description="บล็อกผู้ใช้งานจากบทสนทนา",
+            community=_conversation_community(conversation),
+        )
+        messages.success(request, f"บล็อก {other_participant} แล้ว คุณจะไม่สามารถส่งข้อความถึงกันได้")
+    else:
+        block.delete()
+        messages.success(request, f"ปลดบล็อก {other_participant} แล้ว")
+    return redirect("accounts:conversation_detail", pk=conversation.pk)
+
+
+@login_required
+def conversation_report(request, pk):
+    conversation = _conversation_for_user(request, pk)
+    other_participant = conversation.other_participant(request.user)
+    form = ReportForm(request.POST or None, request.FILES or None)
+    if request.method == "POST" and form.is_valid():
+        report = form.save(commit=False)
+        report.reporter = request.user
+        report.target_type = Report.TargetType.CONVERSATION
+        report.conversation = conversation
+        report.product = conversation.product
+        report.order = conversation.order
+        report.reported_user = other_participant
+        report.community = _conversation_community(conversation)
+        report.save()
+        record_audit(
+            request,
+            AuditEvent.Action.CREATE,
+            report,
+            description="รายงานบทสนทนา",
+            community=report.community,
+        )
+        messages.success(request, "ส่งรายงานบทสนทนาแล้ว เจ้าหน้าที่จะตรวจสอบโดยเร็ว")
+        return redirect("accounts:conversation_detail", pk=conversation.pk)
+    return render(
+        request,
+        "accounts/conversation_report.html",
+        {"conversation": conversation, "other_participant": other_participant, "form": form},
+    )
+
+
+@login_required
+def conversation_detail(request, pk):
+    conversation = _conversation_for_user(request, pk)
+    other_participant = conversation.other_participant(request.user)
+    blocked_by_user = ChatBlock.objects.filter(
+        blocker=request.user,
+        blocked=other_participant,
+    ).exists()
+    blocked_by_other = ChatBlock.objects.filter(
+        blocker=other_participant,
+        blocked=request.user,
+    ).exists()
+    can_send = not blocked_by_user and not blocked_by_other
+
     DirectMessage.objects.filter(
         conversation=conversation,
         read_at__isnull=True,
     ).exclude(sender=request.user).update(read_at=timezone.now())
 
     form = DirectMessageForm(request.POST or None)
-    if request.method == "POST" and form.is_valid():
-        direct_message = form.save(commit=False)
-        direct_message.conversation = conversation
-        direct_message.sender = request.user
-        direct_message.save()
-        Conversation.objects.filter(pk=conversation.pk).update(updated_at=timezone.now())
-        recipient = conversation.other_participant(request.user)
-        notify_user(
-            recipient,
-            title=f"ข้อความใหม่จาก {request.user}",
-            message=f"เกี่ยวกับสินค้า {conversation.product.name}",
-            link=reverse("accounts:conversation_detail", args=[conversation.pk]),
-            send_email_message=False,
-        )
-        return redirect("accounts:conversation_detail", pk=conversation.pk)
+    if request.method == "POST":
+        if not can_send:
+            messages.error(request, "ไม่สามารถส่งข้อความในบทสนทนานี้ได้")
+        elif form.is_valid():
+            one_minute_ago = timezone.now() - timedelta(minutes=1)
+            sent_count = DirectMessage.objects.filter(
+                conversation=conversation,
+                sender=request.user,
+                created_at__gte=one_minute_ago,
+            ).count()
+            if sent_count >= 12:
+                form.add_error(None, "คุณส่งข้อความเร็วเกินไป กรุณารอประมาณ 1 นาทีแล้วลองใหม่")
+            else:
+                direct_message = form.save(commit=False)
+                direct_message.conversation = conversation
+                direct_message.sender = request.user
+                direct_message.full_clean()
+                direct_message.save()
+                Conversation.objects.filter(pk=conversation.pk).update(updated_at=timezone.now())
+                notify_user(
+                    other_participant,
+                    title=f"ข้อความใหม่จาก {request.user}",
+                    message=(f"เกี่ยวกับสินค้า {conversation.product.name}" if conversation.product_id else "เกี่ยวกับร้านค้าของคุณ"),
+                    link=reverse("accounts:conversation_detail", args=[conversation.pk]),
+                    send_email_message=False,
+                )
+                return redirect("accounts:conversation_detail", pk=conversation.pk)
 
+    message_queryset = conversation.messages.select_related("sender").order_by("-created_at")
+    conversation_messages = list(message_queryset[:100])
+    conversation_messages.reverse()
     return render(
         request,
         "accounts/conversation_detail.html",
         {
             "conversation": conversation,
-            "conversation_messages": conversation.messages.select_related("sender"),
-            "other_participant": conversation.other_participant(request.user),
+            "conversation_messages": conversation_messages,
+            "has_older_messages": message_queryset.count() > len(conversation_messages),
+            "other_participant": other_participant,
+            "blocked_by_user": blocked_by_user,
+            "blocked_by_other": blocked_by_other,
+            "can_send": can_send,
             "form": form,
         },
     )

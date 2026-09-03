@@ -117,6 +117,7 @@ class OperationalFeatureTests(TestCase):
 
         self.assertEqual(response.status_code, 403)
         self.assertContains(response, "แบบฟอร์มหมดอายุ", status_code=403)
+
     def test_custom_admin_fields_have_thai_labels(self):
         apply_admin_thai_labels()
         app_labels = {"accounts", "catalog", "orders", "payments"}
@@ -125,8 +126,25 @@ class OperationalFeatureTests(TestCase):
             for model in admin.site._registry
             if model._meta.app_label in app_labels
             for field in model._meta.fields
-            if field.name != "id"
-            and re.fullmatch(r"[A-Za-z0-9 _-]+", str(field.verbose_name))
+            if re.fullmatch(r"[A-Za-z0-9 _-]+", str(field.verbose_name))
         ]
 
         self.assertEqual(untranslated, [])
+
+    def test_admin_changelist_uses_thai_interface_text(self):
+        self.login_admin()
+
+        response = self.client.get(reverse("admin:accounts_user_changelist"))
+
+        self.assertContains(response, "ดำเนินการ")
+        self.assertContains(response, "แสดงจำนวน")
+        self.assertContains(response, "เลือก 0 จาก")
+        self.assertContains(response, "ข้ามไปยังเนื้อหาหลัก")
+        self.assertNotContains(response, ">Run<")
+        self.assertNotContains(response, ">Show counts<")
+        self.assertNotContains(response, " selected</span>")
+        javascript_catalog = self.client.get(reverse("admin:jsi18n"))
+        self.assertContains(
+            javascript_catalog,
+            "เลือก %(sel)s จาก %(cnt)s รายการ".encode("unicode_escape").decode("ascii"),
+        )

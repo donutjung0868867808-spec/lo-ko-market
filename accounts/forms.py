@@ -3,7 +3,7 @@ from django.conf import settings
 from django.contrib.auth.forms import PasswordResetForm, UserCreationForm
 from django.utils import timezone
 
-from .models import AVATAR_MAX_SIZE, Community, DeliveryAddress, DirectMessage, FarmerProfile, NewsPost, Report, ReportMessage, User
+from .models import AVATAR_MAX_SIZE, Community, DeliveryAddress, DirectMessage, FarmerProfile, NewsPost, Report, ReportMessage, SupportMessage, SupportTicket, User
 
 
 def validate_upload(upload):
@@ -360,6 +360,39 @@ class ReportResolutionForm(StyledFormMixin, forms.ModelForm):
         widgets = {
             "resolution_note": forms.Textarea(attrs={"rows": 4}),
         }
+class SupportTicketCreateForm(StyledFormMixin, forms.Form):
+    category = forms.ChoiceField(label="หัวข้อที่ต้องการสอบถาม", choices=SupportTicket.Category.choices)
+    subject = forms.CharField(label="เรื่องที่ต้องการสอบถาม", max_length=200)
+    message = forms.CharField(
+        label="รายละเอียด",
+        max_length=3000,
+        widget=forms.Textarea(attrs={"rows": 6, "placeholder": "อธิบายปัญหาหรือสิ่งที่ต้องการให้ผู้ดูแลช่วย"}),
+    )
+
+    def clean_message(self):
+        message = self.cleaned_data["message"].strip()
+        if not message:
+            raise forms.ValidationError("กรุณาระบุรายละเอียด")
+        return message
+
+
+class SupportMessageForm(StyledFormMixin, forms.ModelForm):
+    class Meta:
+        model = SupportMessage
+        fields = ["body"]
+        labels = {"body": "ข้อความ"}
+        widgets = {
+            "body": forms.Textarea(
+                attrs={"rows": 4, "maxlength": 3000, "placeholder": "พิมพ์ข้อความ"}
+            )
+        }
+
+    def clean_body(self):
+        body = self.cleaned_data["body"].strip()
+        if not body:
+            raise forms.ValidationError("กรุณาพิมพ์ข้อความ")
+        return body
+
 class DirectMessageForm(StyledFormMixin, forms.ModelForm):
     class Meta:
         model = DirectMessage

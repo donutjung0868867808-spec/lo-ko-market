@@ -7,9 +7,9 @@ from django.test import Client, TestCase
 from django.urls import reverse
 
 from catalog.models import Product, StockMovement
-from orders.models import Order
+from orders.models import Order, OrderItem
 
-from .models import Community, CommunityStaffProfile, Conversation, DirectMessage, FarmerProfile, LoginAttempt, User
+from .models import ChatBlock, Community, CommunityStaffProfile, Conversation, DirectMessage, FarmerProfile, LoginAttempt, Report, User
 
 
 class LoginSeparationTests(TestCase):
@@ -646,3 +646,98 @@ class BuyerSellerConversationTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 404)
+
+    def test_blocked_participants_cannot_send_messages(self):
+        conversation = Conversation.objects.create(
+            buyer=self.buyer,
+            seller=self.seller,
+            product=self.product,
+        )
+        self.client.force_login(self.buyer)
+        self.client.post(reverse("accounts:conversation_block", args=[conversation.pk]))
+
+        response = self.client.post(
+            reverse("accounts:conversation_detail", args=[conversation.pk]),
+            {"body": "ข้อความที่ไม่ควรถูกส่ง"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(ChatBlock.objects.filter(blocker=self.buyer, blocked=self.seller).exists())
+        self.assertFalse(DirectMessage.objects.filter(conversation=conversation).exists())
+
+    def test_conversation_report_is_linked_to_conversation(self):
+        conversation = Conversation.objects.create(
+            buyer=self.buyer,
+            seller=self.seller,
+            product=self.product,
+        )
+        self.client.force_login(self.buyer)
+
+        response = self.client.post(
+            reverse("accounts:conversation_report", args=[conversation.pk]),
+            {"reason": Report.Reason.ABUSE, "details": "ได้รับข้อความไม่เหมาะสม"},
+        )
+
+        self.assertRedirects(
+            response,
+            reverse("accounts:conversation_detail", args=[conversation.pk]),
+        )
+        self.assertTrue(
+            Report.objects.filter(
+                reporter=self.buyer,
+                reported_user=self.seller,
+                conversation=conversation,
+                target_type=Report.TargetType.CONVERSATION,
+            ).exists()
+        )
+
+    def test_order_conversation_is_limited_to_order_participants(self):
+        order = Order.objects.create(
+            buyer=self.buyer,
+            seller=self.seller,
+            community=self.community,
+            shipping_name="ผู้รับทดสอบ",
+            shipping_phone="0812345678",
+            shipping_address="ที่อยู่ทดสอบ",
+        )
+        OrderItem.objects.create(
+            order=order,
+            product=self.product,
+            product_name=self.product.name,
+            unit="กิโลกรัม",
+            quantity="1.00",
+            unit_price="35.00",
+        )
+        self.client.force_login(self.seller)
+
+        response = self.client.post(reverse("accounts:conversation_start_order", args=[order.pk]))
+
+        conversation = Conversation.objects.get(order=order)
+        self.assertRedirects(
+            response,
+            reverse("accounts:conversation_detail", args=[conversation.pk]),
+        )
+        self.assertEqual(conversation.buyer, self.buyer)
+        self.assertEqual(conversation.seller, self.seller)
+
+    def test_buyer_can_start_general_store_conversation(self):
+        self.client.force_login(self.buyer)
+
+        response = self.client.post(
+            reverse("accounts:conversation_start_seller", args=[self.seller.pk])
+        )
+
+        conversation = Conversation.objects.get(
+            buyer=self.buyer,
+            seller=self.seller,
+            product__isnull=True,
+            order__isnull=True,
+        )
+        self.assertRedirects(
+            response,
+            reverse("accounts:conversation_detail", args=[conversation.pk]),
+        )
+        response = self.client.get(reverse("accounts:conversation_detail", args=[conversation.pk]))
+        self.assertContains(response, "บทสนทนากับร้านค้า")
+        response = self.client.get(reverse("catalog:seller_store", args=[self.seller.pk]))
+        self.assertContains(response, "แชทกับร้านค้า")

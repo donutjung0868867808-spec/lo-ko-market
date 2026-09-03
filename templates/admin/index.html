@@ -4,114 +4,106 @@
 {% block bodyclass %}{{ block.super }} dashboard owner-dashboard{% endblock %}
 {% block nav-breadcrumbs %}{% endblock %}
 {% block nav-sidebar %}{% endblock %}
-
-{% block content_title %}
-  <section class="owner-hero" aria-labelledby="owner-dashboard-title">
-    <div class="owner-hero-copy">
-      <span class="owner-eyebrow">ศูนย์เจ้าของระบบ</span>
-      <h1 id="owner-dashboard-title">ภาพรวมการดำเนินงาน</h1>
-      <p>ตรวจงานที่ต้องจัดการและเข้าถึงข้อมูลสำคัญของตลาดได้จากหน้านี้</p>
-    </div>
-    <div class="owner-hero-actions">
-      {% if site_url %}
-        <a class="owner-button owner-button-secondary" href="{{ site_url }}">
-          <i data-lucide="external-link" aria-hidden="true"></i>
-          <span>ดูหน้าเว็บ</span>
-        </a>
-      {% endif %}
-      {% if user.has_usable_password %}
-        <a class="owner-button owner-button-primary" href="{% url 'admin:password_change' %}">
-          <i data-lucide="key-round" aria-hidden="true"></i>
-          <span>เปลี่ยนรหัสผ่าน</span>
-        </a>
-      {% endif %}
-    </div>
-  </section>
-{% endblock %}
+{% block content_title %}{% endblock %}
 
 {% block content %}
-  <div id="content-main" class="owner-dashboard-main">
-    <section class="owner-section" aria-labelledby="summary-title">
-      <div class="owner-section-heading">
+  <main class="console-dashboard">
+    <header class="console-dashboard-header">
+      <div>
+        <span class="console-kicker">ศูนย์เจ้าของระบบ</span>
+        <h1>ภาพรวมตลาดเกษตรชุมชน</h1>
+        <p>ตรวจงานสำคัญและเข้าไปจัดการข้อมูลแต่ละส่วนได้จากหน้านี้</p>
+      </div>
+      <div class="console-dashboard-actions">
+        {% if site_url %}
+          <a class="console-button console-button-secondary" href="{{ site_url }}">
+            <i data-lucide="external-link" aria-hidden="true"></i><span>ดูหน้าเว็บไซต์</span>
+          </a>
+        {% endif %}
+        <a class="console-button console-button-primary" href="{% url 'admin:accounts_supportticket_changelist' %}">
+          <i data-lucide="messages-square" aria-hidden="true"></i><span>เปิดแชทผู้ขาย</span>
+        </a>
+      </div>
+    </header>
+
+    <section class="console-dashboard-section" aria-labelledby="today-title">
+      <div class="console-section-heading">
         <div>
-          <span class="owner-section-kicker">สถานะปัจจุบัน</span>
-          <h2 id="summary-title">รายการที่ควรรู้วันนี้</h2>
+          <span class="console-kicker">สถานะวันนี้</span>
+          <h2 id="today-title">รายการที่ควรรู้วันนี้</h2>
         </div>
       </div>
-      <div class="owner-stat-grid">
+      <div class="console-stat-grid">
         {% for stat in admin_stats %}
-          <a class="owner-stat-card" href="{{ stat.url }}">
-            <span class="owner-stat-icon"><i data-lucide="{{ stat.icon }}" aria-hidden="true"></i></span>
-            <span class="owner-stat-copy">
-              <span class="owner-stat-label">{{ stat.label }}</span>
+          <a class="console-stat" href="{{ stat.url }}">
+            <span class="console-stat-icon"><i data-lucide="{{ stat.icon }}" aria-hidden="true"></i></span>
+            <span class="console-stat-body">
+              <small>{{ stat.label }}</small>
               <strong>{{ stat.value }}</strong>
-              <small>{{ stat.detail }}</small>
+              <span>{{ stat.detail }}</span>
             </span>
-            <i class="owner-stat-arrow" data-lucide="chevron-right" aria-hidden="true"></i>
+            <i class="console-stat-arrow" data-lucide="arrow-up-right" aria-hidden="true"></i>
           </a>
         {% endfor %}
       </div>
     </section>
 
-    <section class="owner-section owner-workflows" aria-labelledby="workflow-title">
-      <div class="owner-section-heading owner-section-heading-split">
-        <div>
-          <span class="owner-section-kicker">เมนูจัดการ</span>
-          <h2 id="workflow-title">เลือกงานที่ต้องการทำ</h2>
+    <div class="console-dashboard-grid">
+      <section class="console-dashboard-section console-workspace" aria-labelledby="work-title">
+        <div class="console-section-heading">
+          <div>
+            <span class="console-kicker">งานทั้งหมด</span>
+            <h2 id="work-title">เลือกส่วนที่ต้องการจัดการ</h2>
+          </div>
+          <p>เมนูถูกแบ่งตามงานในระบบหลัก ข้อมูลที่ระบบสร้างเองจะแสดงเป็นดูอย่างเดียว</p>
         </div>
-        <p>เมนูอ่านอย่างเดียวคือข้อมูลที่ระบบสร้างอัตโนมัติและไม่ควรแก้ด้วยมือ</p>
-      </div>
-      {% include "admin/app_list.html" with app_list=app_list show_changelinks=True %}
-    </section>
-  </div>
-{% endblock %}
+        {% include "admin/app_list.html" with app_list=app_list show_changelinks=True %}
+      </section>
 
-{% block sidebar %}
-  <aside id="content-related" class="owner-dashboard-side">
-    <section class="owner-side-panel" aria-labelledby="attention-title">
-      <div class="owner-side-heading">
-        <span class="owner-section-kicker">ต้องตรวจสอบ</span>
-        <h2 id="attention-title">รายการที่ต้องติดตาม</h2>
-      </div>
-      <div class="owner-attention-list">
-        {% for item in admin_attention %}
-          <a href="{{ item.url }}" class="owner-attention-row{% if item.value %} has-items{% endif %}">
-            <span>{{ item.label }}</span>
-            <strong>{{ item.value }}</strong>
-          </a>
-        {% endfor %}
-      </div>
-    </section>
+      <aside class="console-dashboard-aside">
+        <section class="console-side-panel" aria-labelledby="attention-title">
+          <div class="console-side-heading">
+            <span class="console-kicker">ต้องตรวจสอบ</span>
+            <h2 id="attention-title">งานที่ต้องติดตาม</h2>
+          </div>
+          <div class="console-attention-list">
+            {% for item in admin_attention %}
+              <a href="{{ item.url }}" class="console-attention-row{% if item.value %} has-items{% endif %}">
+                <span>{{ item.label }}</span>
+                <strong>{{ item.value }}</strong>
+              </a>
+            {% endfor %}
+          </div>
+        </section>
 
-    <section class="owner-side-panel" aria-labelledby="recent-title">
-      <div class="owner-side-heading">
-        <span class="owner-section-kicker">ประวัติล่าสุด</span>
-        <h2 id="recent-title">รายการที่เพิ่งจัดการ</h2>
-      </div>
-      {% get_admin_log 8 as admin_log for_user user %}
-      {% if not admin_log %}
-        <p class="owner-empty-state">ยังไม่มีรายการล่าสุด</p>
-      {% else %}
-        <ul class="owner-action-list">
-          {% for entry in admin_log %}
-            <li>
-              <span class="owner-action-mark">
-                {% if entry.is_addition %}<i data-lucide="plus" aria-hidden="true"></i>
-                {% elif entry.is_deletion %}<i data-lucide="trash-2" aria-hidden="true"></i>
-                {% else %}<i data-lucide="pencil" aria-hidden="true"></i>{% endif %}
-              </span>
-              <span class="owner-action-copy">
-                {% if entry.is_deletion or not entry.get_admin_url %}
-                  <span>{{ entry.object_repr }}</span>
-                {% else %}
-                  <a href="{{ entry.get_admin_url }}">{{ entry.object_repr }}</a>
-                {% endif %}
-                <small>{% if entry.content_type %}{{ entry.content_type.name }}{% else %}ข้อมูลระบบ{% endif %}</small>
-              </span>
-            </li>
-          {% endfor %}
-        </ul>
-      {% endif %}
-    </section>
-  </aside>
+        <section class="console-side-panel" aria-labelledby="recent-title">
+          <div class="console-side-heading">
+            <span class="console-kicker">ประวัติล่าสุด</span>
+            <h2 id="recent-title">รายการที่เพิ่งจัดการ</h2>
+          </div>
+          {% get_admin_log 8 as admin_log for_user user %}
+          {% if not admin_log %}
+            <p class="console-empty">ยังไม่มีรายการล่าสุด</p>
+          {% else %}
+            <ul class="console-action-list">
+              {% for entry in admin_log %}
+                <li>
+                  <span class="console-action-mark">
+                    {% if entry.is_addition %}<i data-lucide="plus" aria-hidden="true"></i>
+                    {% elif entry.is_deletion %}<i data-lucide="trash-2" aria-hidden="true"></i>
+                    {% else %}<i data-lucide="pencil" aria-hidden="true"></i>{% endif %}
+                  </span>
+                  <span>
+                    {% if entry.is_deletion or not entry.get_admin_url %}{{ entry.object_repr }}
+                    {% else %}<a href="{{ entry.get_admin_url }}">{{ entry.object_repr }}</a>{% endif %}
+                    <small>{% if entry.content_type %}{{ entry.content_type.name }}{% else %}ข้อมูลระบบ{% endif %}</small>
+                  </span>
+                </li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+        </section>
+      </aside>
+    </div>
+  </main>
 {% endblock %}

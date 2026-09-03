@@ -1,32 +1,42 @@
 <button class="sticky toggle-nav-sidebar" id="toggle-nav-sidebar" aria-label="เปิดหรือปิดเมนูด้านข้าง"></button>
-<nav class="sticky" id="nav-sidebar" aria-label="เมนูจัดการข้อมูล">
-  <div class="agri-sidebar-heading">
-    <strong>เมนูจัดการข้อมูล</strong>
-    <span>เลือกหมวดที่ต้องการ</span>
+<nav class="sticky" id="nav-sidebar" aria-label="เมนูศูนย์เจ้าของระบบ">
+  <div class="console-nav-head">
+    <span>เมนูจัดการ</span>
+    <strong>ศูนย์เจ้าของระบบ</strong>
   </div>
-  <input type="search" id="nav-filter"
-         placeholder="ค้นหาเมนู..."
-         aria-label="ค้นหาเมนูจัดการข้อมูล">
-  <div class="agri-sidebar-groups">
+  <a class="console-nav-home{% if request.path == '/admin/' %} is-current{% endif %}" href="{% url 'admin:index' %}">
+    <i data-lucide="layout-dashboard" aria-hidden="true"></i>
+    <span>ภาพรวมระบบ</span>
+  </a>
+  <label class="console-nav-search" for="nav-filter">
+    <i data-lucide="search" aria-hidden="true"></i>
+    <input type="search" id="nav-filter" placeholder="ค้นหาเมนู..." aria-label="ค้นหาเมนูจัดการ">
+  </label>
+  <div class="console-nav-groups">
     {% for app in available_apps %}
-      <section class="agri-sidebar-group app-{{ app.app_label }}{% if app.app_url in request.path|urlencode %} current-app{% endif %}">
-        <a class="agri-sidebar-app-link" href="{{ app.app_url }}">{{ app.name }}</a>
-        <ul class="agri-sidebar-models">
+      <details class="console-nav-group" open>
+        <summary>
+          <span class="console-nav-group-icon"><i data-lucide="{{ app.icon|default:'folder' }}" aria-hidden="true"></i></span>
+          <span>{{ app.name }}</span>
+          <i class="console-nav-chevron" data-lucide="chevron-down" aria-hidden="true"></i>
+        </summary>
+        <ul>
           {% for model in app.models %}
-            {% with model_name=model.object_name|lower %}
-              <li class="model-{{ model_name }}{% if model.admin_url in request.path|urlencode %} current-model{% endif %}">
-                {% if model.admin_url %}
-                  <a href="{{ model.admin_url }}"{% if model.admin_url in request.path|urlencode %} aria-current="page"{% endif %}>{{ model.name }}</a>
-                {% else %}
+            <li class="console-nav-model{% if model.admin_url in request.path|urlencode %} is-current{% endif %}">
+              {% if model.admin_url %}
+                <a href="{{ model.admin_url }}"{% if model.admin_url in request.path|urlencode %} aria-current="page"{% endif %}>
                   <span>{{ model.name }}</span>
-                {% endif %}
-              </li>
-            {% endwith %}
+                  {% if model.view_only %}<small>ดู</small>{% endif %}
+                </a>
+              {% else %}
+                <span>{{ model.name }}</span>
+              {% endif %}
+            </li>
           {% endfor %}
         </ul>
-      </section>
+      </details>
     {% empty %}
-      <p class="agri-empty-state">ไม่มีเมนูที่บัญชีนี้สามารถใช้งานได้</p>
+      <p class="agri-empty-state">บัญชีนี้ไม่มีสิทธิ์ใช้งานเมนู Admin</p>
     {% endfor %}
   </div>
 </nav>

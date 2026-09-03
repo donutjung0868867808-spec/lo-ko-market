@@ -1,0 +1,143 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: agri-market\n"
+"Language: th\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "%(sel)s of %(cnt)s selected"
+msgid_plural "%(sel)s of %(cnt)s selected"
+msgstr[0] "เลือก %(sel)s จาก %(cnt)s รายการ"
+
+msgid "%s selected option not visible"
+msgid_plural "%s selected options not visible"
+msgstr[0] "มีตัวเลือกที่เลือกไว้ %s รายการซึ่งไม่แสดงอยู่"
+
+msgid "(click to clear)"
+msgstr "(คลิกเพื่อล้าง)"
+
+msgid "Choose %s by selecting them and then select the "
+msgstr "เลือก %s แล้วกดปุ่ม "
+
+msgid "Choose all %s"
+msgstr "เลือก %s ทั้งหมด"
+
+msgid "Choose selected %s"
+msgstr "เพิ่ม %s ที่เลือก"
+
+msgid "Friday"
+msgstr "วันศุกร์"
+
+msgid "Monday"
+msgstr "วันจันทร์"
+
+msgid "Remove %s by selecting them and then select the "
+msgstr "เลือก %s ที่ต้องการนำออก แล้วกดปุ่ม "
+
+msgid "Remove all %s"
+msgstr "นำ %s ออกทั้งหมด"
+
+msgid "Remove selected %s"
+msgstr "นำ %s ที่เลือกออก"
+
+msgid "Saturday"
+msgstr "วันเสาร์"
+
+msgid "Sunday"
+msgstr "วันอาทิตย์"
+
+msgid "Thursday"
+msgstr "วันพฤหัสบดี"
+
+msgid "Tuesday"
+msgstr "วันอังคาร"
+
+msgid "Type into this box to filter down the list of selected %s."
+msgstr "พิมพ์ในช่องนี้เพื่อกรองรายการ %s ที่เลือกไว้"
+
+msgid "Wednesday"
+msgstr "วันพุธ"
+
+msgid "You have selected an action, and you haven’t made any changes on individual fields. You’re probably looking for the Run button rather than the Save button."
+msgstr "คุณเลือกคำสั่งไว้ แต่ยังไม่ได้แก้ไขข้อมูลในแต่ละช่อง โปรดกดปุ่มดำเนินการแทนปุ่มบันทึก"
+
+msgid "You have selected an action, but you haven’t saved your changes to individual fields yet. Please click OK to save. You’ll need to re-run the action."
+msgstr "คุณเลือกคำสั่งไว้ แต่ยังไม่ได้บันทึกข้อมูลที่แก้ไข โปรดกดตกลงเพื่อบันทึก แล้วเลือกดำเนินการอีกครั้ง"
+
+msgctxt "abbrev. day Friday"
+msgid "Fri"
+msgstr "ศ."
+
+msgctxt "abbrev. day Monday"
+msgid "Mon"
+msgstr "จ."
+
+msgctxt "abbrev. day Saturday"
+msgid "Sat"
+msgstr "ส."
+
+msgctxt "abbrev. day Sunday"
+msgid "Sun"
+msgstr "อา."
+
+msgctxt "abbrev. day Thursday"
+msgid "Thur"
+msgstr "พฤ."
+
+msgctxt "abbrev. day Tuesday"
+msgid "Tue"
+msgstr "อ."
+
+msgctxt "abbrev. day Wednesday"
+msgid "Wed"
+msgstr "พ."
+
+msgctxt "abbrev. month April"
+msgid "Apr"
+msgstr "เม.ย."
+
+msgctxt "abbrev. month August"
+msgid "Aug"
+msgstr "ส.ค."
+
+msgctxt "abbrev. month December"
+msgid "Dec"
+msgstr "ธ.ค."
+
+msgctxt "abbrev. month February"
+msgid "Feb"
+msgstr "ก.พ."
+
+msgctxt "abbrev. month January"
+msgid "Jan"
+msgstr "ม.ค."
+
+msgctxt "abbrev. month July"
+msgid "Jul"
+msgstr "ก.ค."
+
+msgctxt "abbrev. month June"
+msgid "Jun"
+msgstr "มิ.ย."
+
+msgctxt "abbrev. month March"
+msgid "Mar"
+msgstr "มี.ค."
+
+msgctxt "abbrev. month May"
+msgid "May"
+msgstr "พ.ค."
+
+msgctxt "abbrev. month November"
+msgid "Nov"
+msgstr "พ.ย."
+
+msgctxt "abbrev. month October"
+msgid "Oct"
+msgstr "ต.ค."
+
+msgctxt "abbrev. month September"
+msgid "Sep"
+msgstr "ก.ย."

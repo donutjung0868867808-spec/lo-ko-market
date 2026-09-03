@@ -1,0 +1,43 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<div id="content-main" class="admin-support-chat">
+  <p><a class="admin-support-chat__back" href="{% url 'admin:accounts_supportticket_changelist' %}">← กลับไปกล่องแชทผู้ขาย</a></p>
+  <section class="admin-support-chat__panel">
+    <header class="admin-support-chat__header">
+      <div>
+        <p class="admin-support-chat__eyebrow">แชทผู้ขาย</p>
+        <h1>{{ ticket.seller.display_name|default:ticket.seller.username }}</h1>
+        <p>{{ ticket.seller.username }} · {{ ticket.get_status_display }}</p>
+      </div>
+      <a class="button" href="{% url 'admin:accounts_supportticket_change' ticket.pk %}">ดูข้อมูลแชท</a>
+    </header>
+    <div class="admin-support-chat__messages" id="admin-chat-messages">
+      {% for message in ticket.messages.all %}
+        <article class="admin-support-chat__row {% if message.sender_id == user.id %}admin-support-chat__row--owner{% endif %}">
+          <div class="admin-support-chat__bubble">
+            <p class="admin-support-chat__meta">{% if message.sender_id == ticket.seller_id %}ผู้ขาย{% else %}ผู้ดูแลระบบ{% endif %} · {{ message.created_at|date:"d/m/Y H:i" }}</p>
+            <p>{{ message.body|linebreaksbr }}</p>
+          </div>
+        </article>
+      {% empty %}
+        <p class="admin-support-chat__empty">ยังไม่มีข้อความ เริ่มตอบผู้ขายได้ด้านล่าง</p>
+      {% endfor %}
+    </div>
+    <form method="post" class="admin-support-chat__composer" novalidate>
+      {% csrf_token %}
+      {% if form.non_field_errors %}<div class="errornote">{{ form.non_field_errors }}</div>{% endif %}
+      <label for="{{ form.body.id_for_label }}">พิมพ์ข้อความถึงผู้ขาย</label>
+      {{ form.body }}
+      {% for error in form.body.errors %}<p class="errornote">{{ error }}</p>{% endfor %}
+      <div class="submit-row"><input type="submit" value="ส่งข้อความ"></div>
+    </form>
+  </section>
+</div>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const messages = document.getElementById("admin-chat-messages");
+    if (messages) messages.scrollTop = messages.scrollHeight;
+  });
+</script>
+{% endblock %}

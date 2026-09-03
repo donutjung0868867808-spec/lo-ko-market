@@ -15,6 +15,9 @@
       {% if user.is_owner or user == order.seller or user.is_cooperative_staff %}
         <a class="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold" href="{% url 'orders:order_update_status' order.id %}">ปรับสถานะ</a>
       {% endif %}
+      {% if user == order.buyer or user == order.seller %}
+        <form method="post" action="{% url 'accounts:conversation_start_order' order.id %}">{% csrf_token %}<button class="inline-flex items-center gap-2 rounded-md border border-leaf bg-white px-4 py-2 text-sm font-semibold text-leaf hover:bg-emerald-50" type="submit"><i data-lucide="messages-square" class="h-4 w-4" aria-hidden="true"></i>แชทเรื่องคำสั่งซื้อ</button></form>
+      {% endif %}
       {% if user == order.buyer and order.status == 'pending_payment' %}
         <a class="rounded-md bg-leaf px-4 py-2 text-sm font-semibold text-white" href="{% url 'payments:create_checkout' order.id %}">ชำระเงิน</a>
         <a class="rounded-md border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-700" href="{% url 'orders:cancel_order' order.id %}">ยกเลิก</a>

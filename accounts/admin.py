@@ -4,8 +4,13 @@ from django.contrib.admin.helpers import ActionForm
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import Group
 from django.contrib.admin.sites import NotRegistered
+from django.core.exceptions import PermissionDenied
 from django.db.models import Count
+from django.shortcuts import redirect
+from django.template.response import TemplateResponse
+from django.urls import path, reverse
 from django.utils import timezone
+from django.utils.html import format_html
 
 from .admin_permissions import (
     CsvExportAdminMixin,
@@ -13,10 +18,12 @@ from .admin_permissions import (
     RoleScopedAdminMixin,
     staff_community,
 )
+from .forms import SupportMessageForm
 from .services import deliver_email, notify_user, record_audit
 
 from .models import (
     AuditEvent,
+    ChatBlock,
     Community,
     CommunityStaffProfile,
     Conversation,
@@ -29,6 +36,8 @@ from .models import (
     Notification,
     Report,
     ReportMessage,
+    SupportMessage,
+    SupportTicket,
     User,
 )
 
@@ -161,13 +170,55 @@ class CustomUserAdmin(CsvExportAdminMixin, RoleScopedAdminMixin, UserAdmin):
         return super().get_fieldsets(request, obj)
 
     def get_readonly_fields(self, request, obj=None):
-        if not self._is_owner(request.user):
-            return ("username",)
         fields = list(super().get_readonly_fields(request, obj))
-        if obj:
-            fields.extend(("username", "is_active"))
+        if not self._is_owner(request.user) or obj:
+            fields.append("username")
+        if obj and (obj.is_owner or obj.is_superuser):
+            fields.append("is_active")
         return tuple(dict.fromkeys(fields))
 
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
+        formfield = super().formfield_for_dbfield(db_field, request, **kwargs)
+        if db_field.name == "is_active":
+            formfield.label = "เปิดใช้งานบัญชี"
+            formfield.help_text = "ปิดเพื่อระงับการเข้าสู่ระบบของบัญชีนี้"
+        return formfield
+
+    def save_model(self, request, obj, form, change):
+        status_changed = change and "is_active" in form.changed_data
+        previous_status = None
+        if status_changed:
+            previous_status = User.objects.only("is_active").get(pk=obj.pk).is_active
+            if obj.is_owner or obj.is_superuser:
+                obj.is_active = previous_status
+                status_changed = False
+
+        super().save_model(request, obj, form, change)
+
+        if not status_changed:
+            return
+
+        action = AuditEvent.Action.UNBLOCK if obj.is_active else AuditEvent.Action.BLOCK
+        description = (
+            "เปิดใช้งานบัญชีจากหน้าข้อมูลผู้ใช้"
+            if obj.is_active
+            else "ระงับบัญชีจากหน้าข้อมูลผู้ใช้"
+        )
+        record_audit(
+            request,
+            action,
+            obj,
+            description=description,
+            before={"is_active": previous_status},
+            after={"is_active": obj.is_active},
+            community=self._user_community(obj),
+        )
+        notify_user(
+            obj,
+            "บัญชีกลับมาใช้งานได้แล้ว" if obj.is_active else "บัญชีถูกระงับการใช้งาน",
+            description,
+            send_email_message=True,
+        )
     @staticmethod
     def _user_community(user):
         profile = getattr(user, "farmer_profile", None)
@@ -467,6 +518,7 @@ class ReportAdmin(CsvExportAdminMixin, RoleScopedAdminMixin, admin.ModelAdmin):
         "reporter",
         "reported_user",
         "product",
+        "conversation",
         "status",
         "community",
         "created_at",
@@ -476,6 +528,7 @@ class ReportAdmin(CsvExportAdminMixin, RoleScopedAdminMixin, admin.ModelAdmin):
         "reporter__username",
         "reported_user__username",
         "product__name",
+        "conversation__messages__body",
         "details",
         "resolution_note",
     )
@@ -485,6 +538,7 @@ class ReportAdmin(CsvExportAdminMixin, RoleScopedAdminMixin, admin.ModelAdmin):
         "reported_user",
         "product",
         "order",
+        "conversation",
         "community",
         "handled_by",
     )
@@ -503,7 +557,7 @@ class ReportAdmin(CsvExportAdminMixin, RoleScopedAdminMixin, admin.ModelAdmin):
     )
     fieldsets = (
         ("ข้อมูลรายงาน", {"fields": ("reporter", "target_type", "reason", "details", "evidence")}),
-        ("รายการที่เกี่ยวข้อง", {"fields": ("product", "reported_user", "order", "community")}),
+        ("รายการที่เกี่ยวข้อง", {"fields": ("product", "reported_user", "order", "conversation", "community")}),
         ("ผลการดำเนินการ", {"fields": ("status", "resolution_note", "handled_by", "handled_at")}),
         ("ข้อมูลระบบ", {"fields": ("created_at", "updated_at"), "classes": ("collapse",)}),
     )
@@ -558,7 +612,7 @@ class DirectMessageInline(admin.TabularInline):
 
 @admin.register(Conversation)
 class ConversationAdmin(OwnerOnlyAdminMixin, admin.ModelAdmin):
-    list_display = ("product", "buyer", "seller", "message_count", "updated_at")
+    list_display = ("product", "order", "buyer", "seller", "message_count", "updated_at")
     list_filter = ("created_at", "updated_at")
     search_fields = (
         "buyer__username",
@@ -566,15 +620,16 @@ class ConversationAdmin(OwnerOnlyAdminMixin, admin.ModelAdmin):
         "seller__username",
         "seller__display_name",
         "product__name",
+        "order__reference",
         "messages__body",
     )
-    readonly_fields = ("buyer", "seller", "product", "created_at", "updated_at")
+    readonly_fields = ("buyer", "seller", "product", "order", "created_at", "updated_at")
     inlines = (DirectMessageInline,)
     actions = None
     fieldsets = (
         (
             "ผู้เข้าร่วมและสินค้า",
-            {"fields": ("buyer", "seller", "product")},
+            {"fields": ("buyer", "seller", "product", "order")},
         ),
         (
             "ข้อมูลระบบ",
@@ -593,6 +648,99 @@ class ConversationAdmin(OwnerOnlyAdminMixin, admin.ModelAdmin):
         return False
 
     def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+@admin.register(ChatBlock)
+class ChatBlockAdmin(OwnerOnlyAdminMixin, admin.ModelAdmin):
+    list_display = ("blocker", "blocked", "created_at")
+    search_fields = ("blocker__username", "blocker__display_name", "blocked__username", "blocked__display_name")
+    list_filter = ("created_at",)
+    readonly_fields = ("blocker", "blocked", "created_at")
+    actions = None
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+class SupportMessageInline(admin.TabularInline):
+    model = SupportMessage
+    extra = 0
+    can_delete = False
+    fields = ("sender", "body", "created_at")
+    readonly_fields = fields
+    verbose_name = "ข้อความ"
+    verbose_name_plural = "ประวัติข้อความ"
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(SupportTicket)
+class SupportTicketAdmin(OwnerOnlyAdminMixin, admin.ModelAdmin):
+    list_display = ("ticket_number", "subject", "category", "seller", "status", "handled_by", "updated_at", "reply_link")
+    list_filter = ("category", "status", "community", "created_at", "updated_at")
+    search_fields = ("subject", "seller__username", "seller__display_name", "messages__body")
+    readonly_fields = ("seller", "community", "category", "subject", "created_at", "updated_at")
+    inlines = (SupportMessageInline,)
+    actions = None
+    fieldsets = (
+        ("ข้อมูลคำขอ", {"fields": ("seller", "community", "category", "subject")}),
+        ("การดำเนินการ", {"fields": ("status", "handled_by")}),
+        ("วันเวลา", {"fields": ("created_at", "updated_at"), "classes": ("collapse",)}),
+    )
+
+    def get_urls(self):
+        return [path("<int:ticket_id>/reply/", self.admin_site.admin_view(self.reply_view), name="accounts_supportticket_reply")] + super().get_urls()
+
+    @admin.display(description="ตอบกลับ")
+    def reply_link(self, obj):
+        return format_html('<a class="button" href="{}">เปิดแชท</a>', reverse("admin:accounts_supportticket_reply", args=[obj.pk]))
+
+    @admin.display(description="รหัสคำขอ", ordering="id")
+    def ticket_number(self, obj):
+        return f"#{obj.pk}"
+
+    def reply_view(self, request, ticket_id):
+        if not request.user.is_owner:
+            raise PermissionDenied
+        ticket = self.get_object(request, ticket_id)
+        if ticket is None:
+            raise PermissionDenied
+        form = SupportMessageForm(request.POST or None)
+        if request.method == "POST" and form.is_valid():
+            message = form.save(commit=False)
+            message.ticket, message.sender = ticket, request.user
+            message.full_clean()
+            message.save()
+            ticket.status, ticket.handled_by = SupportTicket.Status.IN_PROGRESS, request.user
+            ticket.save(update_fields=("status", "handled_by", "updated_at"))
+            notify_user(ticket.seller, title="ผู้ดูแลตอบกลับคำขอของคุณ", message=ticket.subject, link=reverse("accounts:support_ticket_detail", args=[ticket.pk]), send_email_message=False)
+            self.message_user(request, "ส่งคำตอบให้ผู้ขายแล้ว", messages.SUCCESS)
+            return redirect("admin:accounts_supportticket_reply", ticket.pk)
+        return TemplateResponse(request, "admin/accounts/support_ticket_reply.html", {**self.admin_site.each_context(request), "title": "ตอบกลับคำขอผู้ขาย", "ticket": ticket, "form": form, "opts": self.model._meta})
+
+    def save_model(self, request, obj, form, change):
+        previous_status = SupportTicket.objects.filter(pk=obj.pk).values_list("status", flat=True).first() if change else None
+        super().save_model(request, obj, form, change)
+        if change and previous_status != obj.status:
+            notify_user(obj.seller, title="สถานะคำขอถึงผู้ดูแลเปลี่ยนแปลง", message=f"{obj.subject}: {obj.get_status_display()}", link=reverse("accounts:support_ticket_detail", args=[obj.pk]), send_email_message=False)
+
+    def has_add_permission(self, request):
         return False
 
     def has_delete_permission(self, request, obj=None):

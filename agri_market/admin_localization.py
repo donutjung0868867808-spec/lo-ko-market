@@ -342,6 +342,8 @@ def apply_admin_thai_labels():
 
     admin.site.empty_value_display = "ไม่มีข้อมูล"
     for model_admin in admin.site._registry.values():
+        if model_admin.model._meta.pk.name == "id":
+            model_admin.model._meta.pk.verbose_name = "รหัส"
         model_admin.list_per_page = 30
         model_admin.list_max_show_all = 200
         model_admin.preserve_filters = True

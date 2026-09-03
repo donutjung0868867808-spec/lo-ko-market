@@ -1,0 +1,273 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: agri-market\n"
+"Language: th\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "0 of %(cnt)s selected"
+msgstr "เลือก 0 จาก %(cnt)s รายการ"
+
+msgid "Django administration"
+msgstr "ระบบจัดการเว็บไซต์"
+
+msgid "Django site admin"
+msgstr "ผู้ดูแลเว็บไซต์"
+
+msgid "LogEntry Object"
+msgstr "รายการประวัติการดำเนินการ"
+
+msgid "%(count)s %(name)s was changed successfully."
+msgid_plural "%(count)s %(name)s were changed successfully."
+msgstr[0] "แก้ไข %(name)s สำเร็จ %(count)s รายการ"
+
+msgid "%(name)s with ID “%(key)s” doesn’t exist. Perhaps it was deleted?"
+msgstr "ไม่พบ %(name)s รหัส “%(key)s” รายการนี้อาจถูกลบไปแล้ว"
+
+msgid "Add another {{ model }}"
+msgstr "เพิ่ม {{ model }} อีกหนึ่งรายการ"
+
+msgid "Add link"
+msgstr "ลิงก์เพิ่มข้อมูล"
+
+msgid "Add {{ name }}"
+msgstr "เพิ่ม{{ name }}"
+
+msgid "Added {name} “{object}”."
+msgstr "เพิ่ม{name} “{object}” แล้ว"
+
+msgid "Added “%(object)s”."
+msgstr "เพิ่ม “%(object)s” แล้ว"
+
+msgid "Added:"
+msgstr "เพิ่มแล้ว:"
+
+msgid "After you’ve created a user, you’ll be able to edit more user options."
+msgstr "หลังจากสร้างผู้ใช้แล้ว คุณจะสามารถแก้ไขตัวเลือกเพิ่มเติมของผู้ใช้ได้"
+
+msgid "%(total_count)s selected"
+msgid_plural "All %(total_count)s selected"
+msgstr[0] "เลือกทั้งหมด %(total_count)s รายการ"
+
+msgid "Are you sure you want to delete the selected {{ objects_name }}? All of the following objects and their related items will be deleted:"
+msgstr "ยืนยันการลบ{{ objects_name }}ที่เลือกหรือไม่ ข้อมูลต่อไปนี้รวมถึงข้อมูลที่เกี่ยวข้องทั้งหมดจะถูกลบ:"
+
+msgid "Are you sure you want to delete the {{ object_name }} “{{ escaped_object }}”? All of the following related items will be deleted:"
+msgstr "ยืนยันการลบ{{ object_name }} “{{ escaped_object }}” หรือไม่ ข้อมูลที่เกี่ยวข้องต่อไปนี้ทั้งหมดจะถูกลบ:"
+
+msgid "Breadcrumbs"
+msgstr "เส้นทางนำทาง"
+
+msgid "By {{ filter_title }}"
+msgstr "โดย {{ filter_title }}"
+
+msgid "Change or view list link"
+msgstr "ลิงก์แก้ไขหรือดูรายการ"
+
+msgid "Change selected {{ model }}"
+msgstr "แก้ไข{{ model }}ที่เลือก"
+
+msgid "Changed {fields} for {name} “{object}”."
+msgstr "แก้ไข {fields} ของ{name} “{object}” แล้ว"
+
+msgid "Changed “%(object)s” — %(changes)s"
+msgstr "แก้ไข “%(object)s” — %(changes)s"
+
+msgid "Changed:"
+msgstr "แก้ไขแล้ว:"
+
+msgid "Clear all filters"
+msgstr "ล้างตัวกรองทั้งหมด"
+
+msgid "Delete selected {{ model }}"
+msgstr "ลบ{{ model }}ที่เลือก"
+
+msgid "Deleted {name} “{object}”."
+msgstr "ลบ{name} “{object}” แล้ว"
+
+msgid "Deleted “%(object)s.”"
+msgstr "ลบ “%(object)s” แล้ว"
+
+msgid "Deleted:"
+msgstr "ลบแล้ว:"
+
+msgid "Deleting the selected {{ objects_name }} would require deleting the following protected related objects:"
+msgstr "ไม่สามารถลบ{{ objects_name }}ที่เลือกได้ เนื่องจากต้องลบข้อมูลที่ได้รับการป้องกันต่อไปนี้ด้วย:"
+
+msgid "Deleting the selected {{ objects_name }} would result in deleting related objects, but your account doesn't have permission to delete the following types of objects:"
+msgstr "การลบ{{ objects_name }}ที่เลือกจะทำให้ข้อมูลที่เกี่ยวข้องถูกลบ แต่บัญชีของคุณไม่มีสิทธิ์ลบข้อมูลประเภทต่อไปนี้:"
+
+msgid "Deleting the {{ object_name }} “{{ escaped_object }}” would require deleting the following protected related objects:"
+msgstr "ไม่สามารถลบ{{ object_name }} “{{ escaped_object }}” ได้ เนื่องจากต้องลบข้อมูลที่ได้รับการป้องกันต่อไปนี้ด้วย:"
+
+msgid "Deleting the {{ object_name }} “{{ escaped_object }}” would result in deleting related objects, but your account doesn't have permission to delete the following types of objects:"
+msgstr "การลบ{{ object_name }} “{{ escaped_object }}” จะทำให้ข้อมูลที่เกี่ยวข้องถูกลบ แต่บัญชีของคุณไม่มีสิทธิ์ลบข้อมูลประเภทต่อไปนี้:"
+
+msgid "Disable password-based authentication"
+msgstr "ปิดการเข้าสู่ระบบด้วยรหัสผ่าน"
+
+msgid "Empty"
+msgstr "ไม่มีข้อมูล"
+
+msgid "Enable password-based authentication"
+msgstr "เปิดการเข้าสู่ระบบด้วยรหัสผ่าน"
+
+msgid "Enter a new password for the user <strong>{{ username }}</strong>."
+msgstr "กรอกรหัสผ่านใหม่สำหรับผู้ใช้ <strong>{{ username }}</strong>"
+
+msgid "Error:"
+msgstr "ข้อผิดพลาด:"
+
+msgid "Filter navigation items"
+msgstr "กรองรายการเมนู"
+
+msgid "Forgotten your login credentials?"
+msgstr "ลืมข้อมูลเข้าสู่ระบบใช่หรือไม่"
+
+msgid "Hide counts"
+msgstr "ซ่อนจำนวน"
+
+msgid "Hold down “Control”, or “Command” on a Mac, to select more than one."
+msgstr "กดปุ่ม “Control” ค้างไว้ หรือ “Command” บน Mac เพื่อเลือกมากกว่าหนึ่งรายการ"
+
+msgid "Model name"
+msgstr "ชื่อประเภทข้อมูล"
+
+msgid "Models in the {{ name }} application"
+msgstr "รายการข้อมูลในหมวด {{ name }}"
+
+msgid "Not empty"
+msgstr "มีข้อมูล"
+
+msgid "Pagination {{ name }}"
+msgstr "การแบ่งหน้ารายการ {{ name }}"
+
+msgid "Pagination {{ name }} entries"
+msgstr "การแบ่งหน้าประวัติ {{ name }}"
+
+msgid "Remove from sorting"
+msgstr "นำออกจากการเรียงลำดับ"
+
+msgid "Run"
+msgstr "ดำเนินการ"
+
+msgid "Search {{ name }}"
+msgstr "ค้นหา {{ name }}"
+
+msgid "Select all objects on this page for an action"
+msgstr "เลือกข้อมูลทั้งหมดในหน้านี้เพื่อดำเนินการ"
+
+msgid "Select all {{ total_count }} {{ module_name }}"
+msgstr "เลือก{{ module_name }}ทั้งหมด {{ total_count }} รายการ"
+
+msgid "Select this object for an action - {}"
+msgstr "เลือกข้อมูลนี้เพื่อดำเนินการ - {}"
+
+msgid "Set password"
+msgstr "ตั้งรหัสผ่าน"
+
+msgid "Show counts"
+msgstr "แสดงจำนวน"
+
+msgid "Sidebar"
+msgstr "แถบเมนู"
+
+msgid "Skip to main content"
+msgstr "ข้ามไปยังเนื้อหาหลัก"
+
+msgid "Something’s wrong with your database installation. Make sure the appropriate database tables have been created, and make sure the database is readable by the appropriate user."
+msgstr "การติดตั้งฐานข้อมูลมีปัญหา โปรดตรวจสอบว่าได้สร้างตารางที่จำเป็นแล้ว และผู้ใช้ฐานข้อมูลมีสิทธิ์อ่านข้อมูล"
+
+msgid "Sorting priority: {{ priority_number }}"
+msgstr "ลำดับความสำคัญในการเรียง: {{ priority_number }}"
+
+msgid "Start typing to filter…"
+msgstr "พิมพ์เพื่อกรองรายการ…"
+
+msgid "The %(name)s “%(obj)s” was deleted successfully."
+msgstr "ลบ %(name)s “%(obj)s” สำเร็จแล้ว"
+
+msgid "The {name} “{obj}” was added successfully."
+msgstr "เพิ่ม{name} “{obj}” สำเร็จแล้ว"
+
+msgid "The {name} “{obj}” was added successfully. You may add another {name} below."
+msgstr "เพิ่ม{name} “{obj}” สำเร็จแล้ว คุณสามารถเพิ่ม{name}อีกหนึ่งรายการด้านล่าง"
+
+msgid "The {name} “{obj}” was changed successfully."
+msgstr "แก้ไข{name} “{obj}” สำเร็จแล้ว"
+
+msgid "The {name} “{obj}” was changed successfully. You may add another {name} below."
+msgstr "แก้ไข{name} “{obj}” สำเร็จแล้ว คุณสามารถเพิ่ม{name}อีกหนึ่งรายการด้านล่าง"
+
+msgid "The {name} “{obj}” was changed successfully. You may edit it again below."
+msgstr "แก้ไข{name} “{obj}” สำเร็จแล้ว คุณสามารถแก้ไขรายการนี้ต่อได้ด้านล่าง"
+
+msgid "There’s been an error. It’s been reported to the site administrators via email and should be fixed shortly. Thanks for your patience."
+msgstr "เกิดข้อผิดพลาด ระบบได้แจ้งผู้ดูแลเว็บไซต์ทางอีเมลแล้ว และจะดำเนินการแก้ไขโดยเร็ว ขออภัยในความไม่สะดวก"
+
+msgid "This action will <strong>enable</strong> password-based authentication for this user."
+msgstr "การดำเนินการนี้จะ<strong>เปิด</strong>การเข้าสู่ระบบด้วยรหัสผ่านสำหรับผู้ใช้นี้"
+
+msgid "This object doesn’t have a change history. It probably wasn’t added via this admin site."
+msgstr "ข้อมูลนี้ไม่มีประวัติการแก้ไข เนื่องจากอาจไม่ได้ถูกเพิ่มผ่านระบบผู้ดูแล"
+
+msgid "Toggle navigation"
+msgstr "เปิดหรือปิดเมนูนำทาง"
+
+msgid "Toggle sorting"
+msgstr "สลับการเรียงลำดับ"
+
+msgid "Toggle theme (current theme: auto)"
+msgstr "เปลี่ยนธีม (ธีมปัจจุบัน: ตามระบบ)"
+
+msgid "Toggle theme (current theme: dark)"
+msgstr "เปลี่ยนธีม (ธีมปัจจุบัน: มืด)"
+
+msgid "Toggle theme (current theme: light)"
+msgstr "เปลี่ยนธีม (ธีมปัจจุบัน: สว่าง)"
+
+msgid "View selected {{ model }}"
+msgstr "ดู{{ model }}ที่เลือก"
+
+msgid "We’re sorry, but the requested page could not be found."
+msgstr "ขออภัย ไม่พบหน้าที่ต้องการ"
+
+msgid "Yes, I’m sure"
+msgstr "ยืนยันการดำเนินการ"
+
+msgid ""
+"You are authenticated as {{ username }}, but are not authorized to\n"
+"    access this page. Would you like to login to a different account?"
+msgstr ""
+"คุณเข้าสู่ระบบเป็น {{ username }} แต่ไม่มีสิทธิ์เข้าถึงหน้านี้\n"
+"    ต้องการเข้าสู่ระบบด้วยบัญชีอื่นหรือไม่"
+
+msgid "You don’t have permission to view or edit anything."
+msgstr "คุณไม่มีสิทธิ์ดูหรือแก้ไขข้อมูล"
+
+msgid "action flag"
+msgstr "ประเภทการดำเนินการ"
+
+msgid "content type"
+msgstr "ประเภทข้อมูล"
+
+msgid "entry"
+msgstr "รายการ"
+
+msgid "log entries"
+msgstr "ประวัติการดำเนินการ"
+
+msgid "log entry"
+msgstr "ประวัติการดำเนินการ"
+
+msgid "object repr"
+msgstr "ข้อมูลที่แสดง"
+
+msgid "{{ counter }} result"
+msgid_plural "{{ counter }} results"
+msgstr[0] "{{ counter }} รายการ"
+
+msgid "{{ full_result_count }} total"
+msgstr "ทั้งหมด {{ full_result_count }} รายการ"

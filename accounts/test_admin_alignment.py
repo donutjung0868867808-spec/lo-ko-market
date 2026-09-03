@@ -147,6 +147,43 @@ class AdminAlignmentTests(TestCase):
             ).exists()
         )
 
+    def test_owner_can_toggle_a_member_status_from_the_change_form(self):
+        member = User.objects.create_user(
+            username="toggle-member",
+            password=self.password,
+            role=User.Roles.CONSUMER,
+        )
+        user_admin = admin.site._registry[User]
+
+        self.assertNotIn("is_active", user_admin.get_readonly_fields(self.request, member))
+        self.assertIn("is_active", user_admin.get_readonly_fields(self.request, self.owner))
+        form = user_admin.get_form(self.request, member)(instance=member)
+        self.assertEqual(form.fields["is_active"].label, "เปิดใช้งานบัญชี")
+
+        member.is_active = False
+        user_admin.save_model(
+            self.request,
+            member,
+            type("StatusChangeForm", (), {"changed_data": ("is_active",)})(),
+            change=True,
+        )
+
+        member.refresh_from_db()
+        self.assertFalse(member.is_active)
+        self.assertTrue(
+            AuditEvent.objects.filter(
+                actor=self.owner,
+                action=AuditEvent.Action.BLOCK,
+                target_id=str(member.pk),
+                description="ระงับบัญชีจากหน้าข้อมูลผู้ใช้",
+            ).exists()
+        )
+        self.assertTrue(
+            Notification.objects.filter(
+                user=member,
+                title="บัญชีถูกระงับการใช้งาน",
+            ).exists()
+        )
     def test_conversations_are_available_to_owner_as_read_only_records(self):
         self.assertIn(Conversation, admin.site._registry)
         conversation_admin = admin.site._registry[Conversation]

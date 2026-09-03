@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}ติดต่อผู้ดูแล{% endblock %}
+{% block content %}
+<section class="mx-auto w-full max-w-5xl">
+  <header class="flex flex-wrap items-end justify-between gap-4 border-b border-stone-200 pb-5">
+    <div><p class="text-sm font-semibold text-leaf">ศูนย์ช่วยเหลือผู้ขาย</p><h1 class="mt-1 text-2xl font-semibold text-slate-950">ติดต่อผู้ดูแล</h1><p class="mt-2 text-sm text-slate-600">ติดตามคำขอเกี่ยวกับคืนเงิน บัญชี การเงิน และการใช้งานร้านค้า</p></div>
+    <a class="inline-flex min-h-10 items-center gap-2 rounded-md bg-leaf px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800" href="{% url 'accounts:support_ticket_create' %}"><i data-lucide="message-square-plus" class="h-4 w-4" aria-hidden="true"></i>เปิดคำขอใหม่</a>
+  </header>
+  <div class="mt-5 space-y-3">
+    {% for ticket in tickets %}
+      <a class="block rounded-md border border-stone-200 bg-white p-5 shadow-sm transition hover:border-emerald-400 hover:shadow" href="{% url 'accounts:support_ticket_detail' ticket.pk %}">
+        <div class="flex flex-wrap items-start justify-between gap-3"><div><p class="text-sm font-semibold text-leaf">{{ ticket.get_category_display }}</p><h2 class="mt-1 font-semibold text-slate-950">{{ ticket.subject }}</h2><p class="mt-2 text-xs text-slate-500">เปิดเมื่อ {{ ticket.created_at|date:"d/m/Y H:i" }} · อัปเดต {{ ticket.updated_at|date:"d/m/Y H:i" }}</p></div><span class="rounded-md px-3 py-1 text-xs font-semibold {% if ticket.status == 'open' %}bg-amber-50 text-amber-800{% elif ticket.status == 'in_progress' %}bg-sky-50 text-sky-800{% elif ticket.status == 'resolved' %}bg-emerald-50 text-emerald-800{% else %}bg-stone-100 text-slate-700{% endif %}">{{ ticket.get_status_display }}</span></div>
+      </a>
+    {% empty %}
+      <div class="rounded-md border border-dashed border-stone-300 bg-white py-16 text-center"><i data-lucide="messages-square" class="mx-auto h-10 w-10 text-slate-400" aria-hidden="true"></i><p class="mt-3 font-semibold text-slate-900">ยังไม่มีคำขอถึงผู้ดูแล</p><p class="mt-1 text-sm text-slate-600">เปิดคำขอเมื่อคุณต้องการความช่วยเหลือ</p></div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

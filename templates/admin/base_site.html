@@ -5,7 +5,8 @@
 
 {% block extrastyle %}
   {{ block.super }}
-  <link rel="stylesheet" href="{% static 'admin/admin-theme.css' %}?v=20260828-1">
+  <link rel="stylesheet" href="{% static 'admin/admin-theme.css' %}?v=20260903-1">
+  <link rel="stylesheet" href="{% static 'admin/admin-console.css' %}?v=20260902-4">
 {% endblock %}
 
 {% block extrahead %}
@@ -14,6 +15,21 @@
   <script>
     document.addEventListener("DOMContentLoaded", function () {
       if (window.lucide) window.lucide.createIcons();
+      const input = document.getElementById("nav-filter");
+      if (!input) return;
+      input.addEventListener("input", function () {
+        const query = input.value.trim().toLocaleLowerCase("th");
+        document.querySelectorAll(".console-nav-group").forEach(function (group) {
+          let visible = 0;
+          group.querySelectorAll(".console-nav-model").forEach(function (item) {
+            const match = !query || item.textContent.toLocaleLowerCase("th").includes(query);
+            item.hidden = !match;
+            if (match) visible += 1;
+          });
+          group.hidden = visible === 0;
+          if (query && visible) group.open = true;
+        });
+      });
     });
   </script>
 {% endblock %}
@@ -33,7 +49,7 @@
     <div id="user-tools" class="owner-user-tools">
       <span class="owner-user-name">{{ user.get_short_name|default:user.get_username }}</span>
       {% if site_url %}
-        <a href="{{ site_url }}" title="ดูเว็บไซต์">
+        <a href="{{ site_url }}" title="ดูหน้าเว็บไซต์">
           <i data-lucide="external-link" aria-hidden="true"></i><span>ดูเว็บไซต์</span>
         </a>
       {% endif %}
@@ -55,11 +71,30 @@
 {% block nav-global %}{% endblock %}
 
 {% block nav-breadcrumbs %}
-  <div class="owner-admin-backbar">
-    <button type="button" class="owner-back-button" onclick="if (window.history.length > 1) { window.history.back(); } else { window.location.href='{% url 'admin:index' %}'; }" title="ย้อนกลับ">
-      <i data-lucide="arrow-left" aria-hidden="true"></i>
-      <span>ย้อนกลับ</span>
-    </button>
-  </div>
+  {% if has_permission %}
+    <div class="owner-admin-backbar">
+      <a class="owner-back-button" href="{% url 'admin:index' %}" title="กลับหน้าหลักผู้ดูแลระบบ">
+        <i data-lucide="layout-dashboard" aria-hidden="true"></i>
+        <span>หน้าหลัก</span>
+      </a>
+    </div>
+  {% endif %}
   {{ block.super }}
+{% endblock %}
+
+{% block footer %}
+  {{ block.super }}
+  {% if has_permission and user.is_owner %}
+    <nav class="admin-support-rail" aria-label="เครื่องมือด่วนของผู้ดูแล">
+      <a href="{% url 'admin:accounts_supportticket_changelist' %}?status__exact=open" title="แชทผู้ขาย" class="admin-support-rail__item">
+        <i data-lucide="headset" aria-hidden="true"></i>
+        {% if admin_support_chat_count %}<span class="admin-support-rail__badge">{{ admin_support_chat_count }}</span>{% endif %}
+        <span class="visually-hidden">แชทผู้ขาย</span>
+      </a>
+      <a href="{% url 'admin:accounts_notification_changelist' %}" title="การแจ้งเตือน" class="admin-support-rail__item">
+        <i data-lucide="bell" aria-hidden="true"></i>
+        <span class="visually-hidden">การแจ้งเตือน</span>
+      </a>
+    </nav>
+  {% endif %}
 {% endblock %}

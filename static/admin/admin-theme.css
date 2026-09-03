@@ -1155,6 +1155,45 @@ fieldset.module,
   padding: 8px 10px;
 }
 
+.form-row.field-is_active input[type="checkbox"] {
+  appearance: none;
+  position: relative;
+  width: 46px;
+  height: 26px;
+  margin: 0 10px 0 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: #d9e1dc;
+  cursor: pointer;
+  vertical-align: middle;
+  transition: background-color 160ms ease, border-color 160ms ease;
+}
+
+.form-row.field-is_active input[type="checkbox"]::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(20, 45, 30, 0.24);
+  transition: transform 160ms ease;
+}
+
+.form-row.field-is_active input[type="checkbox"]:checked {
+  border-color: var(--primary-strong);
+  background: var(--primary-strong);
+}
+
+.form-row.field-is_active input[type="checkbox"]:checked::after {
+  transform: translateX(20px);
+}
+
+.form-row.field-is_active input[type="checkbox"]:focus-visible {
+  box-shadow: var(--focus);
+}
 input[type="text"],
 input[type="password"],
 input[type="email"],
@@ -1568,4 +1607,173 @@ ul.errorlist {
 .object-tools .refund-reject-link:visited {
   border-color: #b42318;
   color: #b42318;
+}
+
+/* Right-side shortcuts for seller support chats. */
+.admin-support-rail {
+  position: fixed;
+  top: 50%;
+  right: 0;
+  z-index: 1000;
+  display: grid;
+  overflow: hidden;
+  transform: translateY(-50%);
+  border: 1px solid var(--line);
+  border-right: 0;
+  border-radius: 8px 0 0 8px;
+  background: var(--surface);
+  box-shadow: 0 10px 28px rgba(10, 35, 24, 0.16);
+}
+
+.admin-support-rail__item {
+  position: relative;
+  display: grid;
+  width: 54px;
+  height: 54px;
+  place-items: center;
+  border-bottom: 1px solid var(--line);
+  color: #11613f;
+}
+
+.admin-support-rail__item:last-child { border-bottom: 0; }
+.admin-support-rail__item:hover,
+.admin-support-rail__item:focus-visible { background: #edf9f1; color: #073b25; }
+.admin-support-rail__item svg { width: 24px; height: 24px; }
+
+.admin-support-rail__badge {
+  position: absolute;
+  top: 7px;
+  right: 6px;
+  min-width: 18px;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: #f4c542;
+  color: #18211b;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 16px;
+  text-align: center;
+}
+
+@media (max-width: 640px) {
+  .admin-support-rail { top: auto; bottom: 20px; transform: none; }
+}
+/* Owner-to-seller support chat. */
+.admin-support-chat { max-width: 980px; }
+.admin-support-chat__back { display: inline-flex; margin-bottom: 14px; color: #11613f; font-weight: 700; }
+.admin-support-chat__panel { overflow: hidden; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); box-shadow: 0 10px 28px rgba(10, 35, 24, 0.08); }
+.admin-support-chat__header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 22px; border-bottom: 1px solid var(--line); background: #fff; }
+.admin-support-chat__header h1 { margin: 2px 0; font-size: 1.3rem; }
+.admin-support-chat__header p { margin: 0; color: var(--body-fg); font-size: 0.86rem; }
+.admin-support-chat__eyebrow { color: #11613f !important; font-weight: 800; }
+.admin-support-chat__messages { min-height: 360px; max-height: 56vh; overflow-y: auto; padding: 22px; background: #f7f8f5; }
+.admin-support-chat__row { display: flex; margin-bottom: 14px; }
+.admin-support-chat__row--owner { justify-content: flex-end; }
+.admin-support-chat__bubble { max-width: min(78%, 620px); padding: 12px 14px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--body-fg); }
+.admin-support-chat__row--owner .admin-support-chat__bubble { border-color: #11613f; background: #11613f; color: #fff; }
+.admin-support-chat__bubble p { margin: 0; white-space: normal; line-height: 1.55; }
+.admin-support-chat__meta { margin-bottom: 5px !important; color: #65766b; font-size: 0.76rem; font-weight: 700; }
+.admin-support-chat__row--owner .admin-support-chat__meta { color: #dcefe4; }
+.admin-support-chat__empty { margin: 100px 0; color: #65766b; text-align: center; }
+.admin-support-chat__composer { padding: 18px 22px; border-top: 1px solid var(--line); background: #fff; }
+.admin-support-chat__composer label { display: block; margin-bottom: 8px; font-weight: 800; }
+.admin-support-chat__composer textarea { box-sizing: border-box; width: 100%; min-height: 94px; padding: 10px 12px; border: 1px solid #8db69e; border-radius: 6px; font: inherit; }
+.admin-support-chat__composer .submit-row { min-height: auto; margin: 12px 0 0; padding: 0; background: transparent; }
+@media (max-width: 640px) { .admin-support-chat__header { align-items: flex-start; flex-direction: column; } .admin-support-chat__messages { min-height: 300px; padding: 14px; } .admin-support-chat__bubble { max-width: 90%; } .admin-support-chat__composer { padding: 14px; } }
+/* Filter panel always stays in the right column on desktop. */
+#changelist.filtered .changelist-form-container {
+  grid-column: 1;
+  grid-row: 1;
+  width: 100%;
+}
+
+#changelist.filtered #changelist-filter {
+  grid-column: 2;
+  grid-row: 1;
+  width: 100%;
+}
+
+@media (min-width: 981px) {
+  #changelist.filtered {
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 300px);
+  }
+}
+
+@media (max-width: 980px) {
+  #changelist.filtered .changelist-form-container,
+  #changelist.filtered #changelist-filter {
+    grid-column: 1;
+  }
+
+  #changelist.filtered #changelist-filter {
+    grid-row: 2;
+  }
+}
+/* Full-width change lists with the filter fixed to the far-right column. */
+@media (min-width: 981px) {
+  .main.shifted > #nav-sidebar + .content,
+  .main > #nav-sidebar + .content {
+    flex: 1 1 auto;
+    width: auto;
+    max-width: none;
+    min-width: 0;
+  }
+
+  .change-list #content,
+  .change-list #content-main,
+  .change-list #changelist {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+  }
+
+  .change-list #content-main {
+    float: none;
+  }
+
+  .change-list #changelist.filtered {
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 320px);
+    width: 100%;
+  }
+}
+
+/* Django renders filters inside .changelist-form-container. Make that inner
+   container the desktop grid so the filter is genuinely at the far right. */
+@media (min-width: 981px) {
+  .change-list #changelist.filtered {
+    display: block;
+  }
+
+  .change-list #changelist.filtered .changelist-form-container {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 320px);
+    align-items: start;
+    gap: 20px;
+    width: 100%;
+  }
+
+  .change-list #changelist.filtered .changelist-form-container > div {
+    grid-column: 1;
+    grid-row: 1;
+    min-width: 0;
+  }
+
+  .change-list #changelist.filtered #changelist-filter {
+    grid-column: 2;
+    grid-row: 1;
+    width: 100%;
+    margin: 0;
+  }
+}
+
+@media (max-width: 980px) {
+  .change-list #changelist.filtered .changelist-form-container {
+    display: block;
+  }
+
+  .change-list #changelist.filtered #changelist-filter {
+    width: 100%;
+    margin-top: 16px;
+  }
 }

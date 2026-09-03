@@ -355,6 +355,7 @@ class Report(models.Model):
         SELLER = "seller", "ผู้ขาย"
         BUYER = "buyer", "ผู้ซื้อ"
         ORDER = "order", "คำสั่งซื้อ"
+        CONVERSATION = "conversation", "บทสนทนา"
 
     class Reason(models.TextChoices):
         QUALITY = "quality", "ปัญหาคุณภาพสินค้า"
@@ -396,6 +397,14 @@ class Report(models.Model):
         null=True,
         blank=True,
         related_name="reports",
+    )
+    conversation = models.ForeignKey(
+        "Conversation",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reports",
+        verbose_name="บทสนทนาที่ถูกรายงาน",
     )
     community = models.ForeignKey(
         Community,
@@ -520,6 +529,16 @@ class Conversation(models.Model):
         "catalog.Product",
         verbose_name="สินค้า",
         on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="conversations",
+    )
+    order = models.ForeignKey(
+        "orders.Order",
+        verbose_name="คำสั่งซื้อที่เกี่ยวข้อง",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="conversations",
     )
     created_at = models.DateTimeField("วันที่เริ่มสนทนา", auto_now_add=True)
@@ -532,7 +551,17 @@ class Conversation(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=["buyer", "seller", "product"],
-                name="unique_buyer_seller_product_conversation",
+                condition=models.Q(order__isnull=True),
+                name="unique_general_buyer_seller_product_conversation",
+            ),
+            models.UniqueConstraint(
+                fields=["buyer", "seller", "product", "order"],
+                name="unique_order_buyer_seller_product_conversation",
+            ),
+            models.UniqueConstraint(
+                fields=["buyer", "seller"],
+                condition=models.Q(product__isnull=True, order__isnull=True),
+                name="unique_general_buyer_seller_shop_conversation",
             ),
             models.CheckConstraint(
                 condition=~models.Q(buyer=models.F("seller")),
@@ -545,10 +574,19 @@ class Conversation(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.buyer} - {self.seller}: {self.product}"
+        subject = self.product or "สนทนาทั่วไปกับร้านค้า"
+        return f"{self.buyer} - {self.seller}: {subject}"
 
     def other_participant(self, user):
         return self.seller if user.pk == self.buyer_id else self.buyer
+
+    def clean(self):
+        super().clean()
+        if self.order_id:
+            if self.order.buyer_id != self.buyer_id or self.order.seller_id != self.seller_id:
+                raise ValidationError("คำสั่งซื้อนี้ไม่ตรงกับผู้เข้าร่วมบทสนทนา")
+            if not self.order.items.filter(product_id=self.product_id).exists():
+                raise ValidationError("สินค้าไม่อยู่ในคำสั่งซื้อที่เลือก")
 
 
 class DirectMessage(models.Model):
@@ -579,6 +617,132 @@ class DirectMessage(models.Model):
 
     def __str__(self):
         return f"ข้อความจาก {self.sender}"
+
+    def clean(self):
+        super().clean()
+        if self.conversation_id and self.sender_id not in {
+            self.conversation.buyer_id,
+            self.conversation.seller_id,
+        }:
+            raise ValidationError("ผู้ส่งต้องเป็นผู้เข้าร่วมบทสนทนา")
+
+
+class SupportTicket(models.Model):
+    class Category(models.TextChoices):
+        REFUND = "refund", "งานคืนเงิน/คืนสินค้า"
+        ACCOUNT_SECURITY = "account_security", "บัญชีและความปลอดภัย"
+        FINANCE_FEES = "finance_fees", "การเงิน/ค่าธรรมเนียม"
+        GENERAL = "general", "คำถามทั่วไป"
+
+    class Status(models.TextChoices):
+        OPEN = "open", "รอผู้ดูแลตอบ"
+        IN_PROGRESS = "in_progress", "กำลังดำเนินการ"
+        RESOLVED = "resolved", "แก้ไขแล้ว"
+        CLOSED = "closed", "ปิดคำขอ"
+
+    seller = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="ผู้ขาย",
+        on_delete=models.CASCADE,
+        related_name="support_tickets",
+    )
+    community = models.ForeignKey(
+        Community,
+        verbose_name="ชุมชน/สหกรณ์",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="support_tickets",
+    )
+    category = models.CharField("หัวข้อ", max_length=30, choices=Category.choices)
+    subject = models.CharField("เรื่องที่ต้องการสอบถาม", max_length=200)
+    status = models.CharField("สถานะ", max_length=20, choices=Status.choices, default=Status.OPEN)
+    handled_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="ผู้ดูแลที่รับเรื่อง",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="support_tickets_handled",
+    )
+    created_at = models.DateTimeField("วันที่เปิดคำขอ", auto_now_add=True)
+    updated_at = models.DateTimeField("อัปเดตล่าสุด", auto_now=True)
+
+    class Meta:
+        verbose_name = "คำขอถึงผู้ดูแล"
+        verbose_name_plural = "คำขอถึงผู้ดูแล"
+        ordering = ["-updated_at"]
+        indexes = [
+            models.Index(fields=["seller", "status", "updated_at"]),
+            models.Index(fields=["status", "updated_at"]),
+        ]
+
+    def __str__(self):
+        return f"#{self.pk} {self.subject}"
+
+
+class SupportMessage(models.Model):
+    ticket = models.ForeignKey(
+        SupportTicket,
+        verbose_name="คำขอ",
+        on_delete=models.CASCADE,
+        related_name="messages",
+    )
+    sender = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="ผู้ส่ง",
+        on_delete=models.CASCADE,
+        related_name="support_messages",
+    )
+    body = models.TextField("ข้อความ", max_length=3000)
+    created_at = models.DateTimeField("วันที่ส่ง", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "ข้อความถึงผู้ดูแล"
+        verbose_name_plural = "ข้อความถึงผู้ดูแล"
+        ordering = ["created_at"]
+        indexes = [models.Index(fields=["ticket", "created_at"])]
+
+    def clean(self):
+        super().clean()
+        if self.ticket_id and self.sender_id not in {self.ticket.seller_id, self.ticket.handled_by_id}:
+            sender = self.sender
+            if not sender.is_owner:
+                raise ValidationError("ผู้ส่งไม่มีสิทธิ์ตอบคำขอนี้")
+
+    def __str__(self):
+        return f"ข้อความคำขอ #{self.ticket_id} จาก {self.sender}"
+
+class ChatBlock(models.Model):
+    blocker = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="ผู้บล็อก",
+        on_delete=models.CASCADE,
+        related_name="chat_blocks_created",
+    )
+    blocked = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="ผู้ถูกบล็อก",
+        on_delete=models.CASCADE,
+        related_name="chat_blocks_received",
+    )
+    created_at = models.DateTimeField("วันที่บล็อก", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "การบล็อกบทสนทนา"
+        verbose_name_plural = "การบล็อกบทสนทนา"
+        constraints = [
+            models.UniqueConstraint(fields=["blocker", "blocked"], name="unique_chat_block"),
+            models.CheckConstraint(
+                condition=~models.Q(blocker=models.F("blocked")),
+                name="prevent_self_chat_block",
+            ),
+        ]
+        indexes = [models.Index(fields=["blocker", "blocked"])]
+
+    def __str__(self):
+        return f"{self.blocker} บล็อก {self.blocked}"
+
 
 class CommunityStaffProfile(models.Model):
     user = models.OneToOneField(
