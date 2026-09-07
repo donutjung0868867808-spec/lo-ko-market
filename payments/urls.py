@@ -18,4 +18,5 @@ urlpatterns = [
     path("connect/start/", views.connect_account, name="connect_account"),
     path("connect/return/", views.connect_return, name="connect_return"),
     path("stripe/webhook/", views.stripe_webhook, name="stripe_webhook"),
+    path("stripe/connect/webhook/", views.stripe_webhook, {"connect": True}, name="stripe_connect_webhook"),
 ]

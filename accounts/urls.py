@@ -17,6 +17,7 @@ urlpatterns = [
     path("profile/", views.profile, name="profile"),
     path("shop-center/", views.farmer_shop_center, name="farmer_shop_center"),
     path("support/chat/", views.support_chat, name="support_chat"),
+    path("support/unread/", views.support_chat_unread, name="support_chat_unread"),
     path("support/", views.support_ticket_list, name="support_ticket_list"),
     path("support/new/", views.support_ticket_create, name="support_ticket_create"),
     path("support/<int:pk>/", views.support_ticket_detail, name="support_ticket_detail"),

@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 from django.test import TestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 
 from accounts.models import Community, User
 from catalog.models import Product
@@ -96,6 +97,8 @@ class ProductionPaymentTests(TestCase):
 
     @override_settings(STRIPE_CONNECT_TRANSFERS_ENABLED=True)
     def test_failed_settlement_status_is_persisted(self):
+        self.order.status = Order.Status.COMPLETED
+        self.order.save(update_fields=["status"])
         payment = Payment.objects.create(
             order=self.order,
             amount=self.order.total_amount,
@@ -115,6 +118,7 @@ class ProductionPaymentTests(TestCase):
             platform_fee=Decimal("5.00"),
             net_amount=Decimal("95.00"),
             status=SellerSettlement.Status.READY,
+            available_at=timezone.now(),
         )
 
         class FailingPaymentIntent:
@@ -122,7 +126,10 @@ class ProductionPaymentTests(TestCase):
             def retrieve(*args, **kwargs):
                 raise RuntimeError("Stripe transfer unavailable")
 
-        fake_stripe = SimpleNamespace(PaymentIntent=FailingPaymentIntent)
+        fake_stripe = SimpleNamespace(
+            PaymentIntent=FailingPaymentIntent,
+            Transfer=SimpleNamespace(list=lambda **kwargs: SimpleNamespace(auto_paging_iter=lambda: iter([]))),
+        )
         with patch("payments.services._stripe_client", return_value=fake_stripe):
             with self.assertRaises(RuntimeError):
                 process_seller_settlement(settlement)

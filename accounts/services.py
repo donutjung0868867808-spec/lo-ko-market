@@ -13,10 +13,18 @@ from django.utils.http import urlsafe_base64_encode
 from .models import AuditEvent, EmailDelivery, LoginAttempt, Notification
 
 
-def deliver_email(delivery, raise_on_failure=False):
+def deliver_email(delivery, raise_on_failure=False, retry_failed=False):
+    failure = None
     with transaction.atomic():
         delivery = EmailDelivery.objects.select_for_update().get(pk=delivery.pk)
-        if delivery.status == EmailDelivery.Status.SENT:
+        if delivery.status == EmailDelivery.Status.FAILED and retry_failed:
+            delivery.status = EmailDelivery.Status.PENDING
+        if delivery.status != EmailDelivery.Status.PENDING:
+            return delivery
+        if delivery.expires_at and delivery.expires_at <= timezone.now():
+            delivery.status = EmailDelivery.Status.FAILED
+            delivery.last_error = "อีเมลหมดอายุก่อนส่ง"
+            delivery.save(update_fields=["status", "last_error", "updated_at"])
             return delivery
         delivery.attempts += 1
         try:
@@ -26,8 +34,10 @@ def deliver_email(delivery, raise_on_failure=False):
                 settings.DEFAULT_FROM_EMAIL,
                 [delivery.to_email],
                 fail_silently=False,
+                html_message=delivery.html_body or None,
             )
         except Exception as exc:
+            failure = exc
             delivery.last_error = str(exc)
             delivery.status = (
                 EmailDelivery.Status.FAILED
@@ -45,25 +55,27 @@ def deliver_email(delivery, raise_on_failure=False):
                     "updated_at",
                 ]
             )
-            if raise_on_failure:
-                raise
-            return delivery
+        else:
+            delivery.status = EmailDelivery.Status.SENT
+            delivery.sent_at = timezone.now()
+            delivery.last_error = ""
+            delivery.save(
+                update_fields=["attempts", "status", "sent_at", "last_error", "updated_at"]
+            )
+    if failure and raise_on_failure:
+        raise failure
+    return delivery
 
-        delivery.status = EmailDelivery.Status.SENT
-        delivery.sent_at = timezone.now()
-        delivery.last_error = ""
-        delivery.save(
-            update_fields=["attempts", "status", "sent_at", "last_error", "updated_at"]
-        )
-        return delivery
 
-
-def queue_email(to_email, subject, body, user=None, send_now=True, raise_on_failure=False):
+def queue_email(to_email, subject, body, user=None, send_now=True, raise_on_failure=False,
+                html_body="", expires_at=None):
     delivery = EmailDelivery.objects.create(
         user=user,
         to_email=to_email,
         subject=subject,
         body=body,
+        html_body=html_body,
+        expires_at=expires_at,
     )
     if send_now:
         return deliver_email(delivery, raise_on_failure=raise_on_failure)
@@ -81,7 +93,7 @@ def notify_user(user, title, message="", link="", send_email_message=True):
         body = message
         if link:
             body = f"{body}\n\n{link}" if body else link
-        queue_email(user.email, title, body, user=user, send_now=True)
+        queue_email(user.email, title, body, user=user, send_now=False)
     return notification
 
 
@@ -89,7 +101,7 @@ def send_verification_email(request, user):
     uid = urlsafe_base64_encode(force_bytes(user.pk))
     token = default_token_generator.make_token(user)
     path = reverse("accounts:verify_email", args=[uid, token])
-    url = request.build_absolute_uri(path)
+    url = f"{settings.SITE_URL}{path}" if settings.SITE_URL else request.build_absolute_uri(path)
     queue_email(
         user.email,
         "ยืนยันอีเมลตลาดเกษตรชุมชน",
@@ -97,6 +109,7 @@ def send_verification_email(request, user):
         user=user,
         send_now=True,
         raise_on_failure=True,
+        expires_at=timezone.now() + timedelta(seconds=settings.PASSWORD_RESET_TIMEOUT),
     )
 
 

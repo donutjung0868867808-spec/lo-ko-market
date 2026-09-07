@@ -5,8 +5,8 @@
 
 {% block extrastyle %}
   {{ block.super }}
-  <link rel="stylesheet" href="{% static 'admin/admin-theme.css' %}?v=20260903-1">
-  <link rel="stylesheet" href="{% static 'admin/admin-console.css' %}?v=20260902-4">
+  <link rel="stylesheet" href="{% static 'admin/admin-theme.css' %}?v=20260904-1">
+  <link rel="stylesheet" href="{% static 'admin/admin-console.css' %}?v=20260904-1">
 {% endblock %}
 
 {% block extrahead %}
@@ -16,20 +16,22 @@
     document.addEventListener("DOMContentLoaded", function () {
       if (window.lucide) window.lucide.createIcons();
       const input = document.getElementById("nav-filter");
-      if (!input) return;
-      input.addEventListener("input", function () {
-        const query = input.value.trim().toLocaleLowerCase("th");
-        document.querySelectorAll(".console-nav-group").forEach(function (group) {
-          let visible = 0;
-          group.querySelectorAll(".console-nav-model").forEach(function (item) {
-            const match = !query || item.textContent.toLocaleLowerCase("th").includes(query);
-            item.hidden = !match;
-            if (match) visible += 1;
+      if (input) {
+        input.addEventListener("input", function () {
+          const query = input.value.trim().toLocaleLowerCase("th");
+          document.querySelectorAll(".console-nav-group").forEach(function (group) {
+            let visible = 0;
+            group.querySelectorAll(".console-nav-model").forEach(function (item) {
+              const match = !query || item.textContent.toLocaleLowerCase("th").includes(query);
+              item.hidden = !match;
+              if (match) visible += 1;
+            });
+            group.hidden = visible === 0;
+            if (query && visible) group.open = true;
           });
-          group.hidden = visible === 0;
-          if (query && visible) group.open = true;
         });
-      });
+      }
+
     });
   </script>
 {% endblock %}
@@ -85,8 +87,12 @@
 {% block footer %}
   {{ block.super }}
   {% if has_permission and user.is_owner %}
-    <nav class="admin-support-rail" aria-label="เครื่องมือด่วนของผู้ดูแล">
-      <a href="{% url 'admin:accounts_supportticket_changelist' %}?status__exact=open" title="แชทผู้ขาย" class="admin-support-rail__item">
+    <link rel="stylesheet" href="{% static 'realtime-chat.css' %}">
+    <script src="{% static 'realtime-notifications.js' %}" data-admin="true" defer></script>
+  {% endif %}
+  {% if has_permission and user.is_owner %}
+    <nav class="admin-support-rail" aria-label="เครื่องมือด่วนของผู้ดูแล" data-admin-support-rail data-unread-url="{% url 'accounts:support_chat_unread' %}">
+      <a href="{% url 'admin:accounts_supportticket_changelist' %}" title="แชทผู้ขาย" class="admin-support-rail__item" data-admin-support-link>
         <i data-lucide="headset" aria-hidden="true"></i>
         {% if admin_support_chat_count %}<span class="admin-support-rail__badge">{{ admin_support_chat_count }}</span>{% endif %}
         <span class="visually-hidden">แชทผู้ขาย</span>

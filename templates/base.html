@@ -211,5 +211,9 @@
     });
   </script>
   {% block extra_scripts %}{% endblock %}
+  {% if user.is_authenticated %}
+    <link rel="stylesheet" href="{% static 'realtime-chat.css' %}">
+    <script src="{% static 'realtime-notifications.js' %}"></script>
+  {% endif %}
 </body>
 </html>

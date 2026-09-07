@@ -1,59 +1,97 @@
+from decimal import Decimal
+
 from django.test import TestCase
 from django.urls import reverse
 
-from catalog.models import Product
-from orders.models import Order
+from catalog.models import Category, Product, ProductReview
 
 from .models import Community, FarmerProfile, User
 
 
 class FarmerShopCenterTests(TestCase):
     def setUp(self):
-        self.community = Community.objects.create(name="ชุมชนทดสอบ", slug="shop-center-community")
-        self.farmer = User.objects.create_user(username="shop-farmer", password="pass12345", role=User.Roles.FARMER)
-        FarmerProfile.objects.create(user=self.farmer, community=self.community, farm_name="สวนทดสอบ", verification_status=FarmerProfile.VerificationStatus.VERIFIED)
-        self.buyer = User.objects.create_user(username="shop-buyer", password="pass12345", role=User.Roles.CONSUMER)
+        self.community = Community.objects.create(
+            name="ชุมชนร้านค้าทดสอบ",
+            slug="seller-center-test",
+            province="สกลนคร",
+        )
+        self.seller = User.objects.create_user(
+            username="seller-center",
+            password="pass12345",
+            role=User.Roles.FARMER,
+        )
+        self.profile = FarmerProfile.objects.create(
+            user=self.seller,
+            community=self.community,
+            farm_name="ฟาร์มเดิม",
+            verification_status=FarmerProfile.VerificationStatus.VERIFIED,
+        )
+        category = Category.objects.create(name="ผัก", slug="vegetables-seller-center")
         self.product = Product.objects.create(
-            seller=self.farmer, community=self.community, name="ผักทดสอบ", description="สินค้า", price="35.00",
-            stock_quantity="3.00", low_stock_threshold="5.00", status=Product.Status.PENDING,
+            seller=self.seller,
+            community=self.community,
+            category=category,
+            name="ผักทดสอบ",
+            description="ผักสำหรับทดสอบหน้าร้าน",
+            price=Decimal("35.00"),
+            stock_quantity=Decimal("10.00"),
+            status=Product.Status.ACTIVE,
         )
-        Order.objects.create(
-            buyer=self.buyer, seller=self.farmer, community=self.community, status=Order.Status.PREPARING,
-            payment_status=Order.PaymentStatus.PAID, total_amount="120.00", shipping_name="ผู้รับ",
-            shipping_phone="0812345678", shipping_address="ที่อยู่ทดสอบ",
+        reviewer = User.objects.create_user(
+            username="shop-reviewer",
+            password="pass12345",
+            role=User.Roles.CONSUMER,
         )
+        ProductReview.objects.create(
+            product=self.product,
+            user=reviewer,
+            rating=5,
+            comment="ผักสดมาก",
+        )
+        self.client.force_login(self.seller)
 
-    def test_farmer_can_view_own_shop_center_with_live_data(self):
-        self.client.force_login(self.farmer)
-        response = self.client.get(reverse("accounts:farmer_shop_center"))
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "ศูนย์จัดการร้านค้า")
-        self.assertContains(response, "120.00")
+    def test_seller_center_service_finance_and_store_views_are_available(self):
+        center_url = reverse("accounts:farmer_shop_center")
 
-        orders_response = self.client.get(reverse("accounts:farmer_shop_center") + "?section=orders")
-        self.assertEqual(orders_response.status_code, 200)
-        self.assertContains(orders_response, "คำสั่งซื้อสินค้า")
+        reviews = self.client.get(f"{center_url}?section=service&mode=reviews")
+        self.assertContains(reviews, "ผักสดมาก")
+        self.assertContains(reviews, reverse("accounts:conversations"))
 
-    def test_verified_farmer_can_add_product_within_shop_center(self):
-        self.client.force_login(self.farmer)
+        finance = self.client.get(f"{center_url}?section=finance&mode=bank")
+        self.assertContains(finance, "Stripe Connect")
+        self.assertContains(finance, reverse("payments:connect_account"))
+
+        store = self.client.get(f"{center_url}?section=store")
+        self.assertContains(store, "ฟาร์มเดิม")
+        self.assertContains(store, reverse("catalog:seller_store", args=[self.seller.pk]))
+
+        marketing = self.client.get(f"{center_url}?section=marketing&mode=store")
+        self.assertContains(marketing, "การประชาสัมพันธ์ร้าน")
+        self.assertContains(marketing, reverse("catalog:seller_store", args=[self.seller.pk]))
+
+    def test_selected_menu_group_stays_open_after_navigation(self):
+        center_url = reverse("accounts:farmer_shop_center")
+
+        for section in ("orders", "products", "marketing", "service", "finance", "store"):
+            response = self.client.get(f"{center_url}?section={section}")
+            self.assertContains(response, f'<details data-shop-menu="{section}" open>')
+            self.assertContains(response, f'data-shop-menu="{section}"')
+
+        self.assertContains(response, "seller-shop-open-menu-groups")
+    def test_seller_can_update_storefront_details(self):
         response = self.client.post(
-            reverse("accounts:farmer_shop_center") + "?section=products&mode=create",
+            reverse("accounts:farmer_shop_center"),
             {
-                "shop_action": "create_product",
-                "name": "ผักเพิ่มใหม่",
-                "description": "สินค้าจากศูนย์จัดการร้านค้า",
-                "unit": Product.Unit.KG,
-                "price": "45.00",
-                "stock_quantity": "5.00",
-                "minimum_order_quantity": "0.50",
-                "low_stock_threshold": "1.00",
+                "shop_action": "update_store",
+                "farm_name": "ฟาร์มใหม่",
+                "province": "สกลนคร",
+                "district": "เมือง",
+                "address": "99 หมู่ 1",
+                "bio": "ผักปลูกสดจากสวน",
             },
         )
-        self.assertRedirects(response, reverse("accounts:farmer_shop_center"), fetch_redirect_response=False)
-        product = Product.objects.get(name="ผักเพิ่มใหม่")
-        self.assertEqual(product.seller, self.farmer)
-        self.assertEqual(product.status, Product.Status.PENDING)
-    def test_consumer_cannot_view_farmer_shop_center(self):
-        self.client.force_login(self.buyer)
-        response = self.client.get(reverse("accounts:farmer_shop_center"))
-        self.assertRedirects(response, reverse("accounts:dashboard"), fetch_redirect_response=False)
+
+        self.assertRedirects(response, f"{reverse('accounts:farmer_shop_center')}?section=store&mode=settings")
+        self.profile.refresh_from_db()
+        self.assertEqual(self.profile.farm_name, "ฟาร์มใหม่")
+        self.assertEqual(self.profile.bio, "ผักปลูกสดจากสวน")

@@ -1,0 +1,20 @@
+.live-chat-bar { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px; padding:10px 16px; color:#52645a; font-size:13px; }
+.live-chat-list { height: min(52vh, 560px); min-height:220px; overflow-y:auto; overscroll-behavior:contain; display:block; padding:16px; background:#f7f9f8; }
+.live-chat-row { display:flex; margin:10px 0; }
+.live-chat-row.is-own { justify-content:flex-end; }
+.live-chat-bubble { max-width:85%; min-width:70px; padding:10px 14px; border:1px solid #d8e3dc; border-radius:8px; background:white; color:#17211d; }
+.live-chat-row.is-own .live-chat-bubble { background:#2f6f1d; border-color:#2f6f1d; color:white; }
+.live-chat-bubble p { white-space:pre-wrap; overflow-wrap:anywhere; font-size:14px; line-height:1.6; margin:0; }
+.live-chat-bubble time { display:block; margin-top:4px; font-size:11px; opacity:.8; }
+.live-chat-info { min-height:24px; padding:0 16px; font-size:12px; color:#52645a; }
+.live-chat-error { color:#b42318; }
+[data-live-chat-status][data-status="in_progress"] { background:#e4f0ff; color:#1c5e9f; }
+[data-live-chat-status][data-status="resolved"] { background:#e3f4e5; color:#17611d; }
+[data-live-chat-status][data-status="closed"] { background:#eef2ef; color:#4f5d53; }
+.live-notification-count[hidden] { display:none !important; }
+.support-inbox__conversation.has-live-chat { grid-template-rows:auto auto minmax(220px,1fr) auto auto; }
+.support-inbox__conversation.has-live-chat .live-chat-list { height:auto; min-height:220px; max-height:56dvh; }
+.support-inbox-page .admin-support-rail { display:none; }
+.live-chat-history { font:inherit; padding:6px 10px; background:white; color:#235d25; border:1px solid #d8e3dc; border-radius:4px; cursor:pointer; }
+.live-notification-badge { position:absolute; top:0; right:0; padding:1px 5px; min-width:18px; border-radius:10px; background:#f4c95d; color:#17211d; font-size:11px; line-height:18px; text-align:center; }
+@media(max-width:600px) { .live-chat-list { height:48dvh; padding:10px; } .live-chat-bubble { max-width:90%; } }

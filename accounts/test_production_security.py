@@ -120,7 +120,7 @@ class ProxyIpTests(TestCase):
 class ProductionReadinessCommandTests(SimpleTestCase):
     @override_settings(
         DEBUG=False,
-        SECRET_KEY="production-secret-key-with-enough-random-characters",
+        SECRET_KEY="production-secret-key-with-enough-random-characters-test-only",
         REQUIRE_EMAIL_VERIFICATION=True,
         ADMIN_MFA_REQUIRED=True,
         TRUST_X_FORWARDED_FOR=True,
@@ -131,6 +131,9 @@ class ProductionReadinessCommandTests(SimpleTestCase):
         PRIVACY_VERSION="2026-08",
         PLATFORM_FEE_PERCENT="5.00",
         ALLOWED_HOSTS=["market.example.com"],
+        SITE_URL="https://market.example.com",
+        REDIS_URL="redis://localhost:6379/0",
+        CSRF_TRUSTED_ORIGINS=["https://market.example.com"],
         SETTLEMENT_HOLD_DAYS=2,
     )
     @patch.dict(
@@ -147,6 +150,8 @@ class ProductionReadinessCommandTests(SimpleTestCase):
             "DEFAULT_FROM_EMAIL": "noreply@example.com",
             "CONTACT_EMAIL": "support@example.com",
             "CSRF_TRUSTED_ORIGINS": "https://market.example.com",
+            "SITE_URL": "https://market.example.com",
+            "REDIS_URL": "redis://localhost:6379/0",
         },
         clear=True,
     )

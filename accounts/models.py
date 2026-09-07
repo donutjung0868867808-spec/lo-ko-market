@@ -590,6 +590,7 @@ class Conversation(models.Model):
 
 
 class DirectMessage(models.Model):
+    client_id = models.UUIDField(null=True, blank=True, editable=False)
     conversation = models.ForeignKey(
         Conversation,
         verbose_name="บทสนทนา",
@@ -609,6 +610,7 @@ class DirectMessage(models.Model):
     class Meta:
         verbose_name = "ข้อความระหว่างผู้ซื้อและผู้ขาย"
         verbose_name_plural = "ข้อความระหว่างผู้ซื้อและผู้ขาย"
+        constraints = [models.UniqueConstraint(fields=["sender", "client_id"], name="direct_message_client_id")]
         ordering = ["created_at"]
         indexes = [
             models.Index(fields=["conversation", "created_at"]),
@@ -665,6 +667,30 @@ class SupportTicket(models.Model):
         blank=True,
         related_name="support_tickets_handled",
     )
+    last_seller_message_at = models.DateTimeField(
+        "ข้อความล่าสุดจากผู้ขาย",
+        null=True,
+        blank=True,
+        editable=False,
+    )
+    last_admin_message_at = models.DateTimeField(
+        "ข้อความล่าสุดจากผู้ดูแล",
+        null=True,
+        blank=True,
+        editable=False,
+    )
+    admin_read_at = models.DateTimeField(
+        "ผู้ดูแลอ่านล่าสุด",
+        null=True,
+        blank=True,
+        editable=False,
+    )
+    seller_read_at = models.DateTimeField(
+        "ผู้ขายอ่านล่าสุด",
+        null=True,
+        blank=True,
+        editable=False,
+    )
     created_at = models.DateTimeField("วันที่เปิดคำขอ", auto_now_add=True)
     updated_at = models.DateTimeField("อัปเดตล่าสุด", auto_now=True)
 
@@ -675,13 +701,35 @@ class SupportTicket(models.Model):
         indexes = [
             models.Index(fields=["seller", "status", "updated_at"]),
             models.Index(fields=["status", "updated_at"]),
+            models.Index(fields=["status", "last_seller_message_at"]),
         ]
 
     def __str__(self):
         return f"#{self.pk} {self.subject}"
 
+    @property
+    def has_unread_for_admin(self):
+        return bool(
+            self.last_seller_message_at
+            and (
+                not self.admin_read_at
+                or self.last_seller_message_at > self.admin_read_at
+            )
+        )
+
+    @property
+    def has_unread_for_seller(self):
+        return bool(
+            self.last_admin_message_at
+            and (
+                not self.seller_read_at
+                or self.last_admin_message_at > self.seller_read_at
+            )
+        )
+
 
 class SupportMessage(models.Model):
+    client_id = models.UUIDField(null=True, blank=True, editable=False)
     ticket = models.ForeignKey(
         SupportTicket,
         verbose_name="คำขอ",
@@ -700,6 +748,7 @@ class SupportMessage(models.Model):
     class Meta:
         verbose_name = "ข้อความถึงผู้ดูแล"
         verbose_name_plural = "ข้อความถึงผู้ดูแล"
+        constraints = [models.UniqueConstraint(fields=["sender", "client_id"], name="support_message_client_id")]
         ordering = ["created_at"]
         indexes = [models.Index(fields=["ticket", "created_at"])]
 
@@ -783,6 +832,8 @@ class EmailDelivery(models.Model):
     to_email = models.EmailField()
     subject = models.CharField(max_length=255)
     body = models.TextField()
+    html_body = models.TextField("เนื้อหาอีเมล HTML", blank=True)
+    expires_at = models.DateTimeField("หมดอายุเมื่อ", null=True, blank=True)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
     attempts = models.PositiveSmallIntegerField(default=0)
     last_error = models.TextField(blank=True)

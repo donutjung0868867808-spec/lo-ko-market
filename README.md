@@ -1,5 +1,8 @@
 # ตลาดเกษตรชุมชน
 
+คู่มือ Production รุ่นปัจจุบัน: [DEPLOY_PRODUCTION.md](DEPLOY_PRODUCTION.md)
+ใช้ Blueprint ที่รวม ASGI, Redis และ Cron แทนขั้นตอนแผนฟรี/WSGI ด้านล่าง
+
 เว็บซื้อขายสินค้าเกษตรโดยตรงระหว่างเกษตรกรชุมชนและผู้บริโภค พัฒนาด้วย Django, Django REST Framework, PostgreSQL, Cloudinary, Stripe และ Render
 
 ## ความสามารถหลัก

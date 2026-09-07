@@ -678,28 +678,33 @@ def connect_return(request):
     return redirect("accounts:dashboard")
 
 @csrf_exempt
-def stripe_webhook(request):
+def stripe_webhook(request, connect=False):
     if request.method != "POST":
         return HttpResponse(status=405)
 
     stripe = stripe_client()
     payload = request.body
     signature = request.META.get("HTTP_STRIPE_SIGNATURE")
+    secret = settings.STRIPE_CONNECT_WEBHOOK_SECRET if connect else settings.STRIPE_WEBHOOK_SECRET
     try:
         payload_json = json.loads(payload.decode("utf-8"))
-    except json.JSONDecodeError:
+    except (json.JSONDecodeError, UnicodeDecodeError):
         return HttpResponse(status=400)
 
-    if stripe and settings.STRIPE_WEBHOOK_SECRET and signature:
+    if stripe and secret and signature:
         try:
-            event = stripe.Webhook.construct_event(payload, signature, settings.STRIPE_WEBHOOK_SECRET)
+            event = stripe.Webhook.construct_event(payload, signature, secret)
         except Exception:
             return HttpResponse(status=400)
-    elif settings.DEBUG:
+    elif settings.DEBUG and not connect:
         event = payload_json
     else:
         return HttpResponse(status=400)
 
+    if connect and event.get("type") != "account.updated":
+        return HttpResponse(status=400)
+    if connect and bool(event.get("livemode")) != settings.STRIPE_SECRET_KEY.startswith("sk_live_"):
+        return JsonResponse({"ok": True, "ignored": "different_mode"})
     event_id = _event_identifier(event, payload)
     with transaction.atomic():
         event_record, _ = StripeEvent.objects.get_or_create(

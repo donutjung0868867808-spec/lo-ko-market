@@ -1,10 +1,11 @@
-# ไฟล์นี้เป็นตัวเลือกสำหรับ Render Cron Job ซึ่งมีค่าใช้จ่ายแยกจากเว็บแผนฟรี
+# Legacy standalone option only. render.yaml already includes this job; do not deploy both.
 services:
   - type: cron
     name: agri-market-maintenance
     runtime: python
     region: singapore
-    schedule: "*/5 * * * *"
+    plan: 0.5c-512mb
+    schedule: "*/2 * * * *"
     buildCommand: "pip install -r requirements.txt"
     startCommand: "python manage.py run_maintenance"
     envVars:
@@ -12,12 +13,25 @@ services:
         value: 3.12.10
       - key: DEBUG
         value: "False"
-      - key: SECRET_KEY
-        generateValue: true
       - key: DATABASE_URL
         fromDatabase:
           name: agri-market-db
           property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: agri-market-realtime
+          property: connectionString
+      - key: SECRET_KEY
+        fromService:
+          type: web
+          name: agri-market
+          envVarKey: SECRET_KEY
+      - key: SITE_URL
+        fromService:
+          type: web
+          name: agri-market
+          envVarKey: SITE_URL
       - key: STRIPE_SECRET_KEY
         fromService:
           type: web
@@ -38,6 +52,16 @@ services:
           type: web
           name: agri-market
           envVarKey: SETTLEMENT_HOLD_DAYS
+      - key: SETTLEMENT_MAX_ATTEMPTS
+        fromService:
+          type: web
+          name: agri-market
+          envVarKey: SETTLEMENT_MAX_ATTEMPTS
+      - key: ORDER_RESERVATION_MINUTES
+        fromService:
+          type: web
+          name: agri-market
+          envVarKey: ORDER_RESERVATION_MINUTES
       - key: EMAIL_BACKEND
         fromService:
           type: web
@@ -63,6 +87,21 @@ services:
           type: web
           name: agri-market
           envVarKey: EMAIL_HOST_PASSWORD
+      - key: EMAIL_USE_TLS
+        fromService:
+          type: web
+          name: agri-market
+          envVarKey: EMAIL_USE_TLS
+      - key: EMAIL_USE_SSL
+        fromService:
+          type: web
+          name: agri-market
+          envVarKey: EMAIL_USE_SSL
+      - key: EMAIL_MAX_ATTEMPTS
+        fromService:
+          type: web
+          name: agri-market
+          envVarKey: EMAIL_MAX_ATTEMPTS
       - key: DEFAULT_FROM_EMAIL
         fromService:
           type: web

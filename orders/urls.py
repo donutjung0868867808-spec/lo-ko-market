@@ -1,10 +1,12 @@
 from django.urls import path
+from .tracking import aftership_webhook
 
 from . import views
 
 app_name = "orders"
 
 urlpatterns = [
+    path("tracking/aftership/webhook/", aftership_webhook, name="aftership_webhook"),
     path("", views.order_list, name="order_list"),
     path("cart/", views.cart_detail, name="cart"),
     path("cart/checkout/", views.cart_checkout, name="cart_checkout"),

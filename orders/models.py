@@ -66,6 +66,37 @@ class Coupon(models.Model):
         return min(self.value, subtotal)
 
 
+class Shipment(models.Model):
+    order = models.OneToOneField("Order", on_delete=models.CASCADE, related_name="shipment")
+    tracking_number = models.CharField(max_length=120)
+    carrier_slug = models.CharField(max_length=120, blank=True)
+    provider_id = models.CharField(max_length=128, blank=True, db_index=True)
+    status = models.CharField(max_length=40, default="Pending")
+    checkpoints = models.JSONField(default=list, blank=True)
+    provider_updated_at = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    @property
+    def status_label(self):
+        return {
+            "Pending": "รอข้อมูลจากขนส่ง", "InfoReceived": "ขนส่งได้รับข้อมูลแล้ว",
+            "InTransit": "อยู่ระหว่างขนส่ง", "OutForDelivery": "กำลังนำจ่าย",
+            "AvailableForPickup": "รอรับที่จุดบริการ", "Delivered": "ขนส่งนำจ่ายแล้ว",
+            "AttemptFail": "นำจ่ายไม่สำเร็จ", "Exception": "มีปัญหาในการจัดส่ง",
+            "Expired": "ข้อมูลติดตามหมดอายุ",
+        }.get(self.status, "กำลังตรวจสอบสถานะ")
+
+    class Meta:
+        verbose_name = "การติดตามพัสดุ"
+        verbose_name_plural = "การติดตามพัสดุ"
+
+
+class ShipmentEvent(models.Model):
+    event_id = models.CharField(max_length=128, unique=True)
+    shipment = models.ForeignKey(Shipment, on_delete=models.CASCADE, related_name="events")
+    received_at = models.DateTimeField(auto_now_add=True)
+
+
 class ShippingRate(models.Model):
     province = models.CharField(
         "จังหวัด",

@@ -5,8 +5,8 @@ from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import Group
 from django.contrib.admin.sites import NotRegistered
 from django.core.exceptions import PermissionDenied
-from django.db.models import Count
-from django.shortcuts import redirect
+from django.db.models import Count, F, OuterRef, Q, Subquery
+from django.shortcuts import get_object_or_404, redirect
 from django.template.response import TemplateResponse
 from django.urls import path, reverse
 from django.utils import timezone
@@ -626,6 +626,7 @@ class ConversationAdmin(OwnerOnlyAdminMixin, admin.ModelAdmin):
     readonly_fields = ("buyer", "seller", "product", "order", "created_at", "updated_at")
     inlines = (DirectMessageInline,)
     actions = None
+    ordering = ("-updated_at",)
     fieldsets = (
         (
             "ผู้เข้าร่วมและสินค้า",
@@ -692,12 +693,13 @@ class SupportMessageInline(admin.TabularInline):
 
 @admin.register(SupportTicket)
 class SupportTicketAdmin(OwnerOnlyAdminMixin, admin.ModelAdmin):
-    list_display = ("ticket_number", "subject", "category", "seller", "status", "handled_by", "updated_at", "reply_link")
+    list_display = ("ticket_number", "subject", "category", "seller", "unread_indicator", "status", "handled_by", "updated_at", "reply_link")
     list_filter = ("category", "status", "community", "created_at", "updated_at")
     search_fields = ("subject", "seller__username", "seller__display_name", "messages__body")
     readonly_fields = ("seller", "community", "category", "subject", "created_at", "updated_at")
     inlines = (SupportMessageInline,)
     actions = None
+    ordering = ("-updated_at",)
     fieldsets = (
         ("ข้อมูลคำขอ", {"fields": ("seller", "community", "category", "subject")}),
         ("การดำเนินการ", {"fields": ("status", "handled_by")}),
@@ -707,9 +709,102 @@ class SupportTicketAdmin(OwnerOnlyAdminMixin, admin.ModelAdmin):
     def get_urls(self):
         return [path("<int:ticket_id>/reply/", self.admin_site.admin_view(self.reply_view), name="accounts_supportticket_reply")] + super().get_urls()
 
+    def _mark_admin_read(self, ticket):
+        if ticket.has_unread_for_admin:
+            ticket.admin_read_at = timezone.now()
+            ticket.save(update_fields=("admin_read_at",))
+
+    def _save_chat_reply(self, request, ticket, form):
+        message = form.save(commit=False)
+        message.ticket, message.sender = ticket, request.user
+        message.full_clean()
+        message.save()
+        ticket.status, ticket.handled_by = SupportTicket.Status.IN_PROGRESS, request.user
+        ticket.last_admin_message_at = message.created_at
+        ticket.seller_read_at = None
+        ticket.save(update_fields=(
+            "status",
+            "handled_by",
+            "last_admin_message_at",
+            "seller_read_at",
+            "updated_at",
+        ))
+        notify_user(
+            ticket.seller,
+            title="ผู้ดูแลตอบกลับแชทของคุณ",
+            message=ticket.subject,
+            link=reverse("accounts:support_ticket_detail", args=[ticket.pk]),
+            send_email_message=False,
+        )
+
+    def changelist_view(self, request, extra_context=None):
+        if not self._is_owner(request.user):
+            raise PermissionDenied
+
+        active_tab = request.GET.get("tab", "all")
+        query = request.GET.get("q", "").strip()
+        latest_message = SupportMessage.objects.filter(ticket_id=OuterRef("pk")).order_by("-created_at")
+        tickets = self.get_queryset(request).select_related("seller", "community", "handled_by").annotate(
+            latest_message_body=Subquery(latest_message.values("body")[:1]),
+            latest_message_at=Subquery(latest_message.values("created_at")[:1]),
+        )
+        if query:
+            tickets = tickets.filter(
+                Q(subject__icontains=query)
+                | Q(seller__username__icontains=query)
+                | Q(seller__display_name__icontains=query)
+                | Q(messages__body__icontains=query)
+            ).distinct()
+        if active_tab == "unread":
+            tickets = tickets.exclude(status=SupportTicket.Status.CLOSED).filter(
+                Q(admin_read_at__isnull=True, last_seller_message_at__isnull=False)
+                | Q(last_seller_message_at__gt=F("admin_read_at"))
+            )
+        elif active_tab == "open":
+            tickets = tickets.filter(status__in=(SupportTicket.Status.OPEN, SupportTicket.Status.IN_PROGRESS))
+        else:
+            active_tab = "all"
+
+        selected_ticket = None
+        selected_id = request.POST.get("ticket_id") or request.GET.get("ticket")
+        if selected_id:
+            selected_ticket = get_object_or_404(
+                self.get_queryset(request).select_related("seller", "community", "handled_by").prefetch_related("messages__sender"),
+                pk=selected_id,
+            )
+            self._mark_admin_read(selected_ticket)
+
+        chat_form = SupportMessageForm(request.POST or None)
+        if request.method == "POST":
+            if selected_ticket is None:
+                self.message_user(request, "ไม่พบแชทที่ต้องการตอบ", messages.ERROR)
+            elif chat_form.is_valid():
+                self._save_chat_reply(request, selected_ticket, chat_form)
+                self.message_user(request, "ส่งข้อความให้ผู้ขายแล้ว", messages.SUCCESS)
+                return redirect(f"{reverse('admin:accounts_supportticket_changelist')}?ticket={selected_ticket.pk}")
+
+        context = {
+            **self.admin_site.each_context(request),
+            "opts": self.model._meta,
+            "title": "กล่องข้อความผู้ขาย",
+            "tickets": tickets,
+            "selected_ticket": selected_ticket,
+            "chat_form": chat_form,
+            "active_tab": active_tab,
+            "search_query": query,
+        }
+        if extra_context:
+            context.update(extra_context)
+        return TemplateResponse(request, "admin/accounts/support_ticket_inbox.html", context)
+
+    @admin.display(description="ข้อความใหม่", boolean=True)
+    def unread_indicator(self, obj):
+        return obj.has_unread_for_admin
+
     @admin.display(description="ตอบกลับ")
     def reply_link(self, obj):
-        return format_html('<a class="button" href="{}">เปิดแชท</a>', reverse("admin:accounts_supportticket_reply", args=[obj.pk]))
+        inbox_url = f"{reverse('admin:accounts_supportticket_changelist')}?ticket={obj.pk}"
+        return format_html('<a class="button" href="{}">เปิดแชท</a>', inbox_url)
 
     @admin.display(description="รหัสคำขอ", ordering="id")
     def ticket_number(self, obj):
@@ -721,15 +816,10 @@ class SupportTicketAdmin(OwnerOnlyAdminMixin, admin.ModelAdmin):
         ticket = self.get_object(request, ticket_id)
         if ticket is None:
             raise PermissionDenied
+        self._mark_admin_read(ticket)
         form = SupportMessageForm(request.POST or None)
         if request.method == "POST" and form.is_valid():
-            message = form.save(commit=False)
-            message.ticket, message.sender = ticket, request.user
-            message.full_clean()
-            message.save()
-            ticket.status, ticket.handled_by = SupportTicket.Status.IN_PROGRESS, request.user
-            ticket.save(update_fields=("status", "handled_by", "updated_at"))
-            notify_user(ticket.seller, title="ผู้ดูแลตอบกลับคำขอของคุณ", message=ticket.subject, link=reverse("accounts:support_ticket_detail", args=[ticket.pk]), send_email_message=False)
+            self._save_chat_reply(request, ticket, form)
             self.message_user(request, "ส่งคำตอบให้ผู้ขายแล้ว", messages.SUCCESS)
             return redirect("admin:accounts_supportticket_reply", ticket.pk)
         return TemplateResponse(request, "admin/accounts/support_ticket_reply.html", {**self.admin_site.each_context(request), "title": "ตอบกลับคำขอผู้ขาย", "ticket": ticket, "form": form, "opts": self.model._meta})
@@ -827,7 +917,7 @@ class EmailDeliveryAdmin(OwnerOnlyAdminMixin, admin.ModelAdmin):
         sent = 0
         failed = 0
         for delivery in queryset.exclude(status=EmailDelivery.Status.SENT):
-            result = deliver_email(delivery)
+            result = deliver_email(delivery, retry_failed=True)
             if result.status == EmailDelivery.Status.SENT:
                 sent += 1
             else:

@@ -3,9 +3,10 @@ services:
     name: agri-market
     runtime: python
     region: singapore
-    plan: free
-    buildCommand: "pip install -r requirements.txt && python manage.py check_production && python manage.py collectstatic --noinput && python manage.py migrate && python manage.py bootstrap_owner"
-    startCommand: "gunicorn agri_market.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120"
+    plan: 0.5c-512mb
+    buildCommand: "pip install -r requirements.txt && python manage.py collectstatic --noinput"
+    preDeployCommand: "python manage.py check_production && python manage.py migrate --noinput && python manage.py bootstrap_owner"
+    startCommand: "daphne -b 0.0.0.0 -p $PORT --proxy-headers agri_market.asgi:application"
     healthCheckPath: /ready/
     envVars:
       - key: PYTHON_VERSION
@@ -40,6 +41,8 @@ services:
         value: "2"
       - key: STRIPE_CONNECT_TRANSFERS_ENABLED
         value: "False"
+      - key: SETTLEMENT_MAX_ATTEMPTS
+        value: "5"
       - key: TERMS_VERSION
         value: "2026-07"
       - key: PRIVACY_VERSION
@@ -51,7 +54,9 @@ services:
       - key: SECURE_HSTS_PRELOAD
         value: "True"
       - key: ALLOWED_HOSTS
-        value: ".onrender.com"
+        sync: false
+      - key: SITE_URL
+        sync: false
       - key: CSRF_TRUSTED_ORIGINS
         sync: false
       - key: SECRET_KEY
@@ -62,18 +67,31 @@ services:
           property: connectionString
       - key: CLOUDINARY_URL
         sync: false
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: agri-market-realtime
+          property: connectionString
+      - key: AFTERSHIP_WEBHOOK_SECRET
+        sync: false
       - key: STRIPE_SECRET_KEY
         sync: false
       - key: STRIPE_PUBLISHABLE_KEY
         sync: false
       - key: STRIPE_WEBHOOK_SECRET
         sync: false
+      - key: STRIPE_CONNECT_WEBHOOK_SECRET
+        sync: false
       - key: EMAIL_BACKEND
         value: django.core.mail.backends.smtp.EmailBackend
       - key: EMAIL_HOST
         sync: false
       - key: EMAIL_PORT
-        value: "2525"
+        value: "587"
+      - key: EMAIL_USE_TLS
+        value: "True"
+      - key: EMAIL_USE_SSL
+        value: "False"
       - key: EMAIL_HOST_USER
         sync: false
       - key: EMAIL_HOST_PASSWORD
@@ -93,7 +111,128 @@ services:
       - key: SENTRY_TRACES_SAMPLE_RATE
         value: "0.05"
 
+  - type: keyvalue
+    name: agri-market-realtime
+    region: singapore
+    plan: 256mb
+    ipAllowList: []
+    maxmemoryPolicy: noeviction
+
+  - type: cron
+    name: agri-market-maintenance
+    runtime: python
+    region: singapore
+    plan: 0.5c-512mb
+    schedule: "*/2 * * * *"
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python manage.py run_maintenance"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.10
+      - key: DEBUG
+        value: "False"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: agri-market-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: agri-market-realtime
+          property: connectionString
+      - key: SECRET_KEY
+        fromService:
+          type: web
+          name: agri-market
+          envVarKey: SECRET_KEY
+      - key: SITE_URL
+        fromService:
+          type: web
+          name: agri-market
+          envVarKey: SITE_URL
+      - key: STRIPE_SECRET_KEY
+        fromService:
+          type: web
+          name: agri-market
+          envVarKey: STRIPE_SECRET_KEY
+      - key: STRIPE_CONNECT_TRANSFERS_ENABLED
+        fromService:
+          type: web
+          name: agri-market
+          envVarKey: STRIPE_CONNECT_TRANSFERS_ENABLED
+      - key: PLATFORM_FEE_PERCENT
+        fromService:
+          type: web
+          name: agri-market
+          envVarKey: PLATFORM_FEE_PERCENT
+      - key: SETTLEMENT_HOLD_DAYS
+        fromService:
+          type: web
+          name: agri-market
+          envVarKey: SETTLEMENT_HOLD_DAYS
+      - key: SETTLEMENT_MAX_ATTEMPTS
+        fromService:
+          type: web
+          name: agri-market
+          envVarKey: SETTLEMENT_MAX_ATTEMPTS
+      - key: ORDER_RESERVATION_MINUTES
+        fromService:
+          type: web
+          name: agri-market
+          envVarKey: ORDER_RESERVATION_MINUTES
+      - key: EMAIL_BACKEND
+        fromService:
+          type: web
+          name: agri-market
+          envVarKey: EMAIL_BACKEND
+      - key: EMAIL_HOST
+        fromService:
+          type: web
+          name: agri-market
+          envVarKey: EMAIL_HOST
+      - key: EMAIL_PORT
+        fromService:
+          type: web
+          name: agri-market
+          envVarKey: EMAIL_PORT
+      - key: EMAIL_HOST_USER
+        fromService:
+          type: web
+          name: agri-market
+          envVarKey: EMAIL_HOST_USER
+      - key: EMAIL_HOST_PASSWORD
+        fromService:
+          type: web
+          name: agri-market
+          envVarKey: EMAIL_HOST_PASSWORD
+      - key: EMAIL_USE_TLS
+        fromService:
+          type: web
+          name: agri-market
+          envVarKey: EMAIL_USE_TLS
+      - key: EMAIL_USE_SSL
+        fromService:
+          type: web
+          name: agri-market
+          envVarKey: EMAIL_USE_SSL
+      - key: EMAIL_MAX_ATTEMPTS
+        fromService:
+          type: web
+          name: agri-market
+          envVarKey: EMAIL_MAX_ATTEMPTS
+      - key: DEFAULT_FROM_EMAIL
+        fromService:
+          type: web
+          name: agri-market
+          envVarKey: DEFAULT_FROM_EMAIL
+      - key: SENTRY_DSN
+        fromService:
+          type: web
+          name: agri-market
+          envVarKey: SENTRY_DSN
+
 databases:
   - name: agri-market-db
     region: singapore
-    plan: free
+    plan: 0.1c-256mb
+    ipAllowList: []

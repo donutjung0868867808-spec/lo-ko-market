@@ -5,6 +5,7 @@ import uuid
 from pathlib import Path
 
 from django.conf import settings
+from django.core.exceptions import PermissionDenied
 from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.contrib.auth.hashers import make_password
@@ -12,7 +13,7 @@ from django.contrib.auth.tokens import default_token_generator
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm
 from django.db import transaction
-from django.db.models import Count, F, OuterRef, Q, Subquery, Sum
+from django.db.models import Avg, Count, F, OuterRef, Q, Subquery, Sum
 from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -39,6 +40,7 @@ from .forms import (
     ReportMessageForm,
     ReportResolutionForm,
     StaffFarmerProfileForm,
+    SellerStoreProfileForm,
     SupportMessageForm,
     SupportTicketCreateForm,
     StaffSellerAccountForm,
@@ -311,6 +313,7 @@ def account_history(request):
 def farmer_shop_center(request):
     products = Product.objects.filter(seller=request.user).select_related("category")
     farmer_profile = getattr(request.user, "farmer_profile", None)
+    store_form = SellerStoreProfileForm(request.POST or None, instance=farmer_profile) if farmer_profile else None
     product_form = ProductForm(request.POST or None, request.FILES or None)
     if request.method == "POST" and request.POST.get("shop_action") == "create_product":
         if not farmer_profile or not farmer_profile.community or not farmer_profile.is_verified:
@@ -322,7 +325,12 @@ def farmer_shop_center(request):
             product.status = Product.Status.PENDING
             product.save()
             messages.success(request, "ส่งสินค้าให้เจ้าหน้าที่ตรวจสอบแล้ว")
-            return redirect("accounts:farmer_shop_center")
+            return redirect(f"{reverse('accounts:farmer_shop_center')}?section=products")
+    elif request.method == "POST" and request.POST.get("shop_action") == "update_store":
+        if store_form and store_form.is_valid():
+            store_form.save()
+            messages.success(request, "บันทึกข้อมูลหน้าร้านแล้ว")
+            return redirect(f"{reverse('accounts:farmer_shop_center')}?section=store&mode=settings")
     sales = Order.objects.filter(seller=request.user).select_related("buyer").prefetch_related("items").order_by("-created_at")
     paid_sales = sales.filter(payment_status=Order.PaymentStatus.PAID)
     gross_sales = paid_sales.aggregate(total=Sum("total_amount"))["total"] or 0
@@ -370,9 +378,28 @@ def farmer_shop_center(request):
     else:
         order_payment = "all"
 
+    reviews = ProductReview.objects.filter(product__seller=request.user).select_related("product", "user")
+    settlements = SellerSettlement.objects.filter(seller=request.user).select_related("payment__order")
+    settlement_totals = settlements.aggregate(
+        pending=Sum(
+            "net_amount",
+            filter=Q(
+                status__in=[
+                    SellerSettlement.Status.PENDING,
+                    SellerSettlement.Status.READY,
+                    SellerSettlement.Status.PROCESSING,
+                    SellerSettlement.Status.HELD,
+                ]
+            ),
+        ),
+        transferred=Sum("net_amount", filter=Q(status=SellerSettlement.Status.TRANSFERRED)),
+    )
+    review_summary = reviews.aggregate(average=Avg("rating"), total=Count("id"))
+
     context = {
         "farmer_profile": farmer_profile,
         "product_form": product_form,
+        "store_form": store_form,
         "can_create_products": bool(farmer_profile and farmer_profile.community and farmer_profile.is_verified),
         "shop_products": products.order_by("-updated_at"),
         "shop_section": shop_section,
@@ -395,6 +422,13 @@ def farmer_shop_center(request):
         "shipped_total": sales.filter(status=Order.Status.SHIPPED).count(),
         "gross_sales": gross_sales,
         "support_open_count": SupportTicket.objects.filter(seller=request.user, status__in=[SupportTicket.Status.OPEN, SupportTicket.Status.IN_PROGRESS]).count(),
+        "shop_reviews": reviews,
+        "review_average": review_summary["average"] or 0,
+        "review_total": review_summary["total"] or 0,
+        "settlements": settlements,
+        "pending_settlement_total": settlement_totals["pending"] or 0,
+        "transferred_settlement_total": settlement_totals["transferred"] or 0,
+        "seller_payment_account": SellerPaymentAccount.objects.filter(seller=request.user).first(),
     }
     return render(request, "accounts/farmer_shop_center.html", context)
 
@@ -449,6 +483,9 @@ def support_ticket_create(request):
         message = SupportMessage(ticket=ticket, sender=request.user, body=form.cleaned_data["message"])
         message.full_clean()
         message.save()
+        ticket.last_seller_message_at = message.created_at
+        ticket.admin_read_at = None
+        ticket.save(update_fields=["last_seller_message_at", "admin_read_at", "updated_at"])
         record_audit(
             request,
             AuditEvent.Action.CREATE,
@@ -462,12 +499,25 @@ def support_ticket_create(request):
                 owner,
                 title=f"คำขอใหม่จากผู้ขาย: {ticket.get_category_display()}",
                 message=f"{request.user} · {ticket.subject}",
-                link=reverse("admin:accounts_supportticket_change", args=[ticket.pk]),
+                link=reverse("admin:accounts_supportticket_reply", args=[ticket.pk]),
                 send_email_message=False,
             )
         messages.success(request, "ส่งคำขอถึงผู้ดูแลแล้ว")
         return redirect("accounts:support_ticket_detail", pk=ticket.pk)
     return render(request, "accounts/support_ticket_form.html", {"form": form})
+
+
+@login_required
+def support_chat_unread(request):
+    if not request.user.is_owner:
+        raise PermissionDenied
+    unread_tickets = SupportTicket.objects.exclude(status=SupportTicket.Status.CLOSED).filter(
+        Q(admin_read_at__isnull=True, last_seller_message_at__isnull=False)
+        | Q(last_seller_message_at__gt=F("admin_read_at"))
+    )
+    return JsonResponse({"count": unread_tickets.count()})
+
+
 
 
 def _support_ticket_for_user(request, pk):
@@ -481,6 +531,14 @@ def _support_ticket_for_user(request, pk):
 def support_ticket_detail(request, pk):
     ticket = _support_ticket_for_user(request, pk)
     can_manage = request.user.is_owner
+    if can_manage and settings.ADMIN_MFA_REQUIRED:
+        return redirect(f"{reverse('admin:accounts_supportticket_changelist')}?ticket={ticket.pk}")
+    if can_manage and ticket.has_unread_for_admin:
+        ticket.admin_read_at = timezone.now()
+        ticket.save(update_fields=["admin_read_at"])
+    elif not can_manage and ticket.has_unread_for_seller:
+        ticket.seller_read_at = timezone.now()
+        ticket.save(update_fields=["seller_read_at"])
     form = SupportMessageForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         recent_messages = SupportMessage.objects.filter(
@@ -499,17 +557,30 @@ def support_ticket_detail(request, pk):
             if can_manage:
                 ticket.status = SupportTicket.Status.IN_PROGRESS
                 ticket.handled_by = request.user
-                recipient = ticket.seller
-                recipients = [recipient]
-                title = "ผู้ดูแลตอบกลับคำขอของคุณ"
+                ticket.last_admin_message_at = message.created_at
+                ticket.seller_read_at = None
+                recipients = [ticket.seller]
+                title = "ผู้ดูแลตอบกลับแชทของคุณ"
                 note = ticket.subject
+                notification_link = reverse("accounts:support_ticket_detail", args=[ticket.pk])
             else:
                 ticket.status = SupportTicket.Status.OPEN
+                ticket.last_seller_message_at = message.created_at
+                ticket.admin_read_at = None
                 recipient = ticket.handled_by
                 recipients = [recipient] if recipient else list(User.objects.filter(Q(role=User.Roles.OWNER) | Q(is_superuser=True), is_active=True))
-                title = "ผู้ขายตอบกลับคำขอ"
+                title = "ข้อความใหม่จากผู้ขาย"
                 note = f"{ticket.seller} · {ticket.subject}"
-            ticket.save(update_fields=["status", "handled_by", "updated_at"])
+                notification_link = reverse("admin:accounts_supportticket_reply", args=[ticket.pk])
+            ticket.save(update_fields=[
+                "status",
+                "handled_by",
+                "last_seller_message_at",
+                "last_admin_message_at",
+                "admin_read_at",
+                "seller_read_at",
+                "updated_at",
+            ])
             for recipient in recipients:
                 if not recipient:
                     continue
@@ -517,7 +588,7 @@ def support_ticket_detail(request, pk):
                     recipient,
                     title=title,
                     message=note,
-                    link=reverse("accounts:support_ticket_detail", args=[ticket.pk]),
+                    link=notification_link,
                     send_email_message=False,
                 )
             messages.success(request, "ส่งข้อความแล้ว")
@@ -653,6 +724,24 @@ def staff_dashboard(request):
     active_reports = reports.filter(
         status__in=[Report.Status.OPEN, Report.Status.REVIEWING]
     )
+    reviews = ProductReview.objects.filter(product__seller=request.user).select_related("product", "user")
+    settlements = SellerSettlement.objects.filter(seller=request.user).select_related("payment__order")
+    settlement_totals = settlements.aggregate(
+        pending=Sum(
+            "net_amount",
+            filter=Q(
+                status__in=[
+                    SellerSettlement.Status.PENDING,
+                    SellerSettlement.Status.READY,
+                    SellerSettlement.Status.PROCESSING,
+                    SellerSettlement.Status.HELD,
+                ]
+            ),
+        ),
+        transferred=Sum("net_amount", filter=Q(status=SellerSettlement.Status.TRANSFERRED)),
+    )
+    review_summary = reviews.aggregate(average=Avg("rating"), total=Count("id"))
+
     context = {
         "community": community,
         "farmer_count": farmers.count(),
@@ -675,6 +764,24 @@ def dashboard(request):
     user = request.user
     if user.is_cooperative_staff:
         return redirect("accounts:staff_dashboard")
+
+    reviews = ProductReview.objects.filter(product__seller=request.user).select_related("product", "user")
+    settlements = SellerSettlement.objects.filter(seller=request.user).select_related("payment__order")
+    settlement_totals = settlements.aggregate(
+        pending=Sum(
+            "net_amount",
+            filter=Q(
+                status__in=[
+                    SellerSettlement.Status.PENDING,
+                    SellerSettlement.Status.READY,
+                    SellerSettlement.Status.PROCESSING,
+                    SellerSettlement.Status.HELD,
+                ]
+            ),
+        ),
+        transferred=Sum("net_amount", filter=Q(status=SellerSettlement.Status.TRANSFERRED)),
+    )
+    review_summary = reviews.aggregate(average=Avg("rating"), total=Count("id"))
 
     context = {
         "community": user_community(user),
@@ -965,6 +1072,24 @@ def staff_seller_detail(request, user_id):
         seller=seller,
         community=profile.community,
     )
+    reviews = ProductReview.objects.filter(product__seller=request.user).select_related("product", "user")
+    settlements = SellerSettlement.objects.filter(seller=request.user).select_related("payment__order")
+    settlement_totals = settlements.aggregate(
+        pending=Sum(
+            "net_amount",
+            filter=Q(
+                status__in=[
+                    SellerSettlement.Status.PENDING,
+                    SellerSettlement.Status.READY,
+                    SellerSettlement.Status.PROCESSING,
+                    SellerSettlement.Status.HELD,
+                ]
+            ),
+        ),
+        transferred=Sum("net_amount", filter=Q(status=SellerSettlement.Status.TRANSFERRED)),
+    )
+    review_summary = reviews.aggregate(average=Avg("rating"), total=Count("id"))
+
     context = {
         "seller": seller,
         "profile": profile,

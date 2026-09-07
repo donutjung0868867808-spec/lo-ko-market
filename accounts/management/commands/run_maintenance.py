@@ -1,6 +1,5 @@
 from datetime import timedelta
 
-from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.db.models import Q
 from django.utils import timezone
@@ -10,7 +9,7 @@ from accounts.services import deliver_email
 from catalog.services import notify_low_stock_for_all
 from orders.services import expire_stale_orders
 from payments.models import SellerSettlement, StripeEvent
-from payments.services import process_seller_settlement, sync_settlement_for_payment
+from payments.services import retry_due_settlements, sync_settlement_for_payment
 
 
 class Command(BaseCommand):
@@ -47,24 +46,10 @@ class Command(BaseCommand):
         ).select_related("payment"):
             sync_settlement_for_payment(settlement.payment)
 
-        transferred = 0
-        if settings.STRIPE_CONNECT_TRANSFERS_ENABLED:
-            settlement_ids = list(
-                SellerSettlement.objects.filter(status=SellerSettlement.Status.READY)
-                .values_list("pk", flat=True)[:50]
-            )
-            for settlement_id in settlement_ids:
-                try:
-                    result = process_seller_settlement(SellerSettlement.objects.get(pk=settlement_id))
-                except Exception as exc:
-                    self.stderr.write(f"Settlement {settlement_id}: {exc}")
-                else:
-                    if result.status == SellerSettlement.Status.TRANSFERRED:
-                        transferred += 1
-                    elif result.failure_reason:
-                        self.stderr.write(f"Settlement {settlement_id}: {result.failure_reason}")
+        transferred = retry_due_settlements()
 
         now = timezone.now()
+        EmailDelivery.objects.filter(expires_at__lte=now).update(body="", html_body="")
         LoginAttempt.objects.filter(updated_at__lt=now - timedelta(days=30)).delete()
         EmailDelivery.objects.filter(
             Q(status=EmailDelivery.Status.SENT, sent_at__lt=now - timedelta(days=30))

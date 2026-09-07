@@ -34,10 +34,5 @@
     </form>
   </section>
 </div>
-<script>
-  document.addEventListener("DOMContentLoaded", function () {
-    const messages = document.getElementById("admin-chat-messages");
-    if (messages) messages.scrollTop = messages.scrollHeight;
-  });
-</script>
+{% include "accounts/_realtime_chat.html" with chat_kind="support" chat_id=ticket.pk message_list="admin-chat-messages" form_selector=".admin-support-chat__composer" admin_chat=True %}
 {% endblock %}

@@ -9,3 +9,6 @@ gunicorn==23.0.0
 whitenoise==6.9.0
 Pillow==11.3.0
 sentry-sdk==2.66.0
+channels==4.3.2
+channels-redis==4.3.0
+daphne==4.2.3

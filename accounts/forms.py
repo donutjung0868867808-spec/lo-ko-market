@@ -1,7 +1,10 @@
 from django import forms
+from datetime import timedelta
+from urllib.parse import urlsplit
 from django.conf import settings
 from django.contrib.auth.forms import PasswordResetForm, UserCreationForm
 from django.utils import timezone
+from django.template.loader import render_to_string
 
 from .models import AVATAR_MAX_SIZE, Community, DeliveryAddress, DirectMessage, FarmerProfile, NewsPost, Report, ReportMessage, SupportMessage, SupportTicket, User
 
@@ -49,6 +52,24 @@ class StyledFormMixin:
 
 class PasswordResetRequestForm(PasswordResetForm):
     """Password reset request form styled for the public marketplace pages."""
+
+    def save(self, **kwargs):
+        if settings.SITE_URL:
+            site = urlsplit(settings.SITE_URL)
+            kwargs.update(domain_override=site.netloc, use_https=site.scheme == "https")
+        return super().save(**kwargs)
+
+    def send_mail(self, subject_template_name, email_template_name, context,
+                  from_email, to_email, html_email_template_name=None):
+        from .services import queue_email
+
+        subject = "".join(render_to_string(subject_template_name, context).splitlines())
+        queue_email(
+            to_email, subject, render_to_string(email_template_name, context),
+            user=context["user"],
+            html_body=render_to_string(html_email_template_name, context) if html_email_template_name else "",
+            expires_at=timezone.now() + timedelta(seconds=settings.PASSWORD_RESET_TIMEOUT),
+        )
 
     email = forms.EmailField(
         label="อีเมล",
@@ -171,6 +192,25 @@ class FarmerProfileForm(StyledFormMixin, forms.ModelForm):
         if not cleaned_data.get("community"):
             self.add_error("community", "กรุณาเลือกชุมชนหรือสหกรณ์")
         return cleaned_data
+
+
+class SellerStoreProfileForm(StyledFormMixin, forms.ModelForm):
+    """Editable storefront details that do not affect farmer verification."""
+
+    class Meta:
+        model = FarmerProfile
+        fields = ["farm_name", "province", "district", "address", "bio"]
+        labels = {
+            "farm_name": "ชื่อร้าน/ฟาร์ม",
+            "province": "จังหวัด",
+            "district": "อำเภอ/เขต",
+            "address": "ที่อยู่ร้าน",
+            "bio": "คำอธิบายหน้าร้าน",
+        }
+        widgets = {
+            "address": forms.Textarea(attrs={"rows": 3}),
+            "bio": forms.Textarea(attrs={"rows": 4, "placeholder": "แนะนำร้านค้า จุดเด่น หรือวิธีดูแลสินค้า"}),
+        }
 
 
 class UserProfileForm(StyledFormMixin, forms.ModelForm):

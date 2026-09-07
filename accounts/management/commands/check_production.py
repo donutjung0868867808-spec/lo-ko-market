@@ -1,5 +1,6 @@
 import os
 from decimal import Decimal, InvalidOperation
+from urllib.parse import urlsplit
 
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
@@ -24,6 +25,8 @@ class Command(BaseCommand):
             "DEFAULT_FROM_EMAIL",
             "CONTACT_EMAIL",
             "CSRF_TRUSTED_ORIGINS",
+            "REDIS_URL",
+            "SITE_URL",
         ]
         for name in required_env:
             if not os.environ.get(name):
@@ -31,7 +34,22 @@ class Command(BaseCommand):
 
         if settings.DEBUG:
             errors.append("DEBUG ต้องเป็น False")
-        if settings.SECRET_KEY.startswith("django-insecure") or settings.SECRET_KEY == "change-me":
+        site = urlsplit(settings.SITE_URL)
+        if (site.scheme != "https" or not site.hostname or site.path
+                or site.query or site.fragment or site.username or site.password):
+            errors.append("SITE_URL ต้องเป็น https://โดเมน โดยไม่มี path หรือข้อมูลเข้าสู่ระบบ")
+        if site.hostname not in settings.ALLOWED_HOSTS:
+            errors.append("ต้องเพิ่มโดเมน SITE_URL ใน ALLOWED_HOSTS")
+        if settings.SITE_URL not in settings.CSRF_TRUSTED_ORIGINS:
+            errors.append("ต้องเพิ่ม SITE_URL ใน CSRF_TRUSTED_ORIGINS")
+        if any(host == "*" or host.startswith(".") for host in settings.ALLOWED_HOSTS):
+            errors.append("ALLOWED_HOSTS ต้องระบุโดเมนจริง ห้ามใช้ wildcard ใน Production")
+        if not settings.REDIS_URL or urlsplit(settings.REDIS_URL).scheme not in {"redis", "rediss"}:
+            errors.append("REDIS_URL ต้องเป็น redis:// หรือ rediss://")
+        if settings.EMAIL_USE_TLS == settings.EMAIL_USE_SSL:
+            errors.append("ต้องเปิด TLS หรือ SSL สำหรับ SMTP เพียงอย่างเดียว")
+        if (settings.SECRET_KEY.startswith("django-insecure") or len(settings.SECRET_KEY) < 50
+                or len(set(settings.SECRET_KEY)) < 5):
             errors.append("ต้องเปลี่ยน SECRET_KEY เป็นค่าสุ่มที่ปลอดภัย")
         if connection.vendor != "postgresql":
             errors.append("ฐานข้อมูล Production ต้องเป็น PostgreSQL")
@@ -50,6 +68,12 @@ class Command(BaseCommand):
                 "ยังไม่ได้เปิด STRIPE_CONNECT_TRANSFERS_ENABLED "
                 "ระบบจะพักยอดผู้ขายไว้และยังไม่โอนอัตโนมัติ"
             )
+        elif not settings.STRIPE_CONNECT_WEBHOOK_SECRET:
+            errors.append("ต้องกำหนด STRIPE_CONNECT_WEBHOOK_SECRET ก่อนเปิดการโอนอัตโนมัติ")
+        if not settings.AFTERSHIP_WEBHOOK_SECRET:
+            warnings.append("ยังไม่ได้เชื่อม webhook ติดตามพัสดุ")
+        if settings.STRIPE_SECRET_KEY.startswith("sk_test_"):
+            warnings.append("Stripe ยังอยู่ใน Test mode ไม่รับหรือโอนเงินจริง")
         if not settings.TERMS_VERSION or not settings.PRIVACY_VERSION:
             errors.append("ต้องกำหนดเวอร์ชันเงื่อนไขการใช้งานและนโยบายความเป็นส่วนตัว")
 

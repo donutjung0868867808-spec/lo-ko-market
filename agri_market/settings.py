@@ -112,6 +112,7 @@ SECURE_REFERRER_POLICY = "same-origin"
 X_FRAME_OPTIONS = "DENY"
 
 INSTALLED_APPS = [
+    "daphne",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -164,6 +165,13 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "agri_market.wsgi.application"
+ASGI_APPLICATION = "agri_market.asgi.application"
+REDIS_URL = os.environ.get("REDIS_URL", "")
+CHANNEL_LAYERS = {"default": (
+    {"BACKEND": "channels_redis.core.RedisChannelLayer", "CONFIG": {"hosts": [REDIS_URL]}}
+    if REDIS_URL and not IS_TESTING else {"BACKEND": "channels.layers.InMemoryChannelLayer"}
+)}
+SITE_URL = os.environ.get("SITE_URL", "").rstrip("/")
 
 database_url = os.environ.get("DATABASE_URL")
 if database_url:
@@ -270,10 +278,13 @@ EMAIL_MAX_ATTEMPTS = int(os.environ.get("EMAIL_MAX_ATTEMPTS", "5"))
 STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY", "")
 STRIPE_PUBLISHABLE_KEY = os.environ.get("STRIPE_PUBLISHABLE_KEY", "")
 STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
+STRIPE_CONNECT_WEBHOOK_SECRET = os.environ.get("STRIPE_CONNECT_WEBHOOK_SECRET", "")
 DEFAULT_CURRENCY = os.environ.get("DEFAULT_CURRENCY", "thb")
 PLATFORM_FEE_PERCENT = os.environ.get("PLATFORM_FEE_PERCENT", "5.00")
 SETTLEMENT_HOLD_DAYS = int(os.environ.get("SETTLEMENT_HOLD_DAYS", "2"))
 STRIPE_CONNECT_TRANSFERS_ENABLED = env_bool("STRIPE_CONNECT_TRANSFERS_ENABLED", default=False)
+SETTLEMENT_MAX_ATTEMPTS = int(os.environ.get("SETTLEMENT_MAX_ATTEMPTS", "5"))
+AFTERSHIP_WEBHOOK_SECRET = os.environ.get("AFTERSHIP_WEBHOOK_SECRET", "")
 
 
 SENTRY_DSN = os.environ.get("SENTRY_DSN", "")

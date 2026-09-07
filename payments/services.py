@@ -150,79 +150,101 @@ def process_seller_settlement(settlement):
     stripe = _stripe_client()
     if stripe is None:
         raise ValidationError("ยังไม่ได้ตั้งค่า Stripe")
-
+    failure = None
+    # Use the same lock order as refunds; keep it until Stripe has answered.
     with transaction.atomic():
-        settlement = SellerSettlement.objects.select_for_update().select_related(
-            "payment__order", "seller"
-        ).get(pk=settlement.pk)
-        if settlement.status == SellerSettlement.Status.TRANSFERRED:
+        payment = Payment.objects.select_for_update().select_related("order").get(pk=settlement.payment_id)
+        settlement = SellerSettlement.objects.select_for_update().get(pk=settlement.pk)
+        if settlement.stripe_transfer_id:
             return settlement
         if settlement.status not in {SellerSettlement.Status.READY, SellerSettlement.Status.FAILED}:
             raise ValidationError("ยอดนี้ยังไม่พร้อมโอนเงิน")
-
+        if (payment.order.status != payment.order.Status.COMPLETED
+                or payment.status != Payment.Status.PAID
+                or settlement.available_at is None or settlement.available_at > timezone.now()
+                or payment.refunds.filter(status__in=["requested", "processing", "failed"]).exists()):
+            raise ValidationError("คำสั่งซื้อยังไม่เข้าเงื่อนไขการโอนเงิน")
+        if settlement.attempts >= settings.SETTLEMENT_MAX_ATTEMPTS:
+            raise ValidationError("รายการนี้ต้องให้ผู้ดูแลตรวจสอบก่อนลองโอนอีกครั้ง")
+        if (settlement.net_amount <= 0 or settlement.gross_amount != payment.amount - payment.refunded_amount
+                or settlement.seller_id != payment.order.seller_id or settlement.currency != payment.currency
+                or settlement.platform_fee + settlement.net_amount != settlement.gross_amount):
+            raise ValidationError("ยอดเงินเปลี่ยนแปลง ต้องตรวจสอบก่อนโอน")
         account = SellerPaymentAccount.objects.filter(seller=settlement.seller).first()
         if not account or not account.stripe_account_id or not account.payouts_enabled:
             settlement.status = SellerSettlement.Status.HELD
             settlement.failure_reason = "บัญชีผู้ขายยังไม่พร้อมรับเงิน"
             settlement.save(update_fields=["status", "failure_reason", "updated_at"])
             return settlement
-
         settlement.status = SellerSettlement.Status.PROCESSING
-        settlement.failure_reason = ""
-        settlement.save(update_fields=["status", "failure_reason", "updated_at"])
+        settlement.attempts += 1
+        settlement.save(update_fields=["status", "attempts", "updated_at"])
+        try:
+            # Reconcile first: Stripe idempotency keys expire, so a retry alone is insufficient.
+            transfers = stripe.Transfer.list(transfer_group=payment.order.reference, limit=100)
+            transfer = next((item for item in transfers.auto_paging_iter()
+                             if item.get("metadata", {}).get("settlement_id") == str(settlement.pk)), None)
+            if transfer is None:
+                intent = stripe.PaymentIntent.retrieve(payment.payment_intent_id, expand=["latest_charge"])
+                charge = intent.get("latest_charge")
+                charge_id = charge.get("id") if hasattr(charge, "get") else charge
+                if not charge_id:
+                    raise ValidationError("ไม่พบรายการเรียกเก็บเงินต้นทางจาก Stripe")
+                transfer = stripe.Transfer.create(
+                    amount=int(settlement.net_amount * Decimal("100")),
+                    currency=settlement.currency, destination=account.stripe_account_id,
+                    source_transaction=charge_id, transfer_group=payment.order.reference,
+                    metadata={"settlement_id": str(settlement.pk), "order_id": str(payment.order_id)},
+                    idempotency_key=f"seller-settlement-{settlement.pk}",
+                )
+            transfer_id = transfer.get("id", "")
+            if not transfer_id:
+                raise ValidationError("Stripe ไม่ส่งรหัสรายการโอนกลับมา")
+            settlement.stripe_transfer_id = transfer_id
+            settlement.transferred_at = timezone.now()
+            matches = (transfer.get("amount") == int(settlement.net_amount * Decimal("100"))
+                       and transfer.get("currency") == settlement.currency
+                       and transfer.get("destination") == account.stripe_account_id
+                       and not transfer.get("reversed"))
+            settlement.status = SellerSettlement.Status.TRANSFERRED if matches else SellerSettlement.Status.HELD
+            settlement.failure_reason = "" if matches else "พบยอดโอนเดิม ต้องตรวจสอบรายละเอียดกับ Stripe"
+        except Exception as exc:
+            failure = exc
+            settlement.status = SellerSettlement.Status.FAILED
+            settlement.failure_reason = str(exc)[:2000]
+            settlement.next_attempt_at = timezone.now() + timedelta(minutes=min(2 ** settlement.attempts, 60))
+        settlement.save()
+    if failure:
+        raise failure
+    return settlement
 
-        payment_intent_id = settlement.payment.payment_intent_id
-        net_amount = settlement.net_amount
-        currency = settlement.currency
-        destination = account.stripe_account_id
-        order_reference = settlement.payment.order.reference
-        order_id = settlement.payment.order_id
-        settlement_id = settlement.pk
 
-    try:
-        intent = stripe.PaymentIntent.retrieve(
-            payment_intent_id,
-            expand=["latest_charge"],
-        )
-        latest_charge = intent.get("latest_charge")
-        charge_id = latest_charge.get("id") if hasattr(latest_charge, "get") else latest_charge
-        if not charge_id:
-            raise ValidationError("ไม่พบรายการเรียกเก็บเงินต้นทางจาก Stripe")
-        transfer = stripe.Transfer.create(
-            amount=int(net_amount * Decimal("100")),
-            currency=currency,
-            destination=destination,
-            source_transaction=charge_id,
-            transfer_group=order_reference,
-            metadata={
-                "settlement_id": str(settlement_id),
-                "order_id": str(order_id),
-            },
-            idempotency_key=f"seller-settlement-{settlement_id}",
-        )
-    except Exception as exc:
+def retry_due_settlements(limit=50):
+    if not settings.STRIPE_CONNECT_TRANSFERS_ENABLED:
+        return 0
+    # Only release holds caused by missing payout onboarding, never refund or manual holds.
+    for settlement in SellerSettlement.objects.filter(
+        status=SellerSettlement.Status.HELD, failure_reason="บัญชีผู้ขายยังไม่พร้อมรับเงิน",
+        seller__payment_account__payouts_enabled=True,
+    )[:limit]:
         with transaction.atomic():
-            failed = SellerSettlement.objects.select_for_update().get(pk=settlement_id)
-            if failed.status != SellerSettlement.Status.TRANSFERRED:
-                failed.status = SellerSettlement.Status.FAILED
-                failed.failure_reason = str(exc)[:2000]
-                failed.save(update_fields=["status", "failure_reason", "updated_at"])
-        logger.exception("Seller settlement %s failed", settlement_id)
-        raise
-
-    with transaction.atomic():
-        completed = SellerSettlement.objects.select_for_update().get(pk=settlement_id)
-        completed.status = SellerSettlement.Status.TRANSFERRED
-        completed.stripe_transfer_id = transfer.get("id", "")
-        completed.transferred_at = timezone.now()
-        completed.failure_reason = ""
-        completed.save(
-            update_fields=[
-                "status",
-                "stripe_transfer_id",
-                "transferred_at",
-                "failure_reason",
-                "updated_at",
-            ]
-        )
-    return completed
+            Payment.objects.select_for_update().get(pk=settlement.payment_id)
+            current = SellerSettlement.objects.select_for_update().get(pk=settlement.pk)
+            if current.status == SellerSettlement.Status.HELD and current.failure_reason == "บัญชีผู้ขายยังไม่พร้อมรับเงิน":
+                current.status = SellerSettlement.Status.PENDING
+                current.failure_reason = ""
+                current.save(update_fields=["status", "failure_reason", "updated_at"])
+                sync_settlement_for_payment(current.payment)
+    due = SellerSettlement.objects.filter(
+        status__in=[SellerSettlement.Status.READY, SellerSettlement.Status.FAILED],
+        next_attempt_at__lte=timezone.now(), attempts__lt=settings.SETTLEMENT_MAX_ATTEMPTS,
+        payment__order__status="completed", available_at__lte=timezone.now(),
+    ).order_by("next_attempt_at")
+    transferred = 0
+    for settlement in due[:limit]:
+        try:
+            result = process_seller_settlement(settlement)
+            transferred += result.status == SellerSettlement.Status.TRANSFERRED
+        except Exception:
+            logger.exception("Unable to settle payment %s", settlement.payment_id)
+    return transferred

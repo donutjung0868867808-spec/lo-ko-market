@@ -1,0 +1,13 @@
+{% if order.shipment and order.shipment.tracking_number == order.tracking_number %}
+  <section class="mt-4 border-t border-stone-200 pt-4">
+    <h3 class="font-semibold text-leaf">{{ order.shipment.status_label }}</h3>
+    <ol class="mt-3 space-y-3 text-sm">
+      {% for point in order.shipment.checkpoints reversed %}
+        <li class="border-l-2 border-emerald-200 pl-3">
+          <p class="break-words">{{ point.message }}</p>
+          <p class="text-xs text-slate-500">{{ point.location }} · {{ point.time }}</p>
+        </li>
+      {% empty %}<li class="text-slate-500">รอข้อมูลการเคลื่อนย้ายพัสดุ</li>{% endfor %}
+    </ol>
+  </section>
+{% endif %}

@@ -1,0 +1,3 @@
+{% load static %}
+<link rel="stylesheet" href="{% static 'realtime-chat.css' %}">
+<script src="{% static 'realtime-chat.js' %}" data-kind="{{ chat_kind }}" data-room="{{ chat_id }}" data-list="{{ message_list }}" data-form="{{ form_selector }}" data-user="{{ user.pk }}"{% if admin_chat %} data-admin="true"{% endif %}></script>

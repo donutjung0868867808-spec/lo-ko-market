@@ -1,0 +1,106 @@
+{% extends "admin/base_site.html" %}
+
+{% block bodyclass %}{{ block.super }} support-inbox-page{% endblock %}
+{% block nav-sidebar %}{% endblock %}
+{% block content_title %}{% endblock %}
+
+{% block content %}
+<main class="support-inbox" aria-label="กล่องข้อความผู้ขาย">
+  <aside class="support-inbox__sidebar">
+    <header class="support-inbox__sidebar-header">
+      <div>
+        <p class="support-inbox__eyebrow">ศูนย์ช่วยเหลือผู้ขาย</p>
+        <h1>แชท</h1>
+      </div>
+      <a href="{% url 'admin:index' %}" class="support-inbox__icon-button" title="กลับหน้าหลัก">
+        <i data-lucide="layout-dashboard" aria-hidden="true"></i><span class="visually-hidden">กลับหน้าหลัก</span>
+      </a>
+      <a href="{% url 'admin:accounts_notification_changelist' %}" class="support-inbox__icon-button" title="การแจ้งเตือน">
+        <i data-lucide="bell" aria-hidden="true"></i><span class="visually-hidden">การแจ้งเตือน</span>
+      </a>
+    </header>
+
+    <form method="get" class="support-inbox__search">
+      <i data-lucide="search" aria-hidden="true"></i>
+      <label class="visually-hidden" for="support-search">ค้นหาแชท</label>
+      <input id="support-search" type="search" name="q" value="{{ search_query }}" placeholder="ค้นหาชื่อหรือข้อความ">
+      {% if active_tab != 'all' %}<input type="hidden" name="tab" value="{{ active_tab }}">{% endif %}
+    </form>
+
+    <nav class="support-inbox__tabs" aria-label="ตัวกรองบทสนทนา">
+      <a href="{% url 'admin:accounts_supportticket_changelist' %}" class="{% if active_tab == 'all' %}is-active{% endif %}">ทั้งหมด</a>
+      <a href="{% url 'admin:accounts_supportticket_changelist' %}?tab=unread" class="{% if active_tab == 'unread' %}is-active{% endif %}">ยังไม่อ่าน{% if admin_support_chat_count %}<span>{{ admin_support_chat_count }}</span>{% endif %}</a>
+      <a href="{% url 'admin:accounts_supportticket_changelist' %}?tab=open" class="{% if active_tab == 'open' %}is-active{% endif %}">กำลังคุย</a>
+    </nav>
+
+    <div class="support-inbox__threads" role="list">
+      {% for ticket in tickets %}
+        <a href="{% url 'admin:accounts_supportticket_changelist' %}?ticket={{ ticket.pk }}{% if active_tab != 'all' %}&tab={{ active_tab }}{% endif %}" class="support-inbox__thread {% if selected_ticket.pk == ticket.pk %}is-selected{% endif %} {% if ticket.has_unread_for_admin %}has-unread{% endif %}" role="listitem" {% if selected_ticket.pk == ticket.pk %}aria-current="page"{% endif %}>
+          <span class="support-inbox__avatar">
+            {% if ticket.seller.avatar %}<img src="{{ ticket.seller.avatar.url }}" alt="">{% else %}{{ ticket.seller.display_name|default:ticket.seller.username|first|upper }}{% endif %}
+          </span>
+          <span class="support-inbox__thread-copy">
+            <span class="support-inbox__thread-heading">
+              <strong>{{ ticket.seller.display_name|default:ticket.seller.username }}</strong>
+              <time datetime="{{ ticket.updated_at|date:'c' }}">{{ ticket.updated_at|date:"d/m H:i" }}</time>
+            </span>
+            <span class="support-inbox__preview">{% if ticket.latest_message_body %}{{ ticket.latest_message_body|truncatechars:68 }}{% else %}{{ ticket.subject }}{% endif %}</span>
+          </span>
+          {% if ticket.has_unread_for_admin %}<span class="support-inbox__unread" aria-label="มีข้อความใหม่"></span>{% endif %}
+        </a>
+      {% empty %}
+        <div class="support-inbox__empty-list"><i data-lucide="messages-square" aria-hidden="true"></i><p>ไม่พบแชทตามที่ค้นหา</p></div>
+      {% endfor %}
+    </div>
+  </aside>
+
+  <section class="support-inbox__conversation">
+    {% if selected_ticket %}
+      <header class="support-inbox__conversation-header">
+        <span class="support-inbox__avatar support-inbox__avatar--large">
+          {% if selected_ticket.seller.avatar %}<img src="{{ selected_ticket.seller.avatar.url }}" alt="">{% else %}{{ selected_ticket.seller.display_name|default:selected_ticket.seller.username|first|upper }}{% endif %}
+        </span>
+        <div class="support-inbox__seller-title">
+          <h2>{{ selected_ticket.seller.display_name|default:selected_ticket.seller.username }}</h2>
+          <p>{{ selected_ticket.subject }} · {{ selected_ticket.get_category_display }}{% if selected_ticket.community %} · {{ selected_ticket.community.name }}{% endif %}</p>
+        </div>
+        <span class="support-inbox__status support-inbox__status--{{ selected_ticket.status }}">{{ selected_ticket.get_status_display }}</span>
+      </header>
+
+      <div class="support-inbox__messages" id="support-inbox-messages" aria-live="polite">
+        {% for message in selected_ticket.messages.all %}
+          <article class="support-inbox__message {% if message.sender_id == user.id %}is-own{% endif %}">
+            <div class="support-inbox__bubble">
+              <p>{{ message.body|linebreaksbr }}</p>
+              <time datetime="{{ message.created_at|date:'c' }}">{{ message.created_at|date:"d/m/Y H:i" }}</time>
+            </div>
+          </article>
+        {% empty %}
+          <div class="support-inbox__conversation-empty"><i data-lucide="message-circle" aria-hidden="true"></i><p>เริ่มตอบผู้ขายเพื่อช่วยแก้ปัญหาได้เลย</p></div>
+        {% endfor %}
+      </div>
+
+      {% if selected_ticket.status != 'closed' %}
+        <form method="post" class="support-inbox__composer" novalidate>
+          {% csrf_token %}
+          <input type="hidden" name="ticket_id" value="{{ selected_ticket.pk }}">
+          {% if chat_form.non_field_errors %}<div class="errornote">{{ chat_form.non_field_errors }}</div>{% endif %}
+          <label class="visually-hidden" for="{{ chat_form.body.id_for_label }}">พิมพ์ข้อความถึงผู้ขาย</label>
+          {{ chat_form.body }}
+          {% for error in chat_form.body.errors %}<p class="errornote">{{ error }}</p>{% endfor %}
+          <button type="submit" class="support-inbox__send" title="ส่งข้อความ"><i data-lucide="send" aria-hidden="true"></i><span>ส่ง</span></button>
+        </form>
+      {% endif %}
+    {% else %}
+      <div class="support-inbox__no-selection">
+        <span><i data-lucide="messages-square" aria-hidden="true"></i></span>
+        <h2>เลือกบทสนทนาเพื่อเริ่มตอบ</h2>
+        <p>ข้อความใหม่จากผู้ขายจะแสดงจุดแจ้งเตือนในรายการด้านซ้าย</p>
+      </div>
+    {% endif %}
+  </section>
+</main>
+{% if selected_ticket %}
+  {% include "accounts/_realtime_chat.html" with chat_kind="support" chat_id=selected_ticket.pk message_list="support-inbox-messages" form_selector=".support-inbox__composer" admin_chat=True %}
+{% endif %}
+{% endblock %}

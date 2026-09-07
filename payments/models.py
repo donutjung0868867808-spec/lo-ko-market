@@ -3,6 +3,7 @@ import uuid
 from django.conf import settings
 from django.core.validators import FileExtensionValidator, MinValueValidator
 from django.db import models
+from django.utils import timezone
 
 from agri_market.storage import private_storage
 from accounts.models import validate_file_size
@@ -228,6 +229,8 @@ class SellerPaymentAccount(models.Model):
 
 
 class SellerSettlement(models.Model):
+    attempts = models.PositiveSmallIntegerField("จำนวนครั้งที่พยายามโอน", default=0)
+    next_attempt_at = models.DateTimeField("ลองโอนอีกครั้งเมื่อ", default=timezone.now)
     class Status(models.TextChoices):
         PENDING = "pending", "รอคำสั่งซื้อสำเร็จ"
         READY = "ready", "พร้อมโอนเงิน"

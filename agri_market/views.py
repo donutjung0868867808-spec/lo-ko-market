@@ -1,5 +1,6 @@
 import secrets
 import time
+from datetime import timedelta
 
 from django.conf import settings
 from django.core import signing
@@ -12,6 +13,7 @@ from django.db.migrations.executor import MigrationExecutor
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_POST
+from django.utils import timezone
 
 from accounts.services import queue_email
 
@@ -32,7 +34,16 @@ def readiness(request):
             {"status": "not_ready", "database": "ok", "migrations": "pending"},
             status=503,
         )
-    return JsonResponse({"status": "ready", "database": "ok", "migrations": "ok"})
+    if settings.REDIS_URL:
+        try:
+            from redis import Redis
+
+            with Redis.from_url(settings.REDIS_URL, socket_connect_timeout=2, socket_timeout=2) as broker:
+                broker.ping()
+        except Exception:
+            return JsonResponse({"status": "not_ready", "realtime": "unavailable"}, status=503)
+    return JsonResponse({"status": "ready", "database": "ok", "migrations": "ok",
+                         "realtime": "ok" if settings.REDIS_URL else "local"})
 
 @login_required
 def admin_site_preview(request):
@@ -94,6 +105,7 @@ def admin_mfa(request):
                 user=request.user,
                 send_now=True,
                 raise_on_failure=True,
+                expires_at=timezone.now() + timedelta(minutes=settings.ADMIN_MFA_CODE_MINUTES),
             )
         except Exception:
             messages.error(request, "ส่งรหัสยืนยันไม่สำเร็จ กรุณาตรวจสอบระบบอีเมล")
