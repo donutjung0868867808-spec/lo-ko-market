@@ -423,7 +423,12 @@ class SupportMessageForm(StyledFormMixin, forms.ModelForm):
         labels = {"body": "ข้อความ"}
         widgets = {
             "body": forms.Textarea(
-                attrs={"rows": 4, "maxlength": 3000, "placeholder": "พิมพ์ข้อความ"}
+                attrs={
+                    "rows": 1,
+                    "maxlength": 3000,
+                    "placeholder": "พิมพ์ข้อความ",
+                    "enterkeyhint": "send",
+                }
             )
         }
 

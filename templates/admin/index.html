@@ -2,7 +2,16 @@
 {% load static log %}
 
 {% block bodyclass %}{{ block.super }} dashboard owner-dashboard{% endblock %}
-{% block nav-breadcrumbs %}{% endblock %}
+{% block nav-breadcrumbs %}
+  {% if has_permission %}
+    <nav class="owner-mobile-actions" aria-label="คำสั่งผู้ดูแลระบบ">
+      <a href="{% url 'admin:index' %}"><i data-lucide="house" aria-hidden="true"></i><span>หน้าหลัก</span></a>
+      {% if site_url %}<a href="{{ site_url }}"><i data-lucide="external-link" aria-hidden="true"></i><span>ดูเว็บไซต์</span></a>{% endif %}
+      {% if user.has_usable_password %}<a href="{% url 'admin:password_change' %}"><i data-lucide="key-round" aria-hidden="true"></i><span>เปลี่ยนรหัสผ่าน</span></a>{% endif %}
+      <form method="post" action="{% url 'admin:logout' %}">{% csrf_token %}<button type="submit"><i data-lucide="log-out" aria-hidden="true"></i><span>ออกจากระบบ</span></button></form>
+    </nav>
+  {% endif %}
+{% endblock %}
 {% block nav-sidebar %}{% endblock %}
 {% block content_title %}{% endblock %}
 

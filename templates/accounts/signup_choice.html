@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}สมัครบัญชีใหม่{% endblock %}
 
@@ -12,7 +13,7 @@
 </style>
 {% endblock %}
 
-{% block main_class %}market-signup flex min-h-screen w-full flex-1 items-center bg-white px-5 py-10 sm:px-10 lg:px-16 xl:px-24{% endblock %}
+{% block main_class %}market-signup flex min-h-screen w-full flex-1 items-center bg-white px-4 py-16 sm:px-10 sm:py-10 lg:px-16 xl:px-24{% endblock %}
 
 {% block content %}
 <button
@@ -24,12 +25,12 @@
   <span>ย้อนกลับ</span>
 </button>
 
-<section class="mx-auto grid w-full max-w-7xl items-center gap-12 lg:grid-cols-[minmax(0,1fr)_460px] lg:gap-24">
-  <div class="hidden lg:block">
-    <p class="text-center text-6xl font-light text-leaf">โลโก้</p>
+<section class="mx-auto grid w-full max-w-7xl items-center gap-12 xl:grid-cols-[minmax(0,1fr)_460px] xl:gap-24">
+  <div class="hidden justify-center xl:flex" aria-hidden="true">
+    <img src="{% static 'images/market-logo.png' %}" alt="" class="h-72 w-72 object-contain">
   </div>
 
-  <div class="w-full rounded-[2.5rem] border-2 border-leaf bg-white px-10 py-11 shadow-[0_12px_32px_rgba(23,33,29,0.05)] sm:px-14">
+  <div class="w-full rounded-3xl border-2 border-leaf bg-white px-5 py-8 shadow-[0_12px_32px_rgba(23,33,29,0.05)] sm:rounded-[2.5rem] sm:px-14 sm:py-11">
     <h1 class="text-center text-2xl font-semibold text-stone-600">สมัครบัญชีใหม่</h1>
     <div class="mt-8 space-y-6">
       <a href="{% url 'accounts:consumer_signup' %}" class="flex min-h-[78px] items-center justify-center gap-5 rounded-lg bg-[#6fbd19] px-5 text-xl font-semibold text-white transition hover:bg-[#5da414] focus:outline-none focus:ring-2 focus:ring-[#6fbd19] focus:ring-offset-2">

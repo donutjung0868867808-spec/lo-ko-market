@@ -16,3 +16,4 @@ cloudflared.exe
 .cloudflared*
 .artifacts/
 .env.production
+node_modules/

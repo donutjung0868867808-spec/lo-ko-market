@@ -20,6 +20,8 @@
     python -m venv .venv
     .\.venv\Scripts\Activate.ps1
     pip install -r requirements.txt
+    npm install
+    npm run build:css
     python manage.py migrate
     python manage.py createsuperuser
     python manage.py runserver
@@ -85,4 +87,4 @@
 
 รายละเอียดบัญชีภายนอก ตัวแปร Render, Stripe, การย้ายเอกสารส่วนตัว, backup และ smoke test อยู่ใน PRODUCTION_CHECKLIST.md
 
-render.yaml คงเว็บและฐานข้อมูลไว้บนแผนฟรี ส่วน render.cron.yaml แยกไว้สำหรับเปิด Cron Job ภายหลังเพื่อไม่ให้เกิดค่าใช้จ่ายโดยไม่ตั้งใจ
+`render.yaml` เป็น Blueprint หลักที่รวมเว็บ PostgreSQL Redis และ Cron Job และใช้แผนแบบเสียเงินตามที่ระบุในไฟล์ ตรวจค่าใช้จ่ายบน Render ก่อนสร้างบริการ และไม่ต้อง deploy `render.cron.yaml` ซ้ำ

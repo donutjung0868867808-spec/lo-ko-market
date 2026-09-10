@@ -16,6 +16,17 @@
 การแจ้งเตือนแชททำงานขณะเปิดหน้าเว็บอยู่ ยังไม่ใช่ Push notification เมื่อปิดเบราว์เซอร์
 ไม่มีระบบโทรเสียง/วิดีโอหรือส่งไฟล์แนบในแชทรุ่นนี้
 
+## Frontend build และ CI
+
+หน้าเว็บใช้ Tailwind CSS ที่คอมไพล์ไว้ใน `static/css/tailwind.css` และไม่พึ่ง Play CDN ใน Production
+เมื่อแก้ template หรือเพิ่ม Tailwind class ให้ใช้ Node.js 22 แล้วรัน:
+
+    npm install
+    npm run build:css
+
+ต้อง commit ไฟล์ CSS ที่สร้างใหม่ด้วย เพราะ Render ใช้ไฟล์ที่อยู่ใน repository แล้วรัน `collectstatic`
+GitHub Actions ใน `.github/workflows/ci.yml` จะสร้าง CSS ซ้ำและตรวจว่าไฟล์ตรงกับ source พร้อมรัน Django checks, ตรวจ migration และ test suite ทุกครั้งที่ push หรือเปิด pull request
+
 ## 1. เตรียมบัญชีและงบประมาณ
 
 ใช้บัญชี Render, PostgreSQL, Redis, Cloudinary, Stripe Connect และ SMTP ของคุณ
@@ -28,7 +39,7 @@
 
 ## 2. สร้าง Blueprint
 
-1. ส่งโค้ดและ migration ขึ้น repository ส่วนตัว/สาธารณะที่ตั้งใจใช้ โดยไม่รวม .env, ฐานข้อมูล, private_media หรือ logs
+1. รัน `npm run build:css` และ `python manage.py test` แล้วส่งโค้ด, CSS ที่ build แล้ว และ migration ขึ้น repository โดยไม่รวม .env, ฐานข้อมูล, private_media หรือ logs
 2. Render > New > Blueprint แล้วเลือก repository และ branch
 3. ตรวจชื่อบริการ agri-market, agri-market-db, agri-market-realtime และ agri-market-maintenance
 4. กรอก environment variables ที่กำหนด sync: false โดยใช้ .env.production.example เป็นรายการอ้างอิง

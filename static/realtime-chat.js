@@ -6,7 +6,10 @@
   const input = form?.querySelector('[name="body"]');
   const button = form?.querySelector('[type="submit"]');
   const root = list.parentElement;
+  const viewportRoot = root.closest('.support-inbox--selected') || root;
+  const pageChatRoot = root.closest(".support-chat-main");
   root.classList.add("has-live-chat");
+  root.dataset.liveChatConnection = "connecting";
   const bar = document.createElement("div");
   bar.className = "live-chat-bar";
   const status = document.createElement("span");
@@ -39,9 +42,69 @@
   };
   const storeDraft = () => { try { sessionStorage.setItem(draftKey, input?.value || ""); } catch (_) {} };
   try { if (input && !input.value) input.value = sessionStorage.getItem(draftKey) || ""; } catch (_) {}
+  const resizeInput = () => {
+    if (!input) return;
+    input.style.height = "auto";
+    input.style.height = Math.min(input.scrollHeight, 132) + "px";
+  };
+  resizeInput();
+  const visualViewport = window.visualViewport;
+  let largestViewportHeight = visualViewport?.height || window.innerHeight;
+  let viewportTimer;
+  const fitKeyboardViewport = () => {
+    const visibleHeight = visualViewport?.height || window.innerHeight;
+    if (pageChatRoot) {
+      const viewportOffset = visualViewport?.offsetTop || 0;
+      const top = Math.max(0, pageChatRoot.getBoundingClientRect().top - viewportOffset);
+      pageChatRoot.style.setProperty(
+        "--support-chat-main-height",
+        `${Math.max(260, Math.floor(visibleHeight - top))}px`,
+      );
+    }
+    if (!input || !window.matchMedia("(max-width: 600px)").matches) {
+      viewportRoot.classList.remove("is-keyboard-open");
+      pageChatRoot?.classList.remove("is-keyboard-open");
+      viewportRoot.style.removeProperty("--live-chat-available-height");
+      return;
+    }
+    if (document.activeElement !== input) largestViewportHeight = Math.max(largestViewportHeight, visibleHeight);
+    const keyboardOpen = document.activeElement === input && largestViewportHeight - visibleHeight > 100;
+    if (pageChatRoot) {
+      pageChatRoot.classList.toggle("is-keyboard-open", keyboardOpen);
+    } else {
+      const top = Math.max(0, viewportRoot.getBoundingClientRect().top);
+      viewportRoot.style.setProperty("--live-chat-available-height", `${Math.max(250, Math.floor(visibleHeight - top))}px`);
+      viewportRoot.classList.toggle("is-keyboard-open", keyboardOpen);
+    }
+    if (keyboardOpen) requestAnimationFrame(() => { list.scrollTop = list.scrollHeight; });
+  };
+  const scheduleKeyboardViewport = () => {
+    clearTimeout(viewportTimer);
+    viewportTimer = setTimeout(fitKeyboardViewport, 40);
+  };
+  visualViewport?.addEventListener("resize", scheduleKeyboardViewport);
+  visualViewport?.addEventListener("scroll", scheduleKeyboardViewport);
+  input?.addEventListener("focus", () => {
+    scheduleKeyboardViewport();
+    setTimeout(fitKeyboardViewport, 220);
+  });
+  input?.addEventListener("blur", () => {
+    setTimeout(fitKeyboardViewport, 120);
+  });
+  window.addEventListener("resize", scheduleKeyboardViewport);
+  fitKeyboardViewport();
   const send = (value) => {
     if (socket?.readyState !== WebSocket.OPEN) return false;
     socket.send(JSON.stringify(value)); return true;
+  };
+  const newClientId = () => {
+    if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
+    const bytes = new Uint8Array(16);
+    if (typeof crypto.getRandomValues === "function") crypto.getRandomValues(bytes);
+    else for (let index = 0; index < bytes.length; index += 1) bytes[index] = Math.floor(Math.random() * 256);
+    bytes[6] = (bytes[6] & 15) | 64; bytes[8] = (bytes[8] & 63) | 128;
+    const hex = [...bytes].map(byte => byte.toString(16).padStart(2, "0")).join("");
+    return [hex.slice(0,8), hex.slice(8,12), hex.slice(12,16), hex.slice(16,20), hex.slice(20)].join("-");
   };
   const latest = () => Math.max(0, ...messages.keys());
   const oldest = () => Math.min(...messages.keys());
@@ -71,6 +134,7 @@
     else list.scrollTop = top + (prepend ? list.scrollHeight - height : 0);
   }
   function connect() {
+    root.dataset.liveChatConnection = "connecting";
     status.textContent = "กำลังเชื่อมต่อ…";
     const prefix = config.admin ? "admin/" : "";
     socket = new WebSocket((location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws/" + prefix + "chat/" + config.kind + "/" + config.room + "/");
@@ -78,6 +142,7 @@
     socket.onmessage = ({data}) => {
       const event = JSON.parse(data);
       if (event.type === "ready") {
+        root.dataset.liveChatConnection = "connected";
         status.textContent = "เชื่อมต่อแล้ว";
         send({type:"history", after:latest()});
         if (pending) send(pending);
@@ -98,6 +163,7 @@
         if (pending && pending.client_id === m.client_id) {
           if (input.value.trim() === pending.body) input.value = "";
           pending = null; rememberPending(); storeDraft();
+          form?.classList.remove("is-sending");
           if (button) button.disabled = !allowed;
           info.textContent = "";
         }
@@ -124,34 +190,50 @@
       } else if (event.type === "error") {
         pending = null;
         rememberPending();
+        form?.classList.remove("is-sending");
         if (button) button.disabled = !allowed;
         info.classList.add("live-chat-error");
         info.textContent = event.message;
       }
     };
     socket.onclose = (event) => {
+      root.dataset.liveChatConnection = "reconnecting";
       status.textContent = event.code === 4403 ? "กรุณาเข้าสู่ระบบใหม่" : "การเชื่อมต่อขาด กำลังเชื่อมต่อใหม่…";
       if (event.code !== 4403) timer = setTimeout(connect, Math.min(30000, 1000 * 2 ** retry++));
     };
   }
   form?.addEventListener("submit", event => {
-    event.preventDefault();
     if (!input.value.trim() || pending) return;
-    if (!allowed) { info.textContent = "ไม่สามารถส่งข้อความในบทสนทนานี้ได้"; return; }
+    if (!allowed) {
+      event.preventDefault();
+      info.textContent = "ไม่สามารถส่งข้อความในบทสนทนานี้ได้";
+      return;
+    }
+    // Mobile in-app browsers can take a moment to open WebSocket connections.
+    // Submit the regular Django form while it is unavailable so the message is never trapped on screen.
+    if (socket?.readyState !== WebSocket.OPEN) {
+      info.textContent = "กำลังส่งข้อความ…";
+      return;
+    }
+    event.preventDefault();
     info.classList.remove("live-chat-error");
     // Keep the same ID until acknowledged, including after a network interruption.
-    const bytes = crypto.getRandomValues(new Uint8Array(16));
-    bytes[6] = (bytes[6] & 15) | 64; bytes[8] = (bytes[8] & 63) | 128;
-    const hex = [...bytes].map(b => b.toString(16).padStart(2,"0")).join("");
-    pending = {type:"send", body:input.value.trim(), client_id:[hex.slice(0,8),hex.slice(8,12),hex.slice(12,16),hex.slice(16,20),hex.slice(20)].join("-")};
+    pending = {type:"send", body:input.value.trim(), client_id:newClientId()};
     rememberPending();
     storeDraft();
+    form.classList.add("is-sending");
     if (button) button.disabled = true;
     info.textContent = "กำลังส่ง…";
     send(pending);
   });
+  input?.addEventListener("keydown", event => {
+    if (event.key !== "Enter" || event.shiftKey || event.isComposing || event.keyCode === 229) return;
+    event.preventDefault();
+    if (input.value.trim() && !pending && allowed) form.requestSubmit();
+  });
   let lastTyping = 0;
   input?.addEventListener("input", () => {
+    resizeInput();
     storeDraft();
     if (Date.now() - lastTyping > 1200) { send({type:"typing"}); lastTyping = Date.now(); }
   });
@@ -159,7 +241,14 @@
   document.addEventListener("visibilitychange", read);
   let readTimer;
   list.addEventListener("scroll", () => { clearTimeout(readTimer); readTimer = setTimeout(read, 150); });
-  window.addEventListener("pagehide", () => { clearTimeout(timer); socket.onclose = null; socket.close(); });
+  window.addEventListener("pagehide", () => {
+    clearTimeout(timer);
+    clearTimeout(viewportTimer);
+    visualViewport?.removeEventListener("resize", scheduleKeyboardViewport);
+    visualViewport?.removeEventListener("scroll", scheduleKeyboardViewport);
+    socket.onclose = null;
+    socket.close();
+  });
   window.addEventListener("pageshow", event => { if (event.persisted) connect(); });
   setInterval(() => send({type:"ping"}), 30000);
   connect();

@@ -167,6 +167,10 @@ textarea {
   background: #ffffff;
 }
 
+.owner-mobile-actions {
+  display: none;
+}
+
 .owner-back-button {
   display: inline-flex;
   min-height: 34px;
@@ -969,7 +973,8 @@ textarea {
 
 .change-list #changelist .results {
   width: 100%;
-  overflow-x: visible;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   border: 1px solid var(--console-line);
   border-radius: 8px;
   background: #ffffff;
@@ -977,8 +982,8 @@ textarea {
 
 .change-list #changelist .results #result_list {
   width: 100%;
-  min-width: 0;
-  table-layout: fixed;
+  min-width: 860px;
+  table-layout: auto;
   border: 0;
   border-collapse: collapse;
 }
@@ -1459,6 +1464,10 @@ ul.errorlist {
   background: #ffffff;
 }
 
+.support-inbox__mobile-back {
+  display: none;
+}
+
 .support-inbox__conversation-header {
   gap: 12px;
 }
@@ -1484,6 +1493,7 @@ ul.errorlist {
 }
 
 .support-inbox__status {
+  flex: 0 0 auto;
   margin-left: auto;
   padding: 5px 9px;
   border-radius: 6px;
@@ -1727,6 +1737,30 @@ ul.errorlist {
     max-height: 340px;
   }
 
+  .support-inbox--selected {
+    min-height: calc(100dvh - 64px);
+    display: block;
+  }
+
+  .support-inbox--selected .support-inbox__sidebar {
+    display: none;
+  }
+
+  .support-inbox--selected .support-inbox__conversation {
+    min-height: calc(100dvh - 64px);
+  }
+
+  .support-inbox__mobile-back {
+    display: grid;
+    width: 36px;
+    height: 36px;
+    flex: 0 0 36px;
+    place-items: center;
+    border: 1px solid var(--console-line);
+    border-radius: 6px;
+    color: var(--console-green);
+  }
+
   .support-inbox__thread {
     padding: 10px 14px;
   }
@@ -1774,12 +1808,20 @@ ul.errorlist {
 
 @media (max-width: 767px) {
   #header {
+    position: static;
+    display: block;
     min-height: 64px;
     padding: 8px 14px;
   }
 
   #branding {
+    width: 100%;
+    height: 48px;
     min-width: 0;
+  }
+
+  .owner-brand {
+    height: 48px;
   }
 
   .owner-brand-logo {
@@ -1792,25 +1834,72 @@ ul.errorlist {
     font-size: 0.9rem;
   }
 
-  .owner-brand-copy small,
-  .owner-user-name,
-  .owner-user-tools a span,
-  .owner-user-tools button span {
+  .owner-brand-copy small {
     display: none;
   }
 
-  .owner-user-tools a,
-  .owner-user-tools button {
-    width: 38px;
-    min-height: 38px;
-    justify-content: center;
-    padding: 0;
+  #header .owner-user-tools,
+  #header #user-tools {
+    display: none !important;
   }
 
   .owner-admin-backbar,
   .breadcrumbs {
     padding-left: 14px;
     padding-right: 14px;
+  }
+
+  .owner-admin-backbar {
+    display: none;
+  }
+
+  .owner-mobile-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--console-line);
+    background: #ffffff;
+  }
+
+  .owner-mobile-actions a,
+  .owner-mobile-actions button {
+    box-sizing: border-box;
+    display: inline-flex;
+    width: 100%;
+    min-height: 44px;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 8px;
+    border: 1px solid #8db69e;
+    border-radius: 6px;
+    background: #ffffff;
+    color: var(--console-green);
+    font: inherit;
+    font-size: 0.78rem;
+    font-weight: 800;
+    line-height: 1.25;
+    text-align: center;
+    text-decoration: none;
+  }
+
+  .owner-mobile-actions form {
+    min-width: 0;
+    margin: 0;
+  }
+
+  .owner-mobile-actions button {
+    border-color: var(--console-green);
+    background: var(--console-green);
+    color: #ffffff;
+    cursor: pointer;
+  }
+
+  .owner-mobile-actions svg {
+    width: 17px;
+    height: 17px;
+    flex: 0 0 17px;
   }
 
   #content,
@@ -1870,5 +1959,24 @@ ul.errorlist {
   .admin-support-rail {
     right: 8px;
     bottom: 12px;
+  }
+
+  .change-list .admin-support-rail {
+    display: none;
+  }
+
+  .change-list #changelist .results #result_list {
+    min-width: 1040px;
+  }
+
+  .change-list #changelist #result_list thead th,
+  .change-list #changelist #result_list thead th .text,
+  .change-list #changelist #result_list thead th .text a,
+  .change-list #changelist #result_list thead th .text span,
+  .change-list #changelist #result_list tbody th,
+  .change-list #changelist #result_list tbody td {
+    overflow-wrap: normal;
+    word-break: normal;
+    white-space: nowrap;
   }
 }

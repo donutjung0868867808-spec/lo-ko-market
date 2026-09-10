@@ -5,7 +5,7 @@
 {% block content_title %}{% endblock %}
 
 {% block content %}
-<main class="support-inbox" aria-label="กล่องข้อความผู้ขาย">
+<main class="support-inbox{% if selected_ticket %} support-inbox--selected{% endif %}" aria-label="กล่องข้อความผู้ขาย">
   <aside class="support-inbox__sidebar">
     <header class="support-inbox__sidebar-header">
       <div>
@@ -57,6 +57,7 @@
   <section class="support-inbox__conversation">
     {% if selected_ticket %}
       <header class="support-inbox__conversation-header">
+        <a href="{% url 'admin:accounts_supportticket_changelist' %}" class="support-inbox__mobile-back" title="กลับไปรายการแชท"><i data-lucide="arrow-left" aria-hidden="true"></i><span class="visually-hidden">กลับไปรายการแชท</span></a>
         <span class="support-inbox__avatar support-inbox__avatar--large">
           {% if selected_ticket.seller.avatar %}<img src="{{ selected_ticket.seller.avatar.url }}" alt="">{% else %}{{ selected_ticket.seller.display_name|default:selected_ticket.seller.username|first|upper }}{% endif %}
         </span>

@@ -3,34 +3,33 @@
 <html lang="th">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
   <title>{% block title %}ตลาดเกษตรชุมชน{% endblock %}</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            leaf: "#2f6f1d",
-            mint: "#edf7e8",
-            soil: "#805336",
-            rice: "#f4c95d",
-            ink: "#17211d"
-          },
-          boxShadow: {
-            soft: "0 10px 28px rgba(23, 33, 29, 0.08)"
-          }
-        }
-      }
-    }
-  </script>
-  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <link rel="stylesheet" href="{% static 'css/tailwind.css' %}">
+  <script src="{% static 'vendor/htmx.min.js' %}"></script>
   <script src="{% static 'vendor/lucide.min.js' %}"></script>
   {% block extra_head %}{% endblock %}
   <style>
     summary::-webkit-details-marker { display: none; }
     .icon-fallback { display: inline-flex; font-size: 0.75rem; font-weight: 600; line-height: 1; }
     :where(button, a, summary, span):has(> svg[data-lucide]) > .icon-fallback { display: none; }
+    @media (max-width: 1199px) {
+      main.market-login > section,
+      main.market-signup > section,
+      main.market-consumer-signup > section,
+      main.market-farmer-signup > section,
+      main.market-farmer-profile > section {
+        grid-template-columns: minmax(0, 1fr) !important;
+        max-width: 42rem;
+      }
+      main.market-login > section > [aria-hidden="true"],
+      main.market-signup > section > [aria-hidden="true"],
+      main.market-consumer-signup > section > [aria-hidden="true"],
+      main.market-farmer-signup > section > [aria-hidden="true"],
+      main.market-farmer-profile > section > [aria-hidden="true"] {
+        display: none !important;
+      }
+    }
   </style>
 </head>
 <body class="flex min-h-screen flex-col bg-white text-ink">
@@ -38,7 +37,7 @@
     <div class="relative mx-auto grid min-h-[68px] w-full max-w-[1500px] grid-cols-1 items-center gap-x-3 gap-y-2 px-4 py-2 sm:px-6 lg:grid-cols-[220px_minmax(420px,1fr)_auto] lg:px-8">
       <a href="{% url 'catalog:product_list' %}" class="flex min-w-0 items-center gap-2.5" aria-label="หน้าหลักตลาดเกษตรชุมชน">
         <span class="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-md bg-white p-0.5">
-          <img src="{% static 'logo.svg' %}" alt="" class="h-full w-full object-contain">
+          <img src="{% static 'images/market-logo.png' %}" alt="โลโก้ตลาดเกษตรชุมชน" class="h-full w-full object-contain">
         </span>
         <span class="hidden min-w-0 sm:block">
           <span class="block whitespace-nowrap text-base font-semibold leading-tight">ตลาดเกษตรชุมชน</span>
@@ -212,7 +211,7 @@
   </script>
   {% block extra_scripts %}{% endblock %}
   {% if user.is_authenticated %}
-    <link rel="stylesheet" href="{% static 'realtime-chat.css' %}">
+    <link rel="stylesheet" href="{% static 'realtime-chat.css' %}?v=20260910-4">
     <script src="{% static 'realtime-notifications.js' %}"></script>
   {% endif %}
 </body>
