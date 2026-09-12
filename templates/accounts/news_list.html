@@ -16,8 +16,10 @@
   <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
     {% for post in news_posts %}
       <article class="rounded-md border border-stone-200 bg-white p-5 shadow-sm">
-        <p class="text-xs font-semibold uppercase text-leaf">{{ post.get_audience_display }}</p>
-        <h2 class="mt-2 text-lg font-semibold text-slate-950"><a href="{% url 'accounts:news_detail' post.slug %}">{{ post.title }}</a></h2>
+        {% if post.audience != "all" %}
+          <p class="text-xs font-semibold uppercase text-leaf">{{ post.get_audience_display }}</p>
+        {% endif %}
+        <h2 class="{% if post.audience != "all" %}mt-2 {% endif %}text-lg font-semibold text-slate-950"><a href="{% url 'accounts:news_detail' post.slug %}">{{ post.title }}</a></h2>
         {% if post.summary %}<p class="mt-2 text-sm leading-6 text-slate-600">{{ post.summary }}</p>{% endif %}
         <p class="mt-4 text-xs text-slate-500">{{ post.published_at|date:"d M Y H:i" }}</p>
       </article>

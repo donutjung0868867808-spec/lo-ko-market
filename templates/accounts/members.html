@@ -9,7 +9,7 @@
       <h1 class="text-2xl font-semibold text-slate-950">ข้อมูล{{ title }}</h1>
       <p class="mt-1 text-sm text-slate-600">ค้นหา บล็อก/ปลดบล็อก และส่งแจ้งเตือนสมาชิก</p>
     </div>
-    <a class="rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white" href="{% url 'accounts:send_notification' %}">ติดต่อสมาชิก</a>
+    <a class="rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white" href="{% url 'accounts:send_notification' %}">ส่งการแจ้งเตือน</a>
   </div>
 
   {% if user.is_owner %}

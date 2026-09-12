@@ -1,0 +1,133 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<div id="content-main" class="notification-send">
+  <form method="post">
+    {% csrf_token %}
+    <section class="module aligned">
+      <h2>กลุ่มผู้รับ</h2>
+      <div class="form-row notification-send__scopes" data-recipient-options
+           data-count-all="{{ recipient_counts.all }}" data-count-consumers="{{ recipient_counts.consumers }}"
+           data-count-farmers="{{ recipient_counts.farmers }}" data-count-staff="{{ recipient_counts.staff }}">
+        {% for radio in form.recipient_scope %}
+          <label class="notification-send__scope">
+            {{ radio.tag }}
+            <span><strong>{{ radio.choice_label }}</strong><small data-recipient-count data-scope="{{ radio.data.value }}"></small></span>
+          </label>
+        {% endfor %}
+        {{ form.recipient_scope.errors }}
+      </div>
+      <div class="form-row" data-specific-recipients>
+        <div>
+          <label for="recipient-search">เลือกผู้รับรายบุคคล:</label>
+          <div class="notification-send__recipient-tools">
+            <input id="recipient-search" type="search" placeholder="ค้นหาชื่อหรือชื่อผู้ใช้" autocomplete="off" data-recipient-search>
+            <label class="notification-send__select-visible"><input type="checkbox" data-select-visible> เลือกผลการค้นหาทั้งหมด</label>
+          </div>
+          <select id="{{ form.recipients.id_for_label }}" name="{{ form.recipients.html_name }}" multiple hidden data-recipient-source>
+            {% for option in form.recipients %}{{ option }}{% endfor %}
+          </select>
+          <div class="notification-send__recipient-list" data-recipient-list></div>
+        </div>
+        <p class="help">ติ๊กชื่อเพื่อเลือกผู้รับได้ทันที</p>
+        {{ form.recipients.errors }}
+      </div>
+    </section>
+
+    <section class="module aligned">
+      <h2>ข้อความแจ้งเตือน</h2>
+      <div class="form-row"><div><label for="{{ form.title.id_for_label }}">หัวข้อ:</label>{{ form.title }}</div>{{ form.title.errors }}</div>
+      <div class="form-row"><div><label for="{{ form.message.id_for_label }}">ข้อความ:</label>{{ form.message }}</div>{{ form.message.errors }}</div>
+      <div class="form-row"><div><label for="{{ form.link.id_for_label }}">ลิงก์:</label>{{ form.link }}</div><p class="help">เช่น /news/ หรือ /orders/</p>{{ form.link.errors }}</div>
+      <div class="form-row notification-send__email"><div><label for="{{ form.send_email.id_for_label }}">{{ form.send_email }} ส่งอีเมลด้วย</label></div><p class="help">ใช้สำหรับประกาศสำคัญเท่านั้น</p></div>
+    </section>
+
+    <div class="submit-row">
+      <p class="notification-send__count">ผู้รับ <strong data-selected-count>0 คน</strong></p>
+      <input type="submit" value="ส่งการแจ้งเตือน" class="default">
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+  .notification-send { max-width: 980px; }
+  .notification-send__scopes { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; padding: 16px; }
+  .notification-send__scope { display: flex; align-items: center; gap: 10px; min-height: 64px; border: 1px solid var(--hairline-color); border-radius: 6px; padding: 12px; cursor: pointer; }
+  .notification-send__scope:has(input:checked) { border-color: var(--primary); background: #eef8ef; }
+  .notification-send__scope small { display: block; margin-top: 4px; color: var(--body-quiet-color); }
+  .notification-send__recipient-tools { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 0 0 10px 170px; }
+  .notification-send__recipient-tools input[type="search"] { flex: 1 1 260px; max-width: 420px; }
+  .notification-send__select-visible { width: auto !important; float: none !important; padding: 0 !important; }
+  .notification-send__recipient-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px; max-height: 280px; overflow: auto; margin-left: 170px; padding: 10px; border: 1px solid var(--hairline-color); border-radius: 6px; background: #fff; }
+  .notification-send__recipient { display: flex; align-items: center; gap: 9px; min-height: 42px; border: 1px solid #d8e2d9; border-radius: 5px; padding: 8px 10px; cursor: pointer; }
+  .notification-send__recipient:has(input:checked) { border-color: var(--primary); background: #eef8ef; }
+  .notification-send__recipient span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .notification-send__email label { width: auto; float: none; }
+  .notification-send__count { float: left; padding: 10px 0; margin: 0; }
+  @media (max-width: 767px) { .notification-send__count { float: none; } .notification-send__recipient-tools, .notification-send__recipient-list { margin-left: 0; } }
+</style>
+{% endblock %}
+
+{% block footer %}
+{{ block.super }}
+<script>
+  (() => {
+    const options = document.querySelector('[data-recipient-options]');
+    const individual = document.querySelector('[data-specific-recipients]');
+    const selectedCount = document.querySelector('[data-selected-count]');
+    const source = individual?.querySelector('[data-recipient-source]');
+    const list = individual?.querySelector('[data-recipient-list]');
+    const search = individual?.querySelector('[data-recipient-search]');
+    const selectVisible = individual?.querySelector('[data-select-visible]');
+    if (!options || !individual || !selectedCount || !source || !list || !search || !selectVisible) return;
+    const counts = { all: Number(options.dataset.countAll), consumers: Number(options.dataset.countConsumers), farmers: Number(options.dataset.countFarmers), staff: Number(options.dataset.countStaff) };
+    const recipientOptions = Array.from(source.options);
+    const cards = new Map();
+    recipientOptions.forEach((option) => {
+      const label = document.createElement('label');
+      label.className = 'notification-send__recipient';
+      const input = document.createElement('input');
+      input.type = 'checkbox'; input.checked = option.selected; input.dataset.recipientValue = option.value;
+      const text = document.createElement('span'); text.textContent = option.text;
+      label.append(input, text); list.append(label);
+      cards.set(option.value, { label, input, option, text: option.text.toLowerCase() });
+      input.addEventListener('change', () => { option.selected = input.checked; update(); });
+    });
+    const updateVisible = () => {
+      const query = search.value.trim().toLowerCase();
+      let visible = 0; let checked = 0;
+      cards.forEach((card) => {
+        const matches = !query || card.text.includes(query);
+        card.label.hidden = !matches;
+        if (matches) { visible += 1; if (card.input.checked) checked += 1; }
+      });
+      selectVisible.checked = visible > 0 && visible === checked;
+      selectVisible.indeterminate = checked > 0 && checked < visible;
+    };
+    const update = () => {
+      const selected = options.querySelector('input:checked')?.value;
+      individual.hidden = selected !== 'selected';
+      options.querySelectorAll('[data-recipient-count]').forEach((element) => {
+        const count = counts[element.dataset.scope];
+        element.textContent = Number.isFinite(count) ? `${count} คน` : 'เลือกผู้รับเอง';
+      });
+      selectedCount.textContent = selected === 'selected'
+        ? `${source.selectedOptions.length} คน`
+        : `${counts[selected] || 0} คน`;
+      updateVisible();
+    };
+    options.addEventListener('change', update);
+    search.addEventListener('input', updateVisible);
+    selectVisible.addEventListener('change', () => {
+      cards.forEach((card) => {
+        if (!card.label.hidden) { card.input.checked = selectVisible.checked; card.option.selected = selectVisible.checked; }
+      });
+      update();
+    });
+    update();
+  })();
+</script>
+{% endblock %}

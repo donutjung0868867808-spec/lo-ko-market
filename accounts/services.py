@@ -10,7 +10,7 @@ from django.utils.crypto import salted_hmac
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 
-from .models import AuditEvent, EmailDelivery, LoginAttempt, Notification
+from .models import AuditEvent, EmailDelivery, LoginAttempt, NewsPost, Notification, User
 
 
 def deliver_email(delivery, raise_on_failure=False, retry_failed=False):
@@ -95,6 +95,63 @@ def notify_user(user, title, message="", link="", send_email_message=True):
             body = f"{body}\n\n{link}" if body else link
         queue_email(user.email, title, body, user=user, send_now=False)
     return notification
+
+
+def notify_news_post(post):
+    """Create one in-app notification per target user when a news post goes live."""
+    if not post.is_published or post.notified_at:
+        return 0
+
+    recipients = User.objects.filter(is_active=True)
+    if post.created_by_id:
+        recipients = recipients.exclude(pk=post.created_by_id)
+    if post.audience == NewsPost.Audience.CONSUMERS:
+        recipients = recipients.filter(role=User.Roles.CONSUMER)
+    elif post.audience == NewsPost.Audience.FARMERS:
+        recipients = recipients.filter(role=User.Roles.FARMER)
+    elif post.audience == NewsPost.Audience.STAFF:
+        recipients = recipients.filter(
+            role__in=[User.Roles.COOPERATIVE_STAFF, User.Roles.OWNER]
+        )
+
+    recipients = list(recipients.only("id", "email"))
+    recipient_ids = [user.pk for user in recipients]
+    link = reverse("accounts:news_detail", args=[post.slug])
+    message = (post.summary or post.body).strip()[:400]
+    notifications = [
+        Notification(user=user, title=post.title, message=message, link=link)
+        for user in recipients
+    ]
+    Notification.objects.bulk_create(notifications)
+
+    if post.is_important:
+        email_body = f"{message}\n\n{link}".strip()
+        EmailDelivery.objects.bulk_create(
+            [
+                EmailDelivery(
+                    user=user,
+                    to_email=user.email,
+                    subject=post.title,
+                    body=email_body,
+                )
+                for user in recipients
+                if user.email
+            ]
+        )
+
+    post.notified_at = timezone.now()
+    post.save(update_fields=["notified_at", "updated_at"])
+
+    # bulk_create does not emit Notification's post_save signal, so publish the
+    # same per-user event after the transaction has safely committed.
+    def publish_notification_events():
+        from .realtime import publish
+
+        for user_id in recipient_ids:
+            publish(f"user.{user_id}", {"type": "notification.event"})
+
+    transaction.on_commit(publish_notification_events)
+    return len(notifications)
 
 
 def send_verification_email(request, user):

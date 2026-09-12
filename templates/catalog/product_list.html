@@ -52,8 +52,10 @@
           {% with category_id=category.id|stringformat:"s" sample=category.display_products.0 %}
             <a href="?category={{ category.id }}{% if request.GET.province %}&province={{ request.GET.province|urlencode }}{% endif %}{% if request.GET.q %}&q={{ request.GET.q|urlencode }}{% endif %}#products" class="flex h-20 min-w-[150px] shrink-0 snap-start items-center gap-3 rounded-md border px-3 {% if request.GET.category == category_id %}border-leaf bg-emerald-50 text-leaf{% else %}border-emerald-200 bg-white text-slate-700 hover:border-leaf hover:text-leaf{% endif %}">
               <span class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-md bg-emerald-50">
-                {% if sample and sample.image %}
-                  <img src="{{ sample.image.url }}" alt="" class="h-full w-full object-cover" loading="lazy">
+              {% if category.image %}
+                <img src="{{ category.image.url }}" alt="" class="h-full w-full object-cover" loading="lazy">
+              {% elif sample and sample.image %}
+                <img src="{{ sample.image.url }}" alt="" class="h-full w-full object-cover" loading="lazy">
                 {% else %}
                   <img src="{% static 'images/product-placeholder.svg' %}" alt="" class="h-full w-full object-cover">
                 {% endif %}

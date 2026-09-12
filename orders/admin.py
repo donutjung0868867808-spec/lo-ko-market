@@ -1,10 +1,11 @@
 from django import forms
 from django.contrib import admin
-from django.utils.html import format_html
+from django.urls import reverse
+from django.utils.html import format_html, format_html_join
 
 from accounts.admin_permissions import CsvExportAdminMixin, OwnerOnlyAdminMixin, RoleScopedAdminMixin
 
-from .models import Order, OrderItem, OrderStatusHistory, ShippingRate
+from .models import Order, OrderItem, OrderStatusHistory, Shipment, ShipmentEvent, ShippingRate
 from .services import ALLOWED_STATUS_TRANSITIONS, change_order_status
 
 
@@ -72,6 +73,98 @@ class OrderStatusHistoryInline(admin.TabularInline):
 
     def has_change_permission(self, request, obj=None):
         return False
+
+
+class ShipmentEventInline(admin.TabularInline):
+    model = ShipmentEvent
+    extra = 0
+    can_delete = False
+    readonly_fields = ("event_id", "received_at")
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(Shipment)
+class ShipmentAdmin(OwnerOnlyAdminMixin, admin.ModelAdmin):
+    list_display = (
+        "order_reference",
+        "buyer",
+        "seller",
+        "tracking_number",
+        "status_label",
+        "carrier_slug",
+        "provider_updated_at",
+        "updated_at",
+    )
+    list_filter = ("status", "carrier_slug", "updated_at")
+    search_fields = (
+        "order__reference",
+        "order__buyer__username",
+        "order__seller__username",
+        "tracking_number",
+        "provider_id",
+    )
+    list_select_related = ("order", "order__buyer", "order__seller")
+    readonly_fields = (
+        "order",
+        "tracking_number",
+        "carrier_slug",
+        "provider_id",
+        "status",
+        "status_label",
+        "checkpoint_timeline",
+        "provider_updated_at",
+        "updated_at",
+    )
+    fieldsets = (
+        ("คำสั่งซื้อ", {"fields": ("order",)}),
+        ("ข้อมูลพัสดุ", {"fields": ("tracking_number", "carrier_slug", "provider_id", "status", "status_label")} ),
+        ("จุดติดตาม", {"fields": ("checkpoint_timeline",)}),
+        ("วันเวลา", {"fields": ("provider_updated_at", "updated_at")} ),
+    )
+    inlines = [ShipmentEventInline]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    @admin.display(description="เลขคำสั่งซื้อ", ordering="order__reference")
+    def order_reference(self, shipment):
+        return shipment.order.reference
+
+    @admin.display(description="ผู้ซื้อ", ordering="order__buyer__username")
+    def buyer(self, shipment):
+        return shipment.order.buyer
+
+    @admin.display(description="ผู้ขาย", ordering="order__seller__username")
+    def seller(self, shipment):
+        return shipment.order.seller
+
+    @admin.display(description="สถานะขนส่ง", ordering="status")
+    def status_label(self, shipment):
+        return shipment.status_label
+
+    @admin.display(description="จุดติดตามล่าสุด")
+    def checkpoint_timeline(self, shipment):
+        if not shipment.checkpoints:
+            return "ยังไม่มีข้อมูลติดตามจากผู้ให้บริการ"
+        return format_html_join(
+            "<br>",
+            "<strong>{}</strong> {} <span style=\color:#64748b\>{}</span>",
+            (
+                (point.get("time", ""), point.get("message", ""), point.get("location", ""))
+                for point in reversed(shipment.checkpoints)
+            ),
+        )
 
 
 class OrderAdminForm(forms.ModelForm):
@@ -143,6 +236,7 @@ class OrderAdmin(CsvExportAdminMixin, RoleScopedAdminMixin, admin.ModelAdmin):
         "community",
         "status",
         "payment_status",
+        "shipment_status",
         "total_amount",
         "created_at",
     )
@@ -154,6 +248,7 @@ class OrderAdmin(CsvExportAdminMixin, RoleScopedAdminMixin, admin.ModelAdmin):
         "shipping_name",
         "shipping_phone",
         "tracking_number",
+        "shipment_status",
     )
     list_select_related = ("buyer", "seller", "community")
     inlines = [OrderItemInline, OrderStatusHistoryInline]
@@ -214,6 +309,7 @@ class OrderAdmin(CsvExportAdminMixin, RoleScopedAdminMixin, admin.ModelAdmin):
                     "status_note",
                     "shipping_carrier",
                     "tracking_number",
+                    "shipment_status",
                 ),
                 "description": "เปลี่ยนสถานะตามลำดับงานจริง ระบบจะบันทึกประวัติและแจ้งผู้ซื้อให้อัตโนมัติ",
             },
@@ -253,6 +349,18 @@ class OrderAdmin(CsvExportAdminMixin, RoleScopedAdminMixin, admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related("shipment")
+
+    @admin.display(description="ติดตามพัสดุ", ordering="shipment__status")
+    def shipment_status(self, order):
+        try:
+            shipment = order.shipment
+        except Shipment.DoesNotExist:
+            return "ยังไม่มีข้อมูลจากผู้ให้บริการ"
+        url = reverse("admin:orders_shipment_change", args=[shipment.pk])
+        return format_html('<a href="{}">{}</a>', url, shipment.status_label)
 
     def save_model(self, request, obj, form, change):
         original = Order.objects.get(pk=obj.pk)

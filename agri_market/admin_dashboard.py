@@ -2,7 +2,7 @@ from django.urls import reverse
 
 from accounts.models import EmailDelivery, FarmerProfile, Report, User
 from catalog.models import Product
-from orders.models import Order
+from orders.models import Order, Shipment
 from payments.models import Payment, Refund, SellerSettlement, StripeEvent
 
 ADMIN_WORKFLOWS = (
@@ -37,7 +37,7 @@ ADMIN_WORKFLOWS = (
         "name": "คำสั่งซื้อและการจัดส่ง",
         "description": "ติดตามคำสั่งซื้อ สถานะพัสดุ และค่าจัดส่ง",
         "icon": "clipboard-list",
-        "models": ("orders.order", "orders.shippingrate"),
+        "models": ("orders.order", "orders.shipment", "orders.shippingrate"),
     },
     {
         "key": "payments",
@@ -95,6 +95,7 @@ ADMIN_MODEL_DESCRIPTIONS = {
     "catalog.productfavorite": "รายการสินค้าที่สมาชิกบันทึกไว้",
     "catalog.sellerfavorite": "ร้านค้าที่สมาชิกติดตาม",
     "orders.order": "ติดตามสถานะ การจัดส่ง และเลขพัสดุ",
+    "orders.shipment": "ตรวจสอบสถานะพัสดุ จุดติดตาม และข้อมูลจากผู้ให้บริการขนส่ง",
     "orders.shippingrate": "กำหนดค่าจัดส่งตามพื้นที่และน้ำหนัก",
     "payments.payment": "ตรวจสอบผลการชำระเงินออนไลน์",
     "payments.refund": "พิจารณาคำขอและผลการคืนเงิน",
@@ -178,6 +179,9 @@ def build_admin_dashboard_context():
         status=SellerSettlement.Status.FAILED
     ).count()
     pending_stripe_events = StripeEvent.objects.filter(processed=False).count()
+    shipment_issues = Shipment.objects.filter(
+        status__in=("AttemptFail", "Exception", "Expired")
+    ).count()
 
     return {
         "admin_stats": (
@@ -252,6 +256,12 @@ def build_admin_dashboard_context():
                 "value": failed_emails,
                 "url": reverse("admin:accounts_emaildelivery_changelist")
                 + "?status__exact=failed",
+            },
+            {
+                "label": "พัสดุที่ต้องติดตาม",
+                "value": shipment_issues,
+                "url": reverse("admin:orders_shipment_changelist")
+                + "?status__in=AttemptFail,Exception,Expired",
             },
         ),
     }

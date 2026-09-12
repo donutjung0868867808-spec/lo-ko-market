@@ -84,10 +84,12 @@ class OperationalFeatureTests(TestCase):
         response = self.client.post(
             reverse("accounts:send_notification"),
             {
+                "recipient_scope": "selected",
                 "recipients": [self.member.pk],
                 "title": "แจ้งเตือนการจัดส่ง",
                 "message": "สินค้ากำลังจัดส่ง",
                 "link": "/orders/",
+                "send_email": "on",
             },
         )
 
@@ -101,6 +103,36 @@ class OperationalFeatureTests(TestCase):
         self.assertEqual(queued.status, EmailDelivery.Status.PENDING)
         self.assertEqual(queued.attempts, 0)
         self.assertIn("/orders/", queued.body)
+
+    def test_admin_notification_add_redirects_to_the_send_notification_form(self):
+        self.login_admin()
+
+        response = self.client.get(reverse("admin:accounts_notification_add"))
+
+        self.assertRedirects(
+            response,
+            reverse("admin:accounts_notification_send"),
+            fetch_redirect_response=False,
+        )
+
+        response = self.client.get(reverse("admin:accounts_notification_send"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "ส่งการแจ้งเตือน")
+
+    def test_superuser_can_open_the_custom_notification_form(self):
+        superuser = User.objects.create_user(
+            username="notification-superuser",
+            password=self.password,
+            role=User.Roles.CONSUMER,
+            is_staff=True,
+            is_superuser=True,
+        )
+        self.client.force_login(superuser)
+
+        response = self.client.get(reverse("accounts:send_notification"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "ส่งการแจ้งเตือน")
 
     @override_settings(DEBUG=False)
     def test_unknown_page_uses_thai_404_page(self):

@@ -18,8 +18,8 @@ from .admin_permissions import (
     RoleScopedAdminMixin,
     staff_community,
 )
-from .forms import SupportMessageForm
-from .services import deliver_email, notify_user, record_audit
+from .forms import NotificationForm, SupportMessageForm
+from .services import deliver_email, notify_news_post, notify_user, record_audit
 
 from .models import (
     AuditEvent,
@@ -482,6 +482,60 @@ class NotificationAdmin(RoleScopedAdminMixin, admin.ModelAdmin):
         ("สถานะ", {"fields": ("is_read", "created_at")}),
     )
 
+    def add_view(self, request, form_url="", extra_context=None):
+        if not self.has_add_permission(request):
+            raise PermissionDenied
+        return redirect("admin:accounts_notification_send")
+
+    def get_urls(self):
+        custom_urls = [
+            path(
+                "send/",
+                self.admin_site.admin_view(self.send_notification_view),
+                name="accounts_notification_send",
+            ),
+        ]
+        return custom_urls + super().get_urls()
+
+    def send_notification_view(self, request):
+        if not self.has_add_permission(request):
+            raise PermissionDenied
+
+        recipients = User.objects.filter(is_active=True).exclude(pk=request.user.pk).order_by("role", "username")
+        form = NotificationForm(request.POST or None, recipients=recipients)
+        if request.method == "POST" and form.is_valid():
+            selected = list(form.selected_recipients())
+            send_email = form.cleaned_data["send_email"]
+            for recipient in selected:
+                notify_user(
+                    recipient,
+                    form.cleaned_data["title"],
+                    form.cleaned_data["message"],
+                    form.cleaned_data["link"],
+                    send_email_message=send_email,
+                )
+            queued_emails = sum(1 for recipient in selected if send_email and recipient.email)
+            message = f"ส่งแจ้งเตือนให้สมาชิก {len(selected)} คนแล้ว"
+            if queued_emails:
+                message += f" และเข้าคิวอีเมล {queued_emails} ฉบับ"
+            self.message_user(request, message, messages.SUCCESS)
+            return redirect("admin:accounts_notification_changelist")
+
+        recipient_counts = {
+            "all": recipients.count(),
+            "consumers": recipients.filter(role=User.Roles.CONSUMER).count(),
+            "farmers": recipients.filter(role=User.Roles.FARMER).count(),
+            "staff": recipients.filter(role=User.Roles.COOPERATIVE_STAFF).count(),
+        }
+        context = {
+            **self.admin_site.each_context(request),
+            "opts": self.model._meta,
+            "title": "ส่งการแจ้งเตือน",
+            "form": form,
+            "recipient_counts": recipient_counts,
+        }
+        return TemplateResponse(request, "admin/accounts/notification_send.html", context)
+
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if db_field.name == "user" and not self._is_owner(request.user):
             community = staff_community(request.user)
@@ -495,21 +549,22 @@ class NotificationAdmin(RoleScopedAdminMixin, admin.ModelAdmin):
 
 @admin.register(NewsPost)
 class NewsPostAdmin(OwnerOnlyAdminMixin, admin.ModelAdmin):
-    list_display = ("title", "audience", "is_published", "published_at", "created_by")
+    list_display = ("title", "audience", "is_published", "is_important", "published_at", "created_by")
     list_filter = ("audience", "is_published", "published_at")
     search_fields = ("title", "summary", "body")
     prepopulated_fields = {"slug": ("title",)}
-    readonly_fields = ("created_at", "updated_at")
+    readonly_fields = ("notified_at", "created_at", "updated_at")
     fieldsets = (
         ("เนื้อหาข่าว", {"fields": ("title", "slug", "summary", "body")}),
-        ("การเผยแพร่", {"fields": ("audience", "is_published", "published_at")}),
-        ("ข้อมูลระบบ", {"fields": ("created_by", "created_at", "updated_at"), "classes": ("collapse",)}),
+        ("การเผยแพร่", {"fields": ("audience", "is_published", "is_important", "published_at")}),
+        ("ข้อมูลระบบ", {"fields": ("created_by", "notified_at", "created_at", "updated_at"), "classes": ("collapse",)}),
     )
 
     def save_model(self, request, obj, form, change):
         if not obj.created_by_id:
             obj.created_by = request.user
         super().save_model(request, obj, form, change)
+        notify_news_post(obj)
 
 
 class ReportMessageInline(admin.TabularInline):

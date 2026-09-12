@@ -18,10 +18,19 @@ from .models import (
 
 @admin.register(Category)
 class CategoryAdmin(OwnerOnlyAdminMixin, admin.ModelAdmin):
-    list_display = ("name", "slug", "is_active")
+    list_display = ("category_thumbnail", "name", "slug", "is_active")
     list_filter = ("is_active",)
     search_fields = ("name",)
     prepopulated_fields = {"slug": ("name",)}
+
+    @admin.display(description="รูปปก")
+    def category_thumbnail(self, category):
+        if not category.image:
+            return "ไม่มีรูป"
+        return format_html(
+            '<img src="{}" alt="" style="width:48px;height:48px;object-fit:cover;border-radius:6px;">',
+            category.image.url,
+        )
 
 
 class ProductImageInline(admin.TabularInline):
@@ -94,6 +103,7 @@ class ProductAdmin(CsvExportAdminMixin, RoleScopedAdminMixin, admin.ModelAdmin):
     )
     readonly_fields = (
         "sku",
+        "product_image_preview",
         "approved_by",
         "approved_at",
         "created_at",
@@ -103,7 +113,7 @@ class ProductAdmin(CsvExportAdminMixin, RoleScopedAdminMixin, admin.ModelAdmin):
     fieldsets = (
         (
             "ข้อมูลสินค้า",
-            {"fields": ("name", "sku", "seller", "community", "category", "description", "image")},
+            {"fields": ("name", "sku", "seller", "community", "category", "description", "product_image_preview", "image")},
         ),
         (
             "ราคาและสต็อก",
@@ -141,6 +151,22 @@ class ProductAdmin(CsvExportAdminMixin, RoleScopedAdminMixin, admin.ModelAdmin):
             image_url,
         )
 
+    @admin.display(description="ตัวอย่างรูปสินค้า")
+    def product_image_preview(self, product):
+        if not product:
+            return "บันทึกสินค้าแล้วจึงเพิ่มรูปได้"
+        if product.image:
+            image_url = product.image.url
+        elif getattr(product, "admin_gallery_images", []):
+            image_url = product.admin_gallery_images[0].image.url
+        else:
+            return "ยังไม่มีรูปสินค้า"
+        return format_html(
+            '<img src="{}" alt="รูปสินค้า {}" style="max-height:180px;max-width:280px;border:1px solid #d1d5db;border-radius:6px;object-fit:cover;" loading="lazy">',
+            image_url,
+            product.name,
+        )
+
     def get_readonly_fields(self, request, obj=None):
         if self._is_owner(request.user):
             fields = list(self.readonly_fields)
@@ -152,7 +178,7 @@ class ProductAdmin(CsvExportAdminMixin, RoleScopedAdminMixin, admin.ModelAdmin):
             field.name
             for field in self.model._meta.fields
             if field.name not in editable
-        )
+        ) + ("product_image_preview",)
 
     def get_autocomplete_fields(self, request):
         if not self._is_owner(request.user):
@@ -202,11 +228,47 @@ class ProductReviewAdmin(RoleScopedAdminMixin, admin.ModelAdmin):
     staff_access = True
     community_filter = "product__community"
 
-    list_display = ("product", "user", "rating", "created_at")
+    list_display = ("user_avatar", "product_thumbnail", "product", "user", "rating", "created_at")
     list_filter = ("rating", "created_at")
     search_fields = ("product__name", "user__username", "comment")
     readonly_fields = ("product", "user", "rating", "comment", "created_at")
     actions = None
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related("product", "user").prefetch_related(
+            Prefetch(
+                "product__images",
+                queryset=ProductImage.objects.only("id", "product_id", "image").order_by("sort_order", "id"),
+                to_attr="review_gallery_images",
+            )
+        )
+
+    @admin.display(description="รูปสินค้า")
+    def product_thumbnail(self, review):
+        product = review.product
+        if product.image:
+            image_url = product.image.url
+        elif product.review_gallery_images:
+            image_url = product.review_gallery_images[0].image.url
+        else:
+            return "ไม่มีรูป"
+        return format_html(
+            '<img src="{}" alt="" style="height:48px;width:48px;border:1px solid #d1d5db;border-radius:6px;object-fit:cover;" loading="lazy">',
+            image_url,
+        )
+
+    @admin.display(description="รูปโปรไฟล์")
+    def user_avatar(self, review):
+        user = review.user
+        if user.avatar:
+            return format_html(
+                '<img src="{}" alt="" style="height:40px;width:40px;border:1px solid #d1d5db;border-radius:9999px;object-fit:cover;" loading="lazy">',
+                user.avatar.url,
+            )
+        return format_html(
+            '<span style="display:grid;height:40px;width:40px;place-items:center;border-radius:9999px;background:#e8f3e9;color:#276f20;font-weight:800;">{}</span>',
+            (user.get_username()[:1] or "?").upper(),
+        )
 
     def has_add_permission(self, request):
         return False
@@ -217,10 +279,46 @@ class ProductReviewAdmin(RoleScopedAdminMixin, admin.ModelAdmin):
 
 @admin.register(ProductFavorite)
 class ProductFavoriteAdmin(OwnerOnlyAdminMixin, admin.ModelAdmin):
-    list_display = ("user", "product", "created_at")
+    list_display = ("user_avatar", "user", "product_thumbnail", "product", "created_at")
     search_fields = ("user__username", "product__name")
     readonly_fields = ("user", "product", "created_at")
     actions = None
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related("user", "product").prefetch_related(
+            Prefetch(
+                "product__images",
+                queryset=ProductImage.objects.only("id", "product_id", "image").order_by("sort_order", "id"),
+                to_attr="favorite_gallery_images",
+            )
+        )
+
+    @admin.display(description="รูปสินค้า")
+    def product_thumbnail(self, favorite):
+        product = favorite.product
+        if product.image:
+            image_url = product.image.url
+        elif product.favorite_gallery_images:
+            image_url = product.favorite_gallery_images[0].image.url
+        else:
+            return "ไม่มีรูป"
+        return format_html(
+            '<img src="{}" alt="" style="height:48px;width:48px;border:1px solid #d1d5db;border-radius:6px;object-fit:cover;" loading="lazy">',
+            image_url,
+        )
+
+    @admin.display(description="รูปโปรไฟล์")
+    def user_avatar(self, favorite):
+        user = favorite.user
+        if user.avatar:
+            return format_html(
+                '<img src="{}" alt="" style="height:40px;width:40px;border:1px solid #d1d5db;border-radius:9999px;object-fit:cover;" loading="lazy">',
+                user.avatar.url,
+            )
+        return format_html(
+            '<span style="display:grid;height:40px;width:40px;place-items:center;border-radius:9999px;background:#e8f3e9;color:#276f20;font-weight:800;">{}</span>',
+            (user.get_username()[:1] or "?").upper(),
+        )
 
     def has_add_permission(self, request):
         return False
@@ -231,7 +329,8 @@ class ProductFavoriteAdmin(OwnerOnlyAdminMixin, admin.ModelAdmin):
 
 @admin.register(SellerFavorite)
 class SellerFavoriteAdmin(OwnerOnlyAdminMixin, admin.ModelAdmin):
-    list_display = ("user", "seller", "created_at")
+    list_display = ("user_avatar", "user", "seller_avatar", "seller", "created_at")
+    list_select_related = ("user", "seller")
     search_fields = (
         "user__username",
         "seller__username",
@@ -239,6 +338,26 @@ class SellerFavoriteAdmin(OwnerOnlyAdminMixin, admin.ModelAdmin):
     )
     readonly_fields = ("user", "seller", "created_at")
     actions = None
+
+    @admin.display(description="รูปผู้ใช้")
+    def user_avatar(self, favorite):
+        return self._avatar(favorite.user)
+
+    @admin.display(description="รูปผู้ขาย")
+    def seller_avatar(self, favorite):
+        return self._avatar(favorite.seller)
+
+    @staticmethod
+    def _avatar(user):
+        if user.avatar:
+            return format_html(
+                '<img src="{}" alt="" style="height:40px;width:40px;border:1px solid #d1d5db;border-radius:9999px;object-fit:cover;" loading="lazy">',
+                user.avatar.url,
+            )
+        return format_html(
+            '<span style="display:grid;height:40px;width:40px;place-items:center;border-radius:9999px;background:#e8f3e9;color:#276f20;font-weight:800;">{}</span>',
+            (user.get_username()[:1] or "?").upper(),
+        )
 
     def has_add_permission(self, request):
         return False

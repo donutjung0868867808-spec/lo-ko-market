@@ -317,9 +317,29 @@ class StaffFarmerProfileForm(StyledFormMixin, forms.ModelForm):
         return cleaned_data
 
 class NotificationForm(StyledFormMixin, forms.Form):
+    class RecipientScope:
+        ALL = "all"
+        CONSUMERS = "consumers"
+        FARMERS = "farmers"
+        STAFF = "staff"
+        SELECTED = "selected"
+
+    recipient_scope = forms.ChoiceField(
+        label="กลุ่มผู้รับ",
+        choices=[
+            (RecipientScope.ALL, "สมาชิกทั้งหมด"),
+            (RecipientScope.CONSUMERS, "ผู้บริโภค"),
+            (RecipientScope.FARMERS, "เกษตรกร"),
+            (RecipientScope.STAFF, "เจ้าหน้าที่"),
+            (RecipientScope.SELECTED, "เลือกเป็นรายคน"),
+        ],
+        initial=RecipientScope.ALL,
+        widget=forms.RadioSelect,
+    )
     recipients = forms.ModelMultipleChoiceField(
         queryset=User.objects.none(),
         label="ผู้รับ",
+        required=False,
         widget=forms.SelectMultiple(attrs={"size": 8}),
     )
     title = forms.CharField(label="หัวข้อ", max_length=200)
@@ -329,16 +349,52 @@ class NotificationForm(StyledFormMixin, forms.Form):
         widget=forms.Textarea(attrs={"rows": 4}),
     )
     link = forms.CharField(label="ลิงก์", required=False, max_length=500)
+    send_email = forms.BooleanField(
+        label="ส่งอีเมลด้วย",
+        required=False,
+        help_text="ใช้สำหรับประกาศสำคัญเท่านั้น",
+    )
 
     def __init__(self, *args, recipients=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["recipients"].queryset = recipients or User.objects.none()
 
+    def clean(self):
+        cleaned_data = super().clean()
+        if (
+            cleaned_data.get("recipient_scope") == self.RecipientScope.SELECTED
+            and not cleaned_data.get("recipients")
+        ):
+            self.add_error("recipients", "กรุณาเลือกผู้รับอย่างน้อย 1 คน")
+        return cleaned_data
+
+    def selected_recipients(self):
+        recipients = self.fields["recipients"].queryset
+        scope = self.cleaned_data["recipient_scope"]
+        if scope == self.RecipientScope.SELECTED:
+            return self.cleaned_data["recipients"]
+        if scope == self.RecipientScope.CONSUMERS:
+            return recipients.filter(role=User.Roles.CONSUMER)
+        if scope == self.RecipientScope.FARMERS:
+            return recipients.filter(role=User.Roles.FARMER)
+        if scope == self.RecipientScope.STAFF:
+            return recipients.filter(role=User.Roles.COOPERATIVE_STAFF)
+        return recipients
+
 
 class NewsPostForm(StyledFormMixin, forms.ModelForm):
     class Meta:
         model = NewsPost
-        fields = ["title", "slug", "summary", "body", "audience", "is_published", "published_at"]
+        fields = [
+            "title",
+            "slug",
+            "summary",
+            "body",
+            "audience",
+            "is_published",
+            "is_important",
+            "published_at",
+        ]
         labels = {
             "title": "หัวข้อข่าว",
             "slug": "Slug",
@@ -346,6 +402,7 @@ class NewsPostForm(StyledFormMixin, forms.ModelForm):
             "body": "เนื้อหา",
             "audience": "กลุ่มผู้อ่าน",
             "is_published": "เผยแพร่",
+            "is_important": "ข่าวสำคัญ (ส่งอีเมล)",
             "published_at": "วันที่เผยแพร่",
         }
         widgets = {

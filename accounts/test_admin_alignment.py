@@ -8,7 +8,7 @@ from django.urls import reverse
 
 from catalog.models import ProductFavorite, ProductReview, SellerFavorite
 from orders.admin import OrderAdminForm
-from orders.models import Coupon, CouponRedemption, Order, OrderStatusHistory
+from orders.models import Coupon, CouponRedemption, Order, OrderStatusHistory, Shipment
 from payments.models import (
     CustomerPaymentProfile,
     Payment,
@@ -39,8 +39,17 @@ class AdminAlignmentTests(TestCase):
         self.assertIn(DeliveryAddress, admin.site._registry)
         self.assertIn(CustomerPaymentProfile, admin.site._registry)
         self.assertIn(SavedPaymentMethod, admin.site._registry)
+        self.assertIn(Shipment, admin.site._registry)
         self.assertNotIn(Coupon, admin.site._registry)
         self.assertNotIn(CouponRedemption, admin.site._registry)
+
+    def test_shipments_are_available_to_owner_as_read_only_records(self):
+        shipment_admin = admin.site._registry[Shipment]
+
+        self.assertTrue(shipment_admin.has_view_permission(self.request))
+        self.assertFalse(shipment_admin.has_add_permission(self.request))
+        self.assertFalse(shipment_admin.has_change_permission(self.request))
+        self.assertFalse(shipment_admin.has_delete_permission(self.request))
 
     def test_user_admin_matches_main_profile_fields(self):
         user_admin = admin.site._registry[User]

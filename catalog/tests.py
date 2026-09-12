@@ -64,6 +64,27 @@ class ProductCatalogTests(TestCase):
 
         self.assertContains(response, "ข้าวอินทรีย์")
 
+    def test_category_uses_its_cover_image_on_marketplace(self):
+        category = Category.objects.create(
+            name="category cover",
+            slug="category-cover",
+            image="categories/category-cover.jpg",
+        )
+        Product.objects.create(
+            seller=self.farmer,
+            community=self.community,
+            category=category,
+            name="test product",
+            description="test product for category cover",
+            price=Decimal("40.00"),
+            stock_quantity=Decimal("10.00"),
+            status=Product.Status.ACTIVE,
+        )
+
+        response = self.client.get(reverse("catalog:product_list"))
+
+        self.assertContains(response, "/media/categories/category-cover.jpg")
+
     def test_farmer_can_add_multiple_gallery_images_when_creating_a_product(self):
         self.client.force_login(self.farmer)
         files = [

@@ -5,11 +5,72 @@ from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 from django.test import Client, TestCase
 from django.urls import reverse
+from unittest.mock import call, patch
 
 from catalog.models import Product, StockMovement
 from orders.models import Order, OrderItem
 
-from .models import ChatBlock, Community, CommunityStaffProfile, Conversation, DirectMessage, FarmerProfile, LoginAttempt, Report, User
+from .models import ChatBlock, Community, CommunityStaffProfile, Conversation, DirectMessage, EmailDelivery, FarmerProfile, LoginAttempt, NewsPost, Notification, Report, User
+from .services import notify_news_post
+
+
+class NewsNotificationTests(TestCase):
+    def setUp(self):
+        self.owner = User.objects.create_user(
+            username="news-owner", password="pass12345", role=User.Roles.OWNER
+        )
+        self.consumer = User.objects.create_user(
+            username="news-consumer", password="pass12345", role=User.Roles.CONSUMER,
+            email="consumer@example.com",
+        )
+        self.farmer = User.objects.create_user(
+            username="news-farmer", password="pass12345", role=User.Roles.FARMER,
+            email="farmer@example.com",
+        )
+
+    def test_published_news_notifies_only_the_target_audience_once(self):
+        post = NewsPost.objects.create(
+            title="ข่าวผู้บริโภค", slug="consumer-news", body="รายละเอียดข่าว",
+            audience=NewsPost.Audience.CONSUMERS, created_by=self.owner,
+        )
+
+        self.assertEqual(notify_news_post(post), 1)
+        self.assertEqual(
+            Notification.objects.filter(
+                user=self.consumer,
+                link=reverse("accounts:news_detail", args=[post.slug]),
+            ).count(),
+            1,
+        )
+        self.assertFalse(Notification.objects.filter(user=self.farmer).exists())
+        self.assertEqual(notify_news_post(post), 0)
+        self.assertEqual(Notification.objects.count(), 1)
+
+    def test_important_news_queues_email_for_each_target_recipient(self):
+        post = NewsPost.objects.create(
+            title="ข่าวสำคัญ", slug="important-news", body="รายละเอียดข่าวสำคัญ",
+            audience=NewsPost.Audience.ALL, is_important=True, created_by=self.owner,
+        )
+
+        notify_news_post(post)
+
+        self.assertEqual(Notification.objects.count(), 2)
+        self.assertEqual(EmailDelivery.objects.count(), 2)
+
+    def test_news_notifications_refresh_the_recipients_bells_in_realtime(self):
+        post = NewsPost.objects.create(
+            title="ข่าวทันที", slug="live-news", body="รายละเอียดข่าว",
+            audience=NewsPost.Audience.ALL, created_by=self.owner,
+        )
+
+        with patch("accounts.realtime.publish") as publish:
+            with self.captureOnCommitCallbacks(execute=True):
+                notify_news_post(post)
+
+        publish.assert_has_calls([
+            call(f"user.{self.consumer.pk}", {"type": "notification.event"}),
+            call(f"user.{self.farmer.pk}", {"type": "notification.event"}),
+        ], any_order=True)
 
 
 class LoginSeparationTests(TestCase):

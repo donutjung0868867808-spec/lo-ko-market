@@ -51,6 +51,7 @@ from .services import (
     clear_login_failures,
     is_login_blocked,
     notify_user,
+    notify_news_post,
     queue_email,
     record_audit,
     record_login_failure,
@@ -111,7 +112,7 @@ def scoped_reports(user):
 
 def managed_users_queryset(user):
     users = User.objects.select_related("farmer_profile__community", "community_staff_profile__community")
-    if user.is_owner:
+    if user.is_owner or user.is_superuser:
         return users
     if user.is_cooperative_staff:
         community = user_community(user)
@@ -989,6 +990,7 @@ def news_create(request):
         post = form.save(commit=False)
         post.created_by = request.user
         post.save()
+        notify_news_post(post)
         messages.success(request, "เพิ่มข่าวสารแล้ว")
         return redirect("accounts:news_manage")
     return render(request, "accounts/news_form.html", {"form": form, "title": "เพิ่มข่าวสาร"})
@@ -999,7 +1001,8 @@ def news_update(request, pk):
     post = get_object_or_404(NewsPost, pk=pk)
     form = NewsPostForm(request.POST or None, instance=post)
     if request.method == "POST" and form.is_valid():
-        form.save()
+        post = form.save()
+        notify_news_post(post)
         messages.success(request, "บันทึกข่าวสารแล้ว")
         return redirect("accounts:news_manage")
     return render(request, "accounts/news_form.html", {"form": form, "title": "แก้ไขข่าวสาร"})
@@ -1224,7 +1227,12 @@ def toggle_member_active(request, user_id):
 @login_required
 def send_notification(request, user_id=None):
     recipients = managed_users_queryset(request.user).exclude(pk=request.user.pk).order_by("role", "username")
-    if not recipients.exists() and not request.user.is_owner and not request.user.is_cooperative_staff:
+    if (
+        not recipients.exists()
+        and not request.user.is_owner
+        and not request.user.is_superuser
+        and not request.user.is_cooperative_staff
+    ):
         messages.error(request, "บัญชีนี้ไม่มีสิทธิ์แจ้งเตือนสมาชิก")
         return redirect("accounts:dashboard")
 
@@ -1232,45 +1240,38 @@ def send_notification(request, user_id=None):
     if user_id:
         target = get_object_or_404(recipients, pk=user_id)
         initial["recipients"] = [target.pk]
+        initial["recipient_scope"] = NotificationForm.RecipientScope.SELECTED
 
     form = NotificationForm(request.POST or None, recipients=recipients, initial=initial)
     if request.method == "POST" and form.is_valid():
-        selected = form.cleaned_data["recipients"]
-        notifications = [
-            Notification(
-                user=recipient,
-                title=form.cleaned_data["title"],
-                message=form.cleaned_data["message"],
-                link=form.cleaned_data["link"],
-            )
-            for recipient in selected
-        ]
-        Notification.objects.bulk_create(notifications)
-        email_body = form.cleaned_data["message"]
-        if form.cleaned_data["link"]:
-            email_body = (
-                f"{email_body}\n\n{form.cleaned_data['link']}"
-                if email_body
-                else form.cleaned_data["link"]
-            )
-        queued_emails = 0
+        selected = list(form.selected_recipients())
+        send_email = form.cleaned_data["send_email"]
         for recipient in selected:
-            if recipient.email:
-                queue_email(
-                    recipient.email,
-                    form.cleaned_data["title"],
-                    email_body,
-                    user=recipient,
-                    send_now=False,
-                )
-                queued_emails += 1
-        message = f"ส่งแจ้งเตือนให้สมาชิก {len(notifications)} คนแล้ว"
+            notify_user(
+                recipient,
+                form.cleaned_data["title"],
+                form.cleaned_data["message"],
+                form.cleaned_data["link"],
+                send_email_message=send_email,
+            )
+        message = f"ส่งแจ้งเตือนให้สมาชิก {len(selected)} คนแล้ว"
+        queued_emails = sum(1 for recipient in selected if send_email and recipient.email)
         if queued_emails:
             message += f" และเข้าคิวอีเมล {queued_emails} ฉบับ"
         messages.success(request, message)
         return redirect("accounts:dashboard")
 
-    return render(request, "accounts/notification_form.html", {"form": form})
+    recipient_counts = {
+        "all": recipients.count(),
+        "consumers": recipients.filter(role=User.Roles.CONSUMER).count(),
+        "farmers": recipients.filter(role=User.Roles.FARMER).count(),
+        "staff": recipients.filter(role=User.Roles.COOPERATIVE_STAFF).count(),
+    }
+    return render(
+        request,
+        "accounts/notification_form.html",
+        {"form": form, "recipient_counts": recipient_counts},
+    )
 
 
 def _private_file_response(field_file):

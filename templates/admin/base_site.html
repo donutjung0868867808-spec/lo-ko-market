@@ -6,13 +6,14 @@
 {% block extrastyle %}
   {{ block.super }}
   <link rel="stylesheet" href="{% static 'admin/admin-theme.css' %}?v=20260909-3">
-  <link rel="stylesheet" href="{% static 'admin/admin-console.css' %}?v=20260910-6">
+  <link rel="stylesheet" href="{% static 'admin/admin-console.css' %}?v=20260912-16">
 {% endblock %}
 
 {% block extrahead %}
   {{ block.super }}
   <meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
   <script defer src="{% static 'vendor/lucide.min.js' %}"></script>
+  <script defer src="{% static 'admin/admin-calendar.js' %}?v=20260912-6"></script>
   <script>
     document.addEventListener("DOMContentLoaded", function () {
       if (window.lucide) window.lucide.createIcons();

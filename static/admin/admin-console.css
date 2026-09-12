@@ -665,6 +665,229 @@ textarea {
   line-height: 1.45;
 }
 
+/* Django's date picker needs larger touch targets and an explicit contrast palette. */
+.calendarbox {
+  width: 320px;
+  margin: 8px 0;
+  border: 1px solid #b9cfbd;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 14px 30px rgba(23, 78, 24, 0.18);
+  color: var(--console-ink);
+  font-size: 0.875rem;
+}
+
+.calendarbox .calendar caption,
+.calendarbox h2 {
+  min-height: 52px;
+  padding: 11px 12px;
+  box-sizing: border-box;
+  background: var(--console-green-dark);
+  color: #ffffff;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.calendarbox .calendar-caption-content {
+  display: grid;
+  align-items: center;
+  grid-template-columns: 30px minmax(0, 1fr) 30px;
+}
+
+.calendarbox .calendar-caption-month {
+  font-weight: 800;
+}
+
+.calendarbox .calendar-year-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #dbe4dd;
+  background: #f1f7f2;
+}
+
+.calendarbox .calendar-year-label {
+  color: #435549;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.calendarbox .calendar-year-picker {
+  box-sizing: border-box !important;
+  min-height: 36px !important;
+  width: 112px !important;
+  max-width: 112px !important;
+  padding: 3px 26px 3px 9px;
+  border: 1px solid #9fbea4;
+  border-radius: 5px;
+  background: #ffffff;
+  color: var(--console-ink);
+  font: inherit;
+  font-weight: 800;
+}
+
+.calendarbox .calendar-year-picker:focus-visible {
+  outline: 2px solid var(--console-green);
+  outline-offset: 2px;
+}
+
+.calendarbox .calendar th {
+  padding: 10px 4px;
+  border-bottom: 1px solid #dbe4dd;
+  background: #f1f7f2;
+  color: #435549;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.calendarbox .calendar td {
+  border-top: 1px solid #edf1ee;
+  background: #ffffff;
+}
+
+.calendarbox .calendar td.nonday {
+  background: #f7faf7;
+}
+
+.calendarbox .calendar td a {
+  display: grid;
+  min-height: 38px;
+  padding: 0;
+  color: #24372a;
+  place-items: center;
+}
+
+.calendarbox .calendar td.today a {
+  color: var(--console-green-dark);
+  font-weight: 900;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.calendarbox .calendar td.selected a {
+  background: var(--console-green);
+  color: #ffffff;
+  font-weight: 800;
+}
+
+.calendarbox .calendar td a:hover,
+.calendarbox .calendar td a:focus-visible {
+  outline: 2px solid #174e18;
+  outline-offset: -2px;
+  background: #dff0e1;
+  color: #174e18;
+}
+
+.calendarbox .calendar td.selected a:hover,
+.calendarbox .calendar td.selected a:focus-visible {
+  background: var(--console-green-dark);
+  color: #ffffff;
+}
+
+.calendarbox .calendarnav-previous,
+.calendarbox .calendarnav-next {
+  top: 11px;
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  background: transparent;
+  color: #ffffff !important;
+  cursor: pointer;
+  display: block;
+  font-size: 1.55rem;
+  line-height: 30px;
+  overflow: visible;
+  pointer-events: auto;
+  text-align: center;
+  text-indent: 0;
+  z-index: 10;
+}
+
+.calendarbox .calendarnav-previous { left: 10px; }
+.calendarbox .calendarnav-next { right: 10px; }
+
+.calendarbox .calendarnav-previous::before,
+.calendarbox .calendarnav-next::before { content: none; }
+
+.calendarbox .calendar-nav-source {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.calendarbox .calendar-nav-button {
+  position: static;
+  z-index: auto;
+  display: grid;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #ffffff;
+  cursor: pointer;
+  font-size: 1.25rem;
+  line-height: 1;
+  place-items: center;
+}
+
+.calendarbox .calendar-nav-button:hover,
+.calendarbox .calendar-nav-button:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 1px;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.calendarbox .calendarnav-previous:hover,
+.calendarbox .calendarnav-next:hover,
+.calendarbox .calendarnav-previous:focus-visible,
+.calendarbox .calendarnav-next:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 1px;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.calendarbox .calendar-shortcuts {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 12px;
+  border-top: 1px solid #dbe4dd;
+  background: #f7faf7;
+  color: #435549;
+  font-size: 0.78rem;
+}
+
+.calendarbox .calendar-shortcuts a {
+  color: var(--console-green-dark);
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.calendarbox .calendar-shortcuts a:hover,
+.calendarbox .calendar-shortcuts a:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.calendarbox .calendar-cancel {
+  padding: 10px;
+  border-top: 1px solid #dbe4dd;
+  background: #ffffff;
+  color: #a32a22;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.calendarbox .calendar-cancel:hover,
+.calendarbox .calendar-cancel:focus-within {
+  background: #fff3f1;
+}
+
+.calendarbox .calendar-cancel a { color: inherit; }
+
 .console-model-row {
   display: flex;
   min-height: 66px;

@@ -309,7 +309,18 @@ class NewsPost(models.Model):
         default=Audience.ALL,
     )
     is_published = models.BooleanField(default=True)
+    is_important = models.BooleanField(
+        "ข่าวสำคัญ (ส่งอีเมล)",
+        default=False,
+        help_text="ส่งอีเมลถึงกลุ่มผู้อ่านเมื่อเผยแพร่ข่าวนี้",
+    )
     published_at = models.DateTimeField(default=timezone.now)
+    notified_at = models.DateTimeField(
+        "แจ้งเตือนเมื่อ",
+        null=True,
+        blank=True,
+        editable=False,
+    )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
