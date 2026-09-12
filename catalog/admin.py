@@ -1,4 +1,6 @@
 from django.contrib import admin
+from django.db.models import Prefetch
+from django.utils.html import format_html
 from django.utils import timezone
 
 from accounts.admin_permissions import CsvExportAdminMixin, OwnerOnlyAdminMixin, RoleScopedAdminMixin
@@ -66,6 +68,7 @@ class ProductAdmin(CsvExportAdminMixin, RoleScopedAdminMixin, admin.ModelAdmin):
     community_filter = "community"
 
     list_display = (
+        "product_thumbnail",
         "name",
         "seller",
         "community",
@@ -115,6 +118,28 @@ class ProductAdmin(CsvExportAdminMixin, RoleScopedAdminMixin, admin.ModelAdmin):
     )
     inlines = [ProductImageInline, StockMovementInline]
     actions = ("approve_selected", "block_selected", "unblock_selected", "export_as_csv")
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).prefetch_related(
+            Prefetch(
+                "images",
+                queryset=ProductImage.objects.only("id", "product_id", "image").order_by("sort_order", "id"),
+                to_attr="admin_gallery_images",
+            )
+        )
+
+    @admin.display(description="รูปสินค้า")
+    def product_thumbnail(self, product):
+        if product.image:
+            image_url = product.image.url
+        elif product.admin_gallery_images:
+            image_url = product.admin_gallery_images[0].image.url
+        else:
+            return "ไม่มีรูป"
+        return format_html(
+            '<img src="{}" alt="" style="height: 48px; width: 48px; border: 1px solid #d1d5db; border-radius: 6px; object-fit: cover;" loading="lazy">',
+            image_url,
+        )
 
     def get_readonly_fields(self, request, obj=None):
         if self._is_owner(request.user):

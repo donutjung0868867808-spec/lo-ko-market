@@ -91,9 +91,31 @@ if os.environ.get("DJANGO_SETTINGS_MODULE") == "agri_market.browser_test_setting
                 expect(seller.locator(".support-ticket-chat__header")).to_be_hidden()
                 seller.set_viewport_size({"width": 390, "height": 844})
                 seller_input.blur()
-                seller.locator('[name="body"]').fill("ข้อความจากผู้ขายทดสอบ")
+                seller.locator('[name="body"]').fill("ไม่มีคน มาซื้อ")
                 seller.locator('[name="body"]').press("Enter")
-                expect(admin.locator(".live-chat-bubble")).to_contain_text("ข้อความจากผู้ขายทดสอบ")
+                seller_bubble = admin.locator(".live-chat-row:not(.is-own) .live-chat-bubble")
+                expect(seller_bubble).to_contain_text("ไม่มีคน มาซื้อ")
+                expect(admin.locator(".live-chat-time-divider")).to_have_count(1)
+                seller_body = seller_bubble.locator("p")
+                seller_metrics = seller_bubble.evaluate(
+                    """element => ({
+                        bubbleWidth: element.getBoundingClientRect().width,
+                        bubbleStyleWidth: getComputedStyle(element).width,
+                        bubbleMaxWidth: getComputedStyle(element).maxWidth,
+                        inlineWidth: element.style.width,
+                        contentWidth: element.parentElement.getBoundingClientRect().width,
+                        contentStyleWidth: getComputedStyle(element.parentElement).width,
+                        contentMaxWidth: getComputedStyle(element.parentElement).maxWidth,
+                        bodyWidth: element.querySelector('p').getBoundingClientRect().width,
+                        bodyHeight: element.querySelector('p').getBoundingClientRect().height,
+                        bodyLineHeight: getComputedStyle(element.querySelector('p')).lineHeight,
+                    })"""
+                )
+                self.assertLessEqual(
+                    seller_body.evaluate("element => Math.ceil(element.getBoundingClientRect().height)"),
+                    seller_body.evaluate("element => Math.ceil(parseFloat(getComputedStyle(element).lineHeight) * 1.1)"),
+                    seller_metrics,
+                )
                 admin.set_viewport_size({"width": 390, "height": 844})
                 expect(admin.locator(".support-inbox__composer")).to_be_visible()
                 expect(admin.locator(".support-inbox__send")).to_be_visible()

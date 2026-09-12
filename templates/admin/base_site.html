@@ -6,7 +6,7 @@
 {% block extrastyle %}
   {{ block.super }}
   <link rel="stylesheet" href="{% static 'admin/admin-theme.css' %}?v=20260909-3">
-  <link rel="stylesheet" href="{% static 'admin/admin-console.css' %}?v=20260909-5">
+  <link rel="stylesheet" href="{% static 'admin/admin-console.css' %}?v=20260910-6">
 {% endblock %}
 
 {% block extrahead %}
@@ -97,7 +97,7 @@
 {% block footer %}
   {{ block.super }}
   {% if has_permission and user.is_owner %}
-    <link rel="stylesheet" href="{% static 'realtime-chat.css' %}?v=20260910-4">
+    <link rel="stylesheet" href="{% static 'realtime-chat.css' %}?v=20260910-16">
     <script src="{% static 'realtime-notifications.js' %}" data-admin="true" defer></script>
   {% endif %}
   {% if has_permission and user.is_owner %}

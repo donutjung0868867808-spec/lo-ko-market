@@ -116,9 +116,45 @@
     const height = list.scrollHeight, top = list.scrollTop;
     const atBottom = height - top - list.clientHeight < 90;
     list.replaceChildren();
-    [...messages.values()].sort((a,b) => a.id-b.id).forEach((message) => {
+    const orderedMessages = [...messages.values()].sort((a,b) => a.id-b.id);
+    const latestReadOwnId = Math.max(0, ...orderedMessages
+      .filter(message => String(message.sender_id) === config.user && message.read_at)
+      .map(message => message.id));
+    const textWidth = (element, value) => {
+      const style = getComputedStyle(element);
+      const meter = document.createElement("span");
+      meter.style.position = "fixed";
+      meter.style.visibility = "hidden";
+      meter.style.whiteSpace = "pre";
+      meter.style.font = style.font;
+      meter.style.letterSpacing = style.letterSpacing;
+      meter.textContent = value;
+      document.body.append(meter);
+      const width = meter.getBoundingClientRect().width;
+      meter.remove();
+      return width;
+    };
+    const timeDividerLabel = (value) => {
+      const date = new Date(value);
+      const weekday = date.toLocaleDateString("th-TH", {weekday: "short"});
+      const time = date.toLocaleTimeString("th-TH", {hour: "2-digit", minute: "2-digit", hour12: false});
+      return `${weekday} ${time} น.`;
+    };
+    orderedMessages.forEach((message, index) => {
+      const previousMessage = orderedMessages[index - 1];
+      const messageDate = new Date(message.created_at);
+      const previousDate = previousMessage ? new Date(previousMessage.created_at) : null;
+      const isNewDay = previousDate && messageDate.toDateString() !== previousDate.toDateString();
+      const isLongPause = previousDate && messageDate - previousDate >= 30 * 60 * 1000;
+      if (!previousMessage || isNewDay || isLongPause) {
+        const divider = document.createElement("p");
+        divider.className = "live-chat-time-divider";
+        divider.textContent = timeDividerLabel(message.created_at);
+        list.append(divider);
+      }
       const row = document.createElement("article");
-      row.className = "live-chat-row" + (String(message.sender_id) === config.user ? " is-own" : "");
+      const isOwn = String(message.sender_id) === config.user;
+      row.className = "live-chat-row" + (isOwn ? " is-own" : "");
       row.dataset.messageId = message.id;
       const bubble = document.createElement("div");
       bubble.className = "live-chat-bubble";
@@ -128,7 +164,52 @@
       time.dateTime = message.created_at;
       time.textContent = new Date(message.created_at).toLocaleString("th-TH", {day:"numeric", month:"short", hour:"2-digit", minute:"2-digit"})
         + (row.classList.contains("is-own") ? (message.read_at ? " · อ่านแล้ว" : " · ส่งแล้ว") : "");
-      bubble.append(body,time); row.append(bubble); list.append(row);
+      bubble.append(body,time);
+      const content = document.createElement("div");
+      content.className = "live-chat-content";
+      content.append(bubble);
+      if (isOwn && message.id === latestReadOwnId) {
+        const receipt = document.createElement("span");
+        receipt.className = "live-chat-read-avatar";
+        receipt.title = message.reader_name || "อ่านแล้ว";
+        receipt.setAttribute("aria-label", message.reader_name || "อ่านแล้ว");
+        if (message.reader_avatar_url) {
+          const image = document.createElement("img");
+          image.src = message.reader_avatar_url;
+          image.alt = "";
+          receipt.append(image);
+        } else {
+          receipt.textContent = (message.reader_name || "").trim().charAt(0).toUpperCase();
+        }
+        content.append(receipt);
+      }
+      if (!isOwn) {
+        const avatar = document.createElement("span");
+        const nextMessage = orderedMessages[index + 1];
+        avatar.className = "live-chat-avatar" + (nextMessage && String(nextMessage.sender_id) === String(message.sender_id) ? " is-placeholder" : "");
+        avatar.title = message.sender_name || "ผู้ใช้งาน";
+        avatar.setAttribute("aria-label", message.sender_name || "ผู้ใช้งาน");
+        if (message.sender_avatar_url) {
+          const image = document.createElement("img");
+          image.src = message.sender_avatar_url;
+          image.alt = "";
+          avatar.append(image);
+        } else {
+          avatar.textContent = (message.sender_name || "?").trim().charAt(0).toUpperCase() || "?";
+        }
+        row.append(avatar);
+      }
+      row.append(content); list.append(row);
+      const longestLine = String(message.body).split("\n").reduce(
+        (widest, line) => textWidth(body, line) > widest.width ? {width: textWidth(body, line), text: line} : widest,
+        {width: 0, text: ""},
+      );
+      const contentWidth = Math.max(longestLine.width, textWidth(time, time.textContent));
+      const bubbleStyle = getComputedStyle(bubble);
+      const horizontalSpace = parseFloat(bubbleStyle.paddingLeft) + parseFloat(bubbleStyle.paddingRight)
+        + parseFloat(bubbleStyle.borderLeftWidth) + parseFloat(bubbleStyle.borderRightWidth);
+      const maximum = Math.min(window.innerWidth * (window.matchMedia("(max-width: 600px)").matches ? 0.88 : 0.78), 620);
+      bubble.style.width = `${Math.max(76, Math.min(maximum, Math.ceil(contentWidth + horizontalSpace)))}px`;
     });
     if (scroll || atBottom) list.scrollTop = list.scrollHeight;
     else list.scrollTop = top + (prepend ? list.scrollHeight - height : 0);
@@ -180,7 +261,11 @@
         });
       } else if (event.type === "read") {
         messages.forEach(m => {
-          if (m.id <= event.through && m.sender_id !== event.sender_id) m.read_at = true;
+          if (m.id <= event.through && m.sender_id !== event.sender_id) {
+            m.read_at = event.read_at || new Date().toISOString();
+            m.reader_name = event.reader_name || null;
+            m.reader_avatar_url = event.reader_avatar_url || null;
+          }
         });
         render();
       } else if (event.type === "typing" && String(event.sender_id) !== config.user) {

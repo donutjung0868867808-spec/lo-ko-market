@@ -1,6 +1,9 @@
 from decimal import Decimal
+import tempfile
+from unittest.mock import patch
 
 from django.core.management import call_command
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
@@ -60,6 +63,58 @@ class ProductCatalogTests(TestCase):
         response = self.client.get(reverse("catalog:product_list"))
 
         self.assertContains(response, "ข้าวอินทรีย์")
+
+    def test_farmer_can_add_multiple_gallery_images_when_creating_a_product(self):
+        self.client.force_login(self.farmer)
+        files = [
+            SimpleUploadedFile("vegetable-one.jpg", b"first image", content_type="image/jpeg"),
+            SimpleUploadedFile("vegetable-two.webp", b"second image", content_type="image/webp"),
+        ]
+
+        with tempfile.TemporaryDirectory() as media_root, self.settings(MEDIA_ROOT=media_root):
+            with patch("catalog.views.ProductImage.objects.create") as create_image:
+                response = self.client.post(
+                    reverse("catalog:product_create"),
+                    {
+                        "name": "ผักพร้อมรูปหลายรูป",
+                        "description": "สินค้าทดสอบอัลบั้มรูป",
+                        "unit": Product.Unit.KG,
+                        "price": "35.00",
+                        "stock_quantity": "10.00",
+                        "minimum_order_quantity": "0.50",
+                        "low_stock_threshold": "5.00",
+                        "image": files,
+                    },
+                )
+
+        product = Product.objects.get(name="ผักพร้อมรูปหลายรูป")
+        self.assertRedirects(response, product.get_absolute_url(), fetch_redirect_response=False)
+        self.assertTrue(product.image)
+        self.assertEqual(create_image.call_count, 1)
+
+    def test_farmer_can_add_multiple_images_from_product_management(self):
+        product = Product.objects.create(
+            seller=self.farmer,
+            community=self.community,
+            name="สินค้าสำหรับเพิ่มรูป",
+            description="ทดสอบเพิ่มรูปจากหน้ารายละเอียด",
+            price=Decimal("35.00"),
+            stock_quantity=Decimal("10.00"),
+        )
+        self.client.force_login(self.farmer)
+        files = [
+            SimpleUploadedFile("management-one.jpg", b"first image", content_type="image/jpeg"),
+            SimpleUploadedFile("management-two.png", b"second image", content_type="image/png"),
+        ]
+
+        with patch("catalog.views.ProductImage.objects.create") as create_image:
+            response = self.client.post(
+                reverse("catalog:product_image_upload", args=[product.pk]),
+                {"image": files},
+            )
+
+        self.assertRedirects(response, product.get_absolute_url(), fetch_redirect_response=False)
+        self.assertEqual(create_image.call_count, 2)
 
     def test_pending_product_is_hidden_from_public(self):
         Product.objects.create(

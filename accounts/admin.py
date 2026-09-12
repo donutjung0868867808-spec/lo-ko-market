@@ -122,7 +122,7 @@ class CustomUserAdmin(CsvExportAdminMixin, RoleScopedAdminMixin, UserAdmin):
             },
         ),
     )
-    list_display = ("username", "display_name", "email", "role", "is_active")
+    list_display = ("avatar_thumbnail", "username", "display_name", "email", "role", "is_active")
     list_filter = ("role", "is_active")
     search_fields = ("username", "display_name", "email", "phone")
     ordering = ("-date_joined",)
@@ -145,6 +145,15 @@ class CustomUserAdmin(CsvExportAdminMixin, RoleScopedAdminMixin, UserAdmin):
         ("is_active", "เปิดใช้งาน"),
         ("date_joined", "วันที่สมัคร"),
     )
+
+    @admin.display(description="รูปโปรไฟล์")
+    def avatar_thumbnail(self, user):
+        if not user.avatar:
+            return "-"
+        return format_html(
+            '<img src="{}" alt="" style="height: 40px; width: 40px; border: 1px solid #d1d5db; border-radius: 9999px; object-fit: cover;" loading="lazy">',
+            user.avatar.url,
+        )
 
     def get_fieldsets(self, request, obj=None):
         if not self._is_owner(request.user):
@@ -379,9 +388,10 @@ class FarmerProfileAdmin(CsvExportAdminMixin, RoleScopedAdminMixin, admin.ModelA
     staff_can_change = True
     community_filter = "community"
 
-    list_display = ("farm_name", "user", "community", "verification_status")
+    list_display = ("avatar_thumbnail", "farm_name", "user", "community", "verification_status")
     list_filter = ("verification_status", "community")
     search_fields = ("farm_name", "user__username", "user__email")
+    list_select_related = ("user", "community")
     csv_filename = "farmers.csv"
     csv_export_fields = (
         ("farm_name", "ชื่อฟาร์ม/ร้านค้า"),
@@ -405,6 +415,15 @@ class FarmerProfileAdmin(CsvExportAdminMixin, RoleScopedAdminMixin, admin.ModelA
         ),
         ("ข้อมูลระบบ", {"fields": ("created_at", "updated_at"), "classes": ("collapse",)}),
     )
+
+    @admin.display(description="รูปโปรไฟล์")
+    def avatar_thumbnail(self, profile):
+        if not profile.user.avatar:
+            return "-"
+        return format_html(
+            '<img src="{}" alt="" style="height: 40px; width: 40px; border: 1px solid #d1d5db; border-radius: 9999px; object-fit: cover;" loading="lazy">',
+            profile.user.avatar.url,
+        )
 
     def get_readonly_fields(self, request, obj=None):
         if self._is_owner(request.user):

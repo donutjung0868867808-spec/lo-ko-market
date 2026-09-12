@@ -209,6 +209,94 @@
   justify-content: flex-end;
 }
 
+.live-chat-row {
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.live-chat-row.is-own {
+  flex-direction: row;
+  justify-content: flex-end;
+}
+
+.live-chat-avatar {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid #d5e2d8;
+  border-radius: 50%;
+  background: #e7f2e9;
+  color: #386443;
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.live-chat-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.live-chat-avatar.is-placeholder,
+.live-chat-row:not(.is-own):has(+ .live-chat-row:not(.is-own)) .live-chat-avatar {
+  visibility: hidden;
+}
+
+.live-chat-row.is-own .live-chat-avatar {
+  display: none;
+}
+
+.live-chat-content {
+  display: flex;
+  width: fit-content;
+  min-width: 0;
+  max-width: min(78vw, 620px);
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.live-chat-row.is-own .live-chat-content {
+  align-items: flex-end;
+}
+
+.live-chat-content .live-chat-bubble {
+  flex: 0 0 auto;
+  width: max-content;
+  min-width: 76px;
+  max-width: min(78vw, 620px);
+}
+
+.live-chat-read-avatar {
+  display: grid;
+  width: 18px;
+  height: 18px;
+  margin: 4px 4px 0 0;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid #d5e2d8;
+  border-radius: 50%;
+  background: #e7f2e9;
+  color: #386443;
+  font-size: 0.58rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.live-chat-read-avatar:empty {
+  display: none;
+}
+
+.live-chat-read-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .support-ticket-chat__bubble,
 .live-chat-bubble {
   box-sizing: border-box;
@@ -234,7 +322,8 @@
 .support-ticket-chat__bubble p,
 .live-chat-bubble p {
   margin: 0;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+  word-break: normal;
   white-space: pre-wrap;
   font-size: 0.9rem;
   line-height: 1.55;
@@ -262,7 +351,19 @@
   text-align: center;
 }
 
+.live-chat-time-divider {
+  align-self: center;
+  margin: 10px 0 2px;
+  color: #5f6e65;
+  font-size: 0.72rem;
+  font-weight: 750;
+  line-height: 1.3;
+  text-align: center;
+}
+
 .live-chat-bar {
+  position: relative;
+  z-index: 2;
   display: flex;
   min-height: 35px;
   align-items: center;
@@ -273,6 +374,17 @@
   background: #ffffff;
   color: #66756c;
   font-size: 0.73rem;
+  box-shadow: 0 2px 7px rgba(28, 56, 34, 0.06);
+}
+
+.live-chat-list {
+  position: relative;
+  z-index: 1;
+  scroll-padding-top: 18px;
+}
+
+.support-inbox__conversation.has-live-chat .live-chat-list {
+  padding-top: 34px;
 }
 
 .live-chat-bar span[role="status"]::before {
@@ -400,7 +512,7 @@
 .support-ticket-chat__panel > *,
 .support-inbox__conversation.has-live-chat > * { min-width: 0; max-width: 100%; }
 .support-inbox__conversation.has-live-chat .live-chat-list { height: auto; min-height: 220px; max-height: 56dvh; padding: 24px clamp(16px, 4vw, 52px); background: #f4f8f4; }
-.support-inbox__conversation .live-chat-bubble { max-width: min(76%, 620px); }
+.support-inbox__conversation .live-chat-content .live-chat-bubble { max-width: min(78vw, 620px); }
 .support-inbox__conversation .live-chat-info { border-top: 1px solid #edf2ee; }
 .support-inbox-page .admin-support-rail { display: none; }
 
@@ -422,6 +534,9 @@
   .live-chat-list { padding: 14px 12px; }
   .support-ticket-chat__bubble,
   .live-chat-bubble { max-width: 88%; padding: 10px 11px 7px; }
+  .live-chat-content { max-width: 88vw; }
+  .live-chat-content .live-chat-bubble { max-width: 88vw; }
+  .live-chat-avatar { width: 28px; height: 28px; flex-basis: 28px; }
   .live-chat-bar { min-height: 33px; padding: 6px 12px; }
   .live-chat-info { min-height: 22px; padding: 3px 12px; }
   .support-ticket-chat__composer { gap: 8px; padding: 10px 12px; }
@@ -439,7 +554,7 @@
     margin-top: 0;
   }
   .support-inbox__conversation.has-live-chat .live-chat-list { padding: 16px; }
-  .support-inbox__conversation .live-chat-bubble { max-width: 88%; }
+  .support-inbox__conversation .live-chat-content .live-chat-bubble { max-width: 88vw; }
 
   .support-inbox-page .owner-mobile-actions {
     display: none;
@@ -539,7 +654,7 @@
     max-width: 100%;
   }
 
-  .support-inbox--selected .live-chat-bubble {
-    max-width: 88%;
+  .support-inbox--selected .live-chat-content .live-chat-bubble {
+    max-width: 88vw;
   }
 }

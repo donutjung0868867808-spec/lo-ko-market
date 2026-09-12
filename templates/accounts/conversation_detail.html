@@ -25,12 +25,13 @@
   <div class="flex-1 space-y-3 overflow-y-auto bg-stone-50 px-4 py-5 sm:px-6" id="message-list" aria-live="polite">
     {% if has_older_messages %}<p class="rounded-md border border-stone-200 bg-white px-3 py-2 text-center text-xs text-slate-600">แสดงข้อความล่าสุด 100 ข้อความ</p>{% endif %}
     {% for item in conversation_messages %}
-      <div class="flex {% if item.sender_id == user.id %}justify-end{% else %}justify-start{% endif %}">
-        <div class="max-w-[82%] rounded-md px-4 py-3 {% if item.sender_id == user.id %}bg-leaf text-white{% else %}border border-stone-200 bg-white text-slate-900{% endif %}">
+      <article class="live-chat-row {% if item.sender_id == user.id %}is-own{% endif %}">
+        <span class="live-chat-avatar" title="{{ item.sender.display_name|default:item.sender.username }}">{% if item.sender.avatar %}<img src="{{ item.sender.avatar.url }}" alt="">{% else %}{{ item.sender.display_name|default:item.sender.username|first|upper }}{% endif %}</span>
+        <div class="live-chat-bubble {% if item.sender_id == user.id %}bg-leaf text-white{% else %}border border-stone-200 bg-white text-slate-900{% endif %}">
           <p class="whitespace-pre-wrap break-words text-sm leading-6">{{ item.body }}</p>
           <time class="mt-1 block text-right text-[11px] {% if item.sender_id == user.id %}text-emerald-100{% else %}text-slate-400{% endif %}" datetime="{{ item.created_at|date:'c' }}">{{ item.created_at|date:"d/m/Y H:i" }}</time>
         </div>
-      </div>
+      </article>
     {% empty %}
       <div class="py-12 text-center text-sm text-slate-600">{% if conversation.product %}เริ่มส่งข้อความเกี่ยวกับสินค้า {{ conversation.product.name }}{% else %}เริ่มส่งข้อความถึงร้านค้า {{ other_participant }}{% endif %}</div>
     {% endfor %}

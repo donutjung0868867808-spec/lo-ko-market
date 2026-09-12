@@ -23,6 +23,18 @@ def ensure_demo_catalog_data():
     call_command("seed_demo_data", verbosity=0)
 
 
+def save_product_gallery_images(product, images):
+    for image in images:
+        ProductImage.objects.create(product=product, image=image)
+
+
+def use_first_gallery_image_as_cover(product, images):
+    images = list(images)
+    if not product.image and images:
+        product.image = images.pop(0)
+    return images
+
+
 def filtered_products(request):
     ensure_demo_catalog_data()
     products = Product.objects.select_related("seller", "community", "category").filter(
@@ -221,10 +233,12 @@ def product_create(request):
     form = ProductForm(request.POST or None, request.FILES or None)
     if request.method == "POST" and form.is_valid():
         product = form.save(commit=False)
+        gallery_images = use_first_gallery_image_as_cover(product, form.cleaned_data["image"])
         product.seller = request.user
         product.community = profile.community
         product.status = Product.Status.PENDING
         product.save()
+        save_product_gallery_images(product, gallery_images)
         messages.success(request, "ส่งสินค้าให้เจ้าหน้าที่ตรวจสอบแล้ว")
         return redirect(product)
 
@@ -248,13 +262,20 @@ def product_update(request, pk):
         "status": product.status,
     }
     old_stock = product.stock_quantity
+    old_image_name = product.image.name if product.image else ""
     form = ProductForm(request.POST or None, request.FILES or None, instance=product)
     if request.method == "POST" and form.is_valid():
+        remove_image = request.POST.get("remove_image") == "1" and not request.FILES.get("image")
+        gallery_images = form.cleaned_data["image"]
         with transaction.atomic():
             product = form.save(commit=False)
+            if remove_image:
+                product.image = ""
+            gallery_images = use_first_gallery_image_as_cover(product, gallery_images)
             if request.user.is_farmer:
                 product.status = Product.Status.PENDING
             product.save()
+            save_product_gallery_images(product, gallery_images)
             if product.stock_quantity != old_stock:
                 StockMovement.objects.create(
                     product=product,
@@ -263,6 +284,8 @@ def product_update(request, pk):
                     balance_after=product.stock_quantity,
                     note=f"ปรับสต็อกโดย {request.user}",
                 )
+        if remove_image and old_image_name:
+            Product._meta.get_field("image").storage.delete(old_image_name)
         record_audit(
             request,
             AuditEvent.Action.UPDATE,
@@ -303,9 +326,12 @@ def product_image_upload(request, pk):
     if request.method == "POST":
         form = ProductImageForm(request.POST, request.FILES)
         if form.is_valid():
-            image = form.save(commit=False)
-            image.product = product
-            image.save()
+            for image in form.cleaned_data["image"]:
+                ProductImage.objects.create(
+                    product=product,
+                    image=image,
+                    alt_text="",
+                )
             if request.user.is_farmer:
                 product.status = Product.Status.PENDING
                 product.save(update_fields=["status", "updated_at"])

@@ -1,5 +1,6 @@
 from django import forms
 from django.contrib import admin
+from django.utils.html import format_html
 
 from accounts.admin_permissions import CsvExportAdminMixin, OwnerOnlyAdminMixin, RoleScopedAdminMixin
 
@@ -30,6 +31,7 @@ class OrderItemInline(admin.TabularInline):
     extra = 0
     can_delete = False
     readonly_fields = (
+        "product_thumbnail",
         "product",
         "product_name",
         "unit",
@@ -45,6 +47,15 @@ class OrderItemInline(admin.TabularInline):
 
     def has_change_permission(self, request, obj=None):
         return False
+
+    @admin.display(description="รูปสินค้า")
+    def product_thumbnail(self, item):
+        if not item.product or not item.product.image:
+            return "ไม่มีรูป"
+        return format_html(
+            '<img src="{}" alt="" style="height: 40px; width: 40px; border: 1px solid #d1d5db; border-radius: 6px; object-fit: cover;" loading="lazy">',
+            item.product.image.url,
+        )
 
 
 class OrderStatusHistoryInline(admin.TabularInline):

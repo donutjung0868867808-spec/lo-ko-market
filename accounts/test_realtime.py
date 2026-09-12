@@ -68,7 +68,9 @@ class RealtimeTests(TransactionTestCase):
             await seller.send_json_to(message)
             self.assertEqual((await self.event(seller, "ack"))["message"]["id"], sent["id"])
             await admin.send_json_to({"type": "read", "through": sent["id"]})
-            await self.event(seller, "read")
+            read_event = await self.event(seller, "read")
+            self.assertEqual(read_event["reader_name"], self.owner.username)
+            self.assertIsNotNone(read_event["read_at"])
             self.assertEqual((await self.event(alerts, "notifications"))["admin_support_chat_count"], 0)
             await admin.send_json_to({"type": "send", "body": "Admin answer", "client_id": str(uuid.uuid4())})
             answer = (await self.event(admin, "ack"))["message"]
@@ -81,6 +83,7 @@ class RealtimeTests(TransactionTestCase):
             history = await self.event(seller, "history")
             self.assertEqual(len(history["messages"]), 2)
             self.assertIsNotNone(history["messages"][0]["read_at"])
+            self.assertEqual(history["messages"][0]["reader_name"], self.owner.username)
             await seller.disconnect()
             await admin.disconnect()
             await alerts.disconnect()

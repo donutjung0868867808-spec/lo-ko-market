@@ -14,8 +14,9 @@
     </header>
     <div class="admin-support-chat__messages" id="admin-chat-messages">
       {% for message in ticket.messages.all %}
-        <article class="admin-support-chat__row {% if message.sender_id == user.id %}admin-support-chat__row--owner{% endif %}">
-          <div class="admin-support-chat__bubble">
+        <article class="admin-support-chat__row live-chat-row {% if message.sender_id == user.id %}admin-support-chat__row--owner is-own{% endif %}">
+          <span class="live-chat-avatar" title="{{ message.sender.display_name|default:message.sender.username }}">{% if message.sender.avatar %}<img src="{{ message.sender.avatar.url }}" alt="">{% else %}{{ message.sender.display_name|default:message.sender.username|first|upper }}{% endif %}</span>
+          <div class="admin-support-chat__bubble live-chat-bubble">
             <p class="admin-support-chat__meta">{% if message.sender_id == ticket.seller_id %}ผู้ขาย{% else %}ผู้ดูแลระบบ{% endif %} · {{ message.created_at|date:"d/m/Y H:i" }}</p>
             <p>{{ message.body|linebreaksbr }}</p>
           </div>

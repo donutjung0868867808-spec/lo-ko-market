@@ -13,7 +13,7 @@ from django.contrib.auth.tokens import default_token_generator
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm
 from django.db import transaction
-from django.db.models import Avg, Count, F, OuterRef, Q, Subquery, Sum
+from django.db.models import Avg, Count, F, OuterRef, Prefetch, Q, Subquery, Sum
 from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -23,7 +23,7 @@ from django.utils.http import url_has_allowed_host_and_scheme, urlsafe_base64_de
 from django.views.decorators.http import require_POST
 
 from catalog.forms import ProductForm
-from catalog.models import Product, ProductFavorite, ProductReview, SellerFavorite
+from catalog.models import Product, ProductFavorite, ProductImage, ProductReview, SellerFavorite
 from orders.models import Order
 from payments.models import CustomerPaymentProfile, SavedPaymentMethod, SellerPaymentAccount, SellerSettlement
 
@@ -311,7 +311,17 @@ def account_history(request):
 
 @role_required(User.Roles.FARMER)
 def farmer_shop_center(request):
-    products = Product.objects.filter(seller=request.user).select_related("category")
+    products = (
+        Product.objects.filter(seller=request.user)
+        .select_related("category")
+        .prefetch_related(
+            Prefetch(
+                "images",
+                queryset=ProductImage.objects.only("id", "product_id", "image", "alt_text").order_by("sort_order", "id"),
+                to_attr="gallery_images",
+            )
+        )
+    )
     farmer_profile = getattr(request.user, "farmer_profile", None)
     store_form = SellerStoreProfileForm(request.POST or None, instance=farmer_profile) if farmer_profile else None
     product_form = ProductForm(request.POST or None, request.FILES or None)
@@ -320,10 +330,15 @@ def farmer_shop_center(request):
             messages.warning(request, "บัญชีเกษตรกรต้องได้รับการยืนยันจากเจ้าหน้าที่ก่อนเพิ่มสินค้า")
         elif product_form.is_valid():
             product = product_form.save(commit=False)
+            gallery_images = list(product_form.cleaned_data["image"])
+            if not product.image and gallery_images:
+                product.image = gallery_images.pop(0)
             product.seller = request.user
             product.community = farmer_profile.community
             product.status = Product.Status.PENDING
             product.save()
+            for image in gallery_images:
+                ProductImage.objects.create(product=product, image=image)
             messages.success(request, "ส่งสินค้าให้เจ้าหน้าที่ตรวจสอบแล้ว")
             return redirect(f"{reverse('accounts:farmer_shop_center')}?section=products")
     elif request.method == "POST" and request.POST.get("shop_action") == "update_store":

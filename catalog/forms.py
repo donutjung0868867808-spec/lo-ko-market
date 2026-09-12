@@ -20,7 +20,49 @@ class StyledFormMixin:
             field.widget.attrs["class"] = f"{css_class} {self.input_class}".strip()
 
 
+class MultipleImageInput(forms.ClearableFileInput):
+    allow_multiple_selected = True
+
+
+class MultipleImageField(forms.FileField):
+    widget = MultipleImageInput
+
+    def clean(self, data, initial=None):
+        if not data:
+            return []
+        files = data if isinstance(data, (list, tuple)) else [data]
+        return [super().clean(file, initial=None) for file in files]
+
+
 class ProductForm(StyledFormMixin, forms.ModelForm):
+    image = MultipleImageField(
+        label="รูปสินค้า",
+        required=False,
+        validators=ProductImage._meta.get_field("image").validators,
+        widget=MultipleImageInput(
+            attrs={
+                "accept": "image/jpeg,image/png,image/webp",
+                "data-product-gallery-input": "true",
+                "multiple": True,
+            }
+        ),
+    )
+
+    field_order = [
+        "category",
+        "name",
+        "description",
+        "unit",
+        "price",
+        "stock_quantity",
+        "minimum_order_quantity",
+        "low_stock_threshold",
+        "weight_grams",
+        "image",
+        "harvest_date",
+        "expiry_date",
+    ]
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         unit = self.initial.get("unit") or self.instance.unit
@@ -42,7 +84,6 @@ class ProductForm(StyledFormMixin, forms.ModelForm):
             "minimum_order_quantity",
             "low_stock_threshold",
             "weight_grams",
-            "image",
             "harvest_date",
             "expiry_date",
         ]
@@ -57,7 +98,6 @@ class ProductForm(StyledFormMixin, forms.ModelForm):
             "low_stock_threshold": "แจ้งเตือนเมื่อเหลือน้อยกว่า",
             "weight_grams": "น้ำหนักต่อหน่วย (กรัม)",
             "expiry_date": "วันที่ควรบริโภคก่อน",
-            "image": "รูปสินค้า",
             "harvest_date": "วันที่เก็บเกี่ยว",
         }
         widgets = {
@@ -67,10 +107,7 @@ class ProductForm(StyledFormMixin, forms.ModelForm):
         }
 
     def clean_image(self):
-        image = self.cleaned_data.get("image")
-        if image and image.size > settings.MAX_UPLOAD_SIZE:
-            raise forms.ValidationError("รูปภาพมีขนาดใหญ่เกินกำหนด")
-        return image
+        return self.cleaned_data.get("image", [])
 
     def clean(self):
         cleaned = super().clean()
@@ -89,17 +126,18 @@ class ProductForm(StyledFormMixin, forms.ModelForm):
         return cleaned
 
 
-class ProductImageForm(StyledFormMixin, forms.ModelForm):
-    class Meta:
-        model = ProductImage
-        fields = ["image", "alt_text"]
-        labels = {"image": "รูปภาพเพิ่มเติม", "alt_text": "คำอธิบายรูป"}
-
-    def clean_image(self):
-        image = self.cleaned_data.get("image")
-        if image and image.size > settings.MAX_UPLOAD_SIZE:
-            raise forms.ValidationError("รูปภาพมีขนาดใหญ่เกินกำหนด")
-        return image
+class ProductImageForm(StyledFormMixin, forms.Form):
+    image = MultipleImageField(
+        label="รูปสินค้า",
+        validators=ProductImage._meta.get_field("image").validators,
+        widget=MultipleImageInput(
+            attrs={
+                "accept": "image/jpeg,image/png,image/webp",
+                "data-product-gallery-input": "true",
+                "multiple": True,
+            }
+        ),
+    )
 
 
 class ProductReviewForm(StyledFormMixin, forms.Form):

@@ -70,8 +70,9 @@
 
       <div class="support-inbox__messages" id="support-inbox-messages" aria-live="polite">
         {% for message in selected_ticket.messages.all %}
-          <article class="support-inbox__message {% if message.sender_id == user.id %}is-own{% endif %}">
-            <div class="support-inbox__bubble">
+          <article class="support-inbox__message live-chat-row {% if message.sender_id == user.id %}is-own{% endif %}">
+            <span class="live-chat-avatar" title="{{ message.sender.display_name|default:message.sender.username }}">{% if message.sender.avatar %}<img src="{{ message.sender.avatar.url }}" alt="">{% else %}{{ message.sender.display_name|default:message.sender.username|first|upper }}{% endif %}</span>
+            <div class="support-inbox__bubble live-chat-bubble">
               <p>{{ message.body|linebreaksbr }}</p>
               <time datetime="{{ message.created_at|date:'c' }}">{{ message.created_at|date:"d/m/Y H:i" }}</time>
             </div>

@@ -71,17 +71,26 @@ def serialize_message(message, room=None):
         read_at = room.admin_read_at if message.sender_id == room.seller_id else room.seller_read_at
         if read_at and read_at < message.created_at:
             read_at = None
+    reader = None
+    if read_at and isinstance(room, Conversation):
+        reader = room.other_participant(message.sender)
+    elif read_at and isinstance(room, SupportTicket):
+        reader = room.handled_by if message.sender_id == room.seller_id else room.seller
     return {
         "id": message.pk, "sender_id": message.sender_id,
+        "sender_name": message.sender.display_name or message.sender.username,
+        "sender_avatar_url": message.sender.avatar.url if message.sender.avatar else None,
         "body": message.body, "created_at": message.created_at.isoformat(),
         "client_id": str(message.client_id) if message.client_id else None,
         "read_at": read_at.isoformat() if read_at else None,
+        "reader_name": (reader.display_name or reader.username) if reader else None,
+        "reader_avatar_url": reader.avatar.url if reader and reader.avatar else None,
     }
 
 
 def history(user, kind, pk, before=None, after=None):
     room = room_for_user(user, kind, pk)
-    queryset = room.messages.all()
+    queryset = room.messages.select_related("sender")
     if before:
         queryset = queryset.filter(pk__lt=before)
     if after:
@@ -112,7 +121,7 @@ def send_message(user, kind, pk, body, client_id):
         parent_id = existing.ticket_id if kind == "support" else existing.conversation_id
         if parent_id != pk:
             raise ValidationError("รหัสข้อความนี้ถูกใช้แล้ว")
-        return serialize_message(existing)
+        return serialize_message(existing, room)
     maximum = 3000 if kind == "support" else 2000
     if not isinstance(body, str) or not body.strip() or len(body) > maximum:
         raise ValidationError(f"กรุณาระบุข้อความไม่เกิน {maximum} ตัวอักษร")
@@ -140,7 +149,7 @@ def send_message(user, kind, pk, body, client_id):
         else:
             link = reverse("accounts:support_ticket_detail" if kind == "support" else "accounts:conversation_detail", args=[pk])
         notify_user(recipient, f"ข้อความใหม่จาก {user}", message.body[:120], link, send_email_message=False)
-    return serialize_message(message)
+    return serialize_message(message, room)
 
 
 @transaction.atomic
@@ -152,17 +161,22 @@ def mark_read(user, kind, pk, through):
     now = timezone.now()
     if kind == "direct":
         changed = room.messages.filter(pk__lte=through, read_at__isnull=True).exclude(sender=user).update(read_at=now)
-        if not changed:
-            return
     else:
         field = "admin_read_at" if user.is_owner else "seller_read_at"
         previous = getattr(room, field)
         if previous is None or previous < last.created_at:
             setattr(room, field, last.created_at)
-            room.save(update_fields=[field])
-        else:
-            return
+            fields = [field]
+            if user.is_owner and room.handled_by_id != user.pk:
+                room.handled_by = user
+                fields.append("handled_by")
+            room.save(update_fields=fields)
     transaction.on_commit(lambda: publish(f"chat.{kind}.{pk}", {
-        "type": "chat.event", "payload": {"type": "read", "sender_id": user.pk, "through": through},
+        "type": "chat.event", "payload": {
+            "type": "read", "sender_id": user.pk, "through": through,
+            "read_at": now.isoformat(),
+            "reader_name": user.display_name or user.username,
+            "reader_avatar_url": user.avatar.url if user.avatar else None,
+        },
     }))
     transaction.on_commit(lambda: publish(f"user.{user.pk}", {"type": "notification.event"}))

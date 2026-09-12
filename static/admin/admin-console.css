@@ -651,13 +651,16 @@ textarea {
 
 .console-workflow h3 {
   margin: 0;
+  color: #17221b !important;
   font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.35;
 }
 
 .console-workflow-header p,
 .console-model-copy p {
   margin: 3px 0 0;
-  color: var(--console-muted);
+  color: #435549 !important;
   font-size: 0.76rem;
   line-height: 1.45;
 }

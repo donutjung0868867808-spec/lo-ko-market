@@ -208,10 +208,164 @@
       toggle.querySelector("[data-password-eye]").classList.toggle("hidden", isHidden);
       toggle.querySelector("[data-password-eye-off]").classList.toggle("hidden", !isHidden);
     });
+
+    document.querySelectorAll("[data-product-image-input]").forEach(function (input) {
+      const currentImageUrl = input.dataset.productImageCurrent || "";
+      const removeInput = document.createElement("input");
+      const preview = document.createElement("div");
+      const image = document.createElement("img");
+      const cancelButton = document.createElement("button");
+      let selectedImageUrl = "";
+      let hasSelectedFile = false;
+
+      removeInput.type = "hidden";
+      removeInput.name = "remove_image";
+      removeInput.value = "0";
+      preview.className = "mt-3 flex items-center gap-3 rounded-md border border-stone-200 bg-stone-50 p-3";
+      image.className = "h-20 w-20 rounded-md border border-stone-200 bg-white object-cover";
+      image.alt = "ตัวอย่างรูปสินค้า";
+      cancelButton.type = "button";
+      cancelButton.className = "rounded-md border border-red-200 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50";
+
+      input.insertAdjacentElement("beforebegin", removeInput);
+      input.insertAdjacentElement("beforebegin", preview);
+      preview.append(image, cancelButton);
+
+      function revokeSelectedImageUrl() {
+        if (selectedImageUrl) {
+          URL.revokeObjectURL(selectedImageUrl);
+          selectedImageUrl = "";
+        }
+      }
+
+      function showCurrentImage() {
+        revokeSelectedImageUrl();
+        hasSelectedFile = false;
+        removeInput.value = "0";
+        if (!currentImageUrl) {
+          preview.hidden = true;
+          return;
+        }
+        image.src = currentImageUrl;
+        cancelButton.textContent = "ลบรูปปัจจุบัน";
+        preview.hidden = false;
+      }
+
+      function showSelectedImage(file) {
+        revokeSelectedImageUrl();
+        selectedImageUrl = URL.createObjectURL(file);
+        hasSelectedFile = true;
+        removeInput.value = "0";
+        image.src = selectedImageUrl;
+        cancelButton.textContent = "ยกเลิกไฟล์ที่เลือก";
+        preview.hidden = false;
+      }
+
+      input.addEventListener("change", function () {
+        if (input.files && input.files[0]) {
+          showSelectedImage(input.files[0]);
+        } else {
+          showCurrentImage();
+        }
+      });
+
+      cancelButton.addEventListener("click", function () {
+        input.value = "";
+        if (hasSelectedFile) {
+          showCurrentImage();
+          return;
+        }
+        revokeSelectedImageUrl();
+        removeInput.value = "1";
+        preview.hidden = true;
+      });
+
+      showCurrentImage();
+    });
+
+    document.querySelectorAll("[data-product-gallery-input]").forEach(function (input) {
+      const preview = document.createElement("div");
+      const clearButton = document.createElement("button");
+      let previewUrls = [];
+      let selectedFiles = [];
+
+      preview.className = "mt-3 rounded-md border border-stone-200 bg-stone-50 p-3";
+      clearButton.type = "button";
+      clearButton.className = "mt-3 rounded-md border border-red-200 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50";
+      clearButton.textContent = "ยกเลิกรูปที่เลือกทั้งหมด";
+      input.insertAdjacentElement("beforebegin", preview);
+
+      function clearPreviewUrls() {
+        previewUrls.forEach(function (url) { URL.revokeObjectURL(url); });
+        previewUrls = [];
+      }
+
+      function fileKey(file) {
+        return [file.name, file.size, file.lastModified].join(":");
+      }
+
+      function syncSelectedFiles() {
+        const transfer = new DataTransfer();
+        selectedFiles.forEach(function (file) { transfer.items.add(file); });
+        input.files = transfer.files;
+      }
+
+      function renderPreviews() {
+        clearPreviewUrls();
+        preview.replaceChildren();
+        if (!selectedFiles.length) {
+          preview.hidden = true;
+          return;
+        }
+
+        const grid = document.createElement("div");
+        grid.className = "flex flex-wrap gap-3";
+        selectedFiles.forEach(function (file, index) {
+          const url = URL.createObjectURL(file);
+          const item = document.createElement("div");
+          const image = document.createElement("img");
+          const removeButton = document.createElement("button");
+          previewUrls.push(url);
+          image.src = url;
+          image.alt = file.name;
+          image.className = "h-20 w-20 rounded-md border border-stone-200 bg-white object-cover";
+          item.className = "relative h-20 w-20";
+          removeButton.type = "button";
+          removeButton.className = "absolute -right-2 -top-2 grid h-6 w-6 place-items-center rounded-full border border-red-200 bg-white text-sm font-bold text-red-700 shadow-sm hover:bg-red-50";
+          removeButton.setAttribute("aria-label", "ลบรูปที่เลือก");
+          removeButton.textContent = "×";
+          removeButton.addEventListener("click", function () {
+            selectedFiles.splice(index, 1);
+            syncSelectedFiles();
+            renderPreviews();
+          });
+          item.append(image, removeButton);
+          grid.append(item);
+        });
+        preview.append(grid, clearButton);
+        preview.hidden = false;
+      }
+
+      input.addEventListener("change", function () {
+        Array.from(input.files || []).forEach(function (file) {
+          if (!selectedFiles.some(function (selected) { return fileKey(selected) === fileKey(file); })) {
+            selectedFiles.push(file);
+          }
+        });
+        syncSelectedFiles();
+        renderPreviews();
+      });
+      clearButton.addEventListener("click", function () {
+        selectedFiles = [];
+        input.value = "";
+        renderPreviews();
+      });
+      renderPreviews();
+    });
   </script>
   {% block extra_scripts %}{% endblock %}
   {% if user.is_authenticated %}
-    <link rel="stylesheet" href="{% static 'realtime-chat.css' %}?v=20260910-4">
+    <link rel="stylesheet" href="{% static 'realtime-chat.css' %}?v=20260910-16">
     <script src="{% static 'realtime-notifications.js' %}"></script>
   {% endif %}
 </body>

@@ -1,9 +1,10 @@
 from decimal import Decimal
 
+from django.core.files.base import ContentFile
 from django.test import TestCase
 from django.urls import reverse
 
-from catalog.models import Category, Product, ProductReview
+from catalog.models import Category, Product, ProductImage, ProductReview
 
 from .models import Community, FarmerProfile, User
 
@@ -78,6 +79,53 @@ class FarmerShopCenterTests(TestCase):
             self.assertContains(response, f'data-shop-menu="{section}"')
 
         self.assertContains(response, "seller-shop-open-menu-groups")
+
+    def test_product_list_shows_product_thumbnail(self):
+        self.product.image = "products/seller-center-product.jpg"
+        self.product.save(update_fields=["image"])
+
+        response = self.client.get(f"{reverse('accounts:farmer_shop_center')}?section=products")
+
+        self.assertContains(response, "data-product-thumbnail")
+        self.assertContains(response, self.product.image.url)
+
+        self.product.image = ""
+        self.product.save(update_fields=["image"])
+        gallery_image = ProductImage.objects.create(
+            product=self.product,
+            image="products/gallery/seller-center-gallery-product.jpg",
+            alt_text="รูปอัลบั้มสินค้า",
+        )
+
+        response = self.client.get(f"{reverse('accounts:farmer_shop_center')}?section=products")
+
+        self.assertContains(response, gallery_image.image.url)
+
+    def test_seller_can_remove_the_main_product_image(self):
+        self.product.image.save("remove-this-product-image.jpg", ContentFile(b"product image"), save=True)
+
+        response = self.client.post(
+            reverse("catalog:product_update", args=[self.product.pk]),
+            {
+                "category": self.product.category_id,
+                "name": self.product.name,
+                "description": self.product.description,
+                "unit": self.product.unit,
+                "price": self.product.price,
+                "stock_quantity": self.product.stock_quantity,
+                "minimum_order_quantity": self.product.minimum_order_quantity,
+                "low_stock_threshold": self.product.low_stock_threshold,
+                "weight_grams": "",
+                "harvest_date": "",
+                "expiry_date": "",
+                "remove_image": "1",
+            },
+        )
+
+        self.assertRedirects(response, self.product.get_absolute_url(), fetch_redirect_response=False)
+        self.product.refresh_from_db()
+        self.assertFalse(self.product.image)
+
     def test_seller_can_update_storefront_details(self):
         response = self.client.post(
             reverse("accounts:farmer_shop_center"),
