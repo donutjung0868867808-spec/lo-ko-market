@@ -8,8 +8,9 @@ services:
     region: singapore
     plan: free
     buildCommand: "pip install -r requirements.txt && python manage.py collectstatic --noinput"
-    preDeployCommand: "python manage.py migrate --noinput && python manage.py bootstrap_owner"
-    startCommand: "daphne -b 0.0.0.0 -p $PORT --proxy-headers agri_market.asgi:application"
+    # Render Free does not support preDeployCommand. Run the one-time-safe
+    # migration/bootstrap commands before Daphne starts instead.
+    startCommand: "python manage.py migrate --noinput && python manage.py bootstrap_owner && daphne -b 0.0.0.0 -p $PORT --proxy-headers agri_market.asgi:application"
     healthCheckPath: /ready/
     envVars:
       - key: PYTHON_VERSION
