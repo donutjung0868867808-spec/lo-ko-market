@@ -214,6 +214,10 @@ if (
 ):
     static_backend = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
+# django-cloudinary-storage still reads this legacy setting in its
+# collectstatic command. Django 6 uses STORAGES above for actual resolution.
+STATICFILES_STORAGE = static_backend
+
 if package_exists("cloudinary_storage") and os.environ.get("CLOUDINARY_URL"):
     default_storage = "cloudinary_storage.storage.MediaCloudinaryStorage"
     private_storage_backend = "agri_market.storage_backends.PrivateCloudinaryStorage"
