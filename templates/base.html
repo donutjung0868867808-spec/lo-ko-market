@@ -172,13 +172,15 @@
         </button>
       </nav>
     {% endif %}
-    {% if messages %}
-      <div class="mx-auto mb-5 w-full max-w-[1500px] space-y-2 px-4 pt-4 sm:px-6 lg:px-8">
-        {% for message in messages %}
-          <div class="rounded-md border border-stone-200 bg-white px-4 py-3 text-sm shadow-soft">{{ message }}</div>
-        {% endfor %}
-      </div>
-    {% endif %}
+    {% block flash_messages %}
+      {% if messages %}
+        <div class="mx-auto mb-5 w-full max-w-[1500px] space-y-2 px-4 pt-4 sm:px-6 lg:px-8">
+          {% for message in messages %}
+            <div class="rounded-md border border-stone-200 bg-white px-4 py-3 text-sm shadow-soft">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endblock %}
     {% block content %}{% endblock %}
   </main>
 
