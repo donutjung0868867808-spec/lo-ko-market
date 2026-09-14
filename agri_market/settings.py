@@ -206,16 +206,9 @@ MEDIA_ROOT = BASE_DIR / "media"
 PRIVATE_MEDIA_ROOT = BASE_DIR / "private_media"
 
 static_backend = "django.contrib.staticfiles.storage.StaticFilesStorage"
-if (
-    not DEBUG
-    and "runserver" not in sys.argv
-    and not IS_TESTING
-    and package_exists("whitenoise")
-):
-    # Django admin's upstream CSS can reference optional icon assets that are
-    # absent from some package builds. Compression keeps static delivery fast
-    # without making collectstatic fail on those nonessential references.
-    static_backend = "whitenoise.storage.CompressedStaticFilesStorage"
+# WhiteNoise middleware serves these files in deployment. Avoid manifest and
+# compression storage here because Django admin's static assets can collide
+# during parallel post-processing in clean deployment builds.
 
 # django-cloudinary-storage still reads this legacy setting in its
 # collectstatic command. Django 6 uses STORAGES above for actual resolution.
