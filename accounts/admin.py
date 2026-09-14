@@ -12,6 +12,7 @@ from django.template.response import TemplateResponse
 from django.urls import path, reverse
 from django.utils import timezone
 from django.utils.html import format_html
+from django.utils.text import slugify
 
 from .admin_permissions import (
     CsvExportAdminMixin,
@@ -380,18 +381,15 @@ class CommunityAdminForm(forms.ModelForm):
         self.fields["slug"].help_text = "Use lowercase English letters, numbers, hyphens, or underscores."
 
     def clean_slug(self):
-        slug = self.cleaned_data["slug"].strip().translate(
-            {
-                0x2010: "-",
-                0x2011: "-",
-                0x2012: "-",
-                0x2013: "-",
-                0x2014: "-",
-                0x2015: "-",
-                0x2212: "-",
-            }
+        raw_slug = self.cleaned_data["slug"].strip()
+        slug = "".join(
+            "-"
+            if 0x2010 <= ord(character) <= 0x2015 or ord(character) == 0x2212
+            else character
+            for character in raw_slug
+            if ord(character) != 0x200B
         )
-        slug = "-".join(slug.split()).lower()
+        slug = slugify(slug)
         validate_slug(slug)
         return slug
 
