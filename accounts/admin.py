@@ -5,6 +5,7 @@ from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import Group
 from django.contrib.admin.sites import NotRegistered
 from django.core.exceptions import PermissionDenied
+from django.core.validators import validate_slug
 from django.db.models import Count, F, OuterRef, Q, Subquery
 from django.shortcuts import get_object_or_404, redirect
 from django.template.response import TemplateResponse
@@ -366,15 +367,44 @@ class DeliveryAddressAdmin(OwnerOnlyAdminMixin, admin.ModelAdmin):
             ).exclude(pk=obj.pk).update(is_default=False)
         super().save_model(request, obj, form, change)
 
+class CommunityAdminForm(forms.ModelForm):
+    slug = forms.CharField(max_length=200)
+
+    class Meta:
+        model = Community
+        fields = "__all__"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["slug"].label = Community._meta.get_field("slug").verbose_name
+        self.fields["slug"].help_text = "Use lowercase English letters, numbers, hyphens, or underscores."
+
+    def clean_slug(self):
+        slug = self.cleaned_data["slug"].strip().translate(
+            {
+                0x2010: "-",
+                0x2011: "-",
+                0x2012: "-",
+                0x2013: "-",
+                0x2014: "-",
+                0x2015: "-",
+                0x2212: "-",
+            }
+        )
+        slug = "-".join(slug.split()).lower()
+        validate_slug(slug)
+        return slug
+
+
 @admin.register(Community)
 class CommunityAdmin(RoleScopedAdminMixin, admin.ModelAdmin):
     staff_access = True
     community_filter = "pk"
+    form = CommunityAdminForm
 
     list_display = ("name", "province", "district", "is_active")
     list_filter = ("is_active", "province")
     search_fields = ("name", "province", "district")
-    prepopulated_fields = {"slug": ("name",)}
 
     def get_readonly_fields(self, request, obj=None):
         if not self._is_owner(request.user):
