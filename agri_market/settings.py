@@ -212,7 +212,10 @@ if (
     and not IS_TESTING
     and package_exists("whitenoise")
 ):
-    static_backend = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+    # Django admin's upstream CSS can reference optional icon assets that are
+    # absent from some package builds. Compression keeps static delivery fast
+    # without making collectstatic fail on those nonessential references.
+    static_backend = "whitenoise.storage.CompressedStaticFilesStorage"
 
 # django-cloudinary-storage still reads this legacy setting in its
 # collectstatic command. Django 6 uses STORAGES above for actual resolution.
