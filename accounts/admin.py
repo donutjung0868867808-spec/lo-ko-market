@@ -5,12 +5,14 @@ from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import Group
 from django.contrib.admin.sites import NotRegistered
 from django.core.exceptions import PermissionDenied
+from django.core.validators import validate_slug
 from django.db.models import Count, F, OuterRef, Q, Subquery
 from django.shortcuts import get_object_or_404, redirect
 from django.template.response import TemplateResponse
 from django.urls import path, reverse
 from django.utils import timezone
 from django.utils.html import format_html
+from django.utils.text import slugify
 
 from .admin_permissions import (
     CsvExportAdminMixin,
@@ -366,15 +368,41 @@ class DeliveryAddressAdmin(OwnerOnlyAdminMixin, admin.ModelAdmin):
             ).exclude(pk=obj.pk).update(is_default=False)
         super().save_model(request, obj, form, change)
 
+class CommunityAdminForm(forms.ModelForm):
+    slug = forms.CharField(max_length=200)
+
+    class Meta:
+        model = Community
+        fields = "__all__"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["slug"].label = Community._meta.get_field("slug").verbose_name
+        self.fields["slug"].help_text = "Use lowercase English letters, numbers, hyphens, or underscores."
+
+    def clean_slug(self):
+        raw_slug = self.cleaned_data["slug"].strip()
+        slug = "".join(
+            "-"
+            if 0x2010 <= ord(character) <= 0x2015 or ord(character) == 0x2212
+            else character
+            for character in raw_slug
+            if ord(character) != 0x200B
+        )
+        slug = slugify(slug)
+        validate_slug(slug)
+        return slug
+
+
 @admin.register(Community)
 class CommunityAdmin(RoleScopedAdminMixin, admin.ModelAdmin):
     staff_access = True
     community_filter = "pk"
+    form = CommunityAdminForm
 
     list_display = ("name", "province", "district", "is_active")
     list_filter = ("is_active", "province")
     search_fields = ("name", "province", "district")
-    prepopulated_fields = {"slug": ("name",)}
 
     def get_readonly_fields(self, request, obj=None):
         if not self._is_owner(request.user):

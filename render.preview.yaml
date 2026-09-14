@@ -1,0 +1,94 @@
+# Free, temporary preview environment for Render.
+# Do not use this configuration for a live marketplace: free Postgres expires
+# after 30 days, free Key Value is not persistent, and email is log-only.
+services:
+  - type: web
+    name: agri-market-preview
+    runtime: python
+    region: singapore
+    plan: free
+    buildCommand: "pip install -r requirements.txt && python manage.py collectstatic --noinput --upload-unhashed-files"
+    # Render Free does not support preDeployCommand. Run the one-time-safe
+    # migration/bootstrap commands before Daphne starts instead.
+    startCommand: "python manage.py migrate --noinput && python manage.py bootstrap_owner && daphne -b 0.0.0.0 -p $PORT --proxy-headers agri_market.asgi:application"
+    healthCheckPath: /ready/
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.10
+      - key: DEBUG
+        value: "False"
+      - key: ENABLE_DEMO_DATA
+        value: "False"
+      - key: REQUIRE_EMAIL_VERIFICATION
+        value: "False"
+      - key: ADMIN_MFA_REQUIRED
+        value: "False"
+      - key: TRUST_X_FORWARDED_FOR
+        value: "True"
+      - key: SECURE_SSL_REDIRECT
+        value: "True"
+      - key: SESSION_COOKIE_SECURE
+        value: "True"
+      - key: CSRF_COOKIE_SECURE
+        value: "True"
+      - key: LOGIN_MAX_ATTEMPTS
+        value: "5"
+      - key: LOGIN_LOCKOUT_MINUTES
+        value: "15"
+      - key: ORDER_RESERVATION_MINUTES
+        value: "30"
+      - key: REFUND_REQUEST_DAYS
+        value: "7"
+      - key: FLAT_SHIPPING_FEE
+        value: "50.00"
+      - key: FREE_SHIPPING_THRESHOLD
+        value: "500.00"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: SITE_URL
+        fromService:
+          type: web
+          name: agri-market-preview
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: ALLOWED_HOSTS
+        fromService:
+          type: web
+          name: agri-market-preview
+          envVarKey: RENDER_EXTERNAL_HOSTNAME
+      - key: CSRF_TRUSTED_ORIGINS
+        fromService:
+          type: web
+          name: agri-market-preview
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: DATABASE_URL
+        fromDatabase:
+          name: agri-market-preview-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: agri-market-preview-realtime
+          property: connectionString
+      - key: EMAIL_BACKEND
+        value: django.core.mail.backends.console.EmailBackend
+      - key: CLOUDINARY_URL
+        sync: false
+      - key: INITIAL_OWNER_USERNAME
+        sync: false
+      - key: INITIAL_OWNER_EMAIL
+        sync: false
+      - key: INITIAL_OWNER_PASSWORD
+        sync: false
+
+  - type: keyvalue
+    name: agri-market-preview-realtime
+    region: singapore
+    plan: free
+    ipAllowList: []
+    maxmemoryPolicy: noeviction
+
+databases:
+  - name: agri-market-preview-db
+    region: singapore
+    plan: free
+    ipAllowList: []
