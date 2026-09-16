@@ -109,6 +109,7 @@ class AccountCenterTests(TestCase):
         self.assertContains(staff_page, reverse("accounts:staff_dashboard"))
 
     def test_profile_saves_new_personal_fields(self):
+        original_display_name = self.user.display_name
         response = self.client.post(
             reverse("accounts:account_history"),
             {
@@ -124,7 +125,7 @@ class AccountCenterTests(TestCase):
 
         self.assertRedirects(response, reverse("accounts:account_history"))
         self.user.refresh_from_db()
-        self.assertEqual(self.user.display_name, "สมใจ ใจดี")
+        self.assertEqual(self.user.display_name, original_display_name)
         self.assertEqual(self.user.gender, User.Gender.FEMALE)
         self.assertEqual(self.user.birth_date.isoformat(), "1995-04-12")
 

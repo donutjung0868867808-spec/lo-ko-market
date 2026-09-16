@@ -45,6 +45,7 @@ from .forms import (
     SupportTicketCreateForm,
     StaffSellerAccountForm,
     UserProfileForm,
+    split_display_name,
 )
 from .models import AuditEvent, ChatBlock, Conversation, DeliveryAddress, DirectMessage, FarmerProfile, NewsPost, Notification, Report, ReportMessage, SupportMessage, SupportTicket, User
 from .services import (
@@ -237,9 +238,12 @@ def farmer_signup_profile(request):
 
             with transaction.atomic():
                 accepted_at = timezone.now()
+                first_name, last_name = split_display_name(account_data["display_name"])
                 user = User(
                     username=account_data["username"],
-                    display_name=account_data["display_name"],
+                    display_name=account_data["username"],
+                    first_name=first_name,
+                    last_name=last_name,
                     email=account_data["email"],
                     phone=account_data["phone"],
                     password=account_data["password_hash"],

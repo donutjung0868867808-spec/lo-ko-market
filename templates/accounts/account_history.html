@@ -54,11 +54,6 @@
           <div class="mt-2 flex min-h-11 items-center rounded-md border border-stone-200 bg-stone-100 px-3 text-sm text-slate-600">{{ request.user.username }}</div>
         </div>
         <div>
-          <label class="block text-sm font-semibold text-slate-700" for="{{ user_form.display_name.id_for_label }}">{{ user_form.display_name.label }}</label>
-          <div class="mt-2">{{ user_form.display_name }}</div>
-          {% for error in user_form.display_name.errors %}<p class="mt-1 text-sm text-red-700">{{ error }}</p>{% endfor %}
-        </div>
-        <div>
           <label class="block text-sm font-semibold text-slate-700" for="{{ user_form.first_name.id_for_label }}">{{ user_form.first_name.label }}</label>
           <div class="mt-2">{{ user_form.first_name }}</div>
           {% for error in user_form.first_name.errors %}<p class="mt-1 text-sm text-red-700">{{ error }}</p>{% endfor %}
