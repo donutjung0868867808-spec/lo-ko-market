@@ -58,6 +58,8 @@ def cart_items(request):
     total = Decimal("0.00")
 
     for product in products:
+        if request.user.is_authenticated and product.seller_id == request.user.id:
+            continue
         quantity = parse_quantity(cart.get(str(product.pk)), default=product.minimum_order_quantity, step=product.quantity_step)
         available = available_quantity(product)
         if available <= 0 or quantity <= 0:
@@ -147,7 +149,10 @@ def cart_detail(request):
 @login_required
 def cart_add(request, product_id):
     product = get_object_or_404(Product, pk=product_id, status=Product.Status.ACTIVE)
-    if not request.user.is_consumer and not request.user.is_owner:
+    if product.seller_id == request.user.id:
+        messages.info(request, "ไม่สามารถซื้อสินค้าจากร้านค้าของตัวเองได้")
+        return redirect(product)
+    if not request.user.can_buy and not request.user.is_owner:
         messages.error(request, "ตะกร้าสินค้าเปิดให้ผู้บริโภคทั่วไป")
         return redirect(product)
     if request.method == "POST":
@@ -203,7 +208,7 @@ def cart_remove(request, product_id):
 
 @login_required
 def cart_checkout(request):
-    if not request.user.is_consumer and not request.user.is_owner:
+    if not request.user.can_buy and not request.user.is_owner:
         messages.error(request, "การสั่งซื้อเปิดให้ผู้บริโภคทั่วไป")
         return redirect("orders:cart")
 
@@ -304,7 +309,7 @@ def cart_checkout(request):
 
 @login_required
 def checkout(request, product_id):
-    if not request.user.is_consumer and not request.user.is_owner:
+    if not request.user.can_buy and not request.user.is_owner:
         messages.error(request, "การสั่งซื้อเปิดให้ผู้บริโภคทั่วไป")
         return redirect("catalog:product_detail", pk=product_id)
 
@@ -313,6 +318,9 @@ def checkout(request, product_id):
         pk=product_id,
         status=Product.Status.ACTIVE,
     )
+    if product.seller_id == request.user.id:
+        messages.info(request, "ไม่สามารถซื้อสินค้าจากร้านค้าของตัวเองได้")
+        return redirect(product)
     requested_quantity = parse_quantity(
         request.GET.get("quantity"),
         default=product.minimum_order_quantity,
@@ -361,7 +369,11 @@ def checkout(request, product_id):
 @login_required
 def order_list(request):
     expire_stale_orders()
-    orders = scoped_orders(request.user).prefetch_related("items__product")
+    if request.user.is_farmer:
+        orders = Order.objects.filter(buyer=request.user).select_related("buyer", "seller", "community")
+    else:
+        orders = scoped_orders(request.user)
+    orders = orders.prefetch_related("items__product")
     status_filter = request.GET.get("status", "all")
     status_groups = {
         "pending_payment": [Order.Status.PENDING_PAYMENT],
@@ -410,7 +422,7 @@ def order_list(request):
             "order_query": query,
             "search_by": search_by,
             "payment_filter": payment_filter,
-            "is_seller_order_view": request.user.is_farmer,
+            "is_seller_order_view": False,
         },
     )
 

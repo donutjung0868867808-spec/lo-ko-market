@@ -15,7 +15,6 @@ from .models import (
     StockMovement,
 )
 
-
 @admin.register(Category)
 class CategoryAdmin(OwnerOnlyAdminMixin, admin.ModelAdmin):
     list_display = ("category_thumbnail", "name", "slug", "is_active")

@@ -58,3 +58,42 @@ class FarmerSignupFlowTests(TestCase):
         response = self.client.get(reverse("accounts:farmer_signup_profile"))
 
         self.assertRedirects(response, reverse("accounts:farmer_signup_create"))
+
+    def test_consumer_can_upgrade_existing_account_to_seller(self):
+        consumer = User.objects.create_user(
+            username="existing-buyer",
+            password="StrongPass123!",
+            email="buyer@example.com",
+            role=User.Roles.CONSUMER,
+        )
+        original_user_id = consumer.pk
+        self.client.force_login(consumer)
+
+        intro_response = self.client.get(reverse("accounts:farmer_signup"))
+        self.assertContains(intro_response, "เปิดร้านค้าด้วยบัญชีนี้")
+
+        profile_response = self.client.post(
+            reverse("accounts:farmer_signup_profile"),
+            {
+                "farm_name": "Existing buyer shop",
+                "community": self.community.pk,
+                "province": "Chiang Mai",
+                "district": "Mueang",
+                "address": "Test address",
+                "bio": "",
+                "document_type": FarmerProfile.DocumentType.NATIONAL_ID,
+            },
+        )
+
+        self.assertRedirects(profile_response, reverse("accounts:farmer_shop_center"))
+        consumer.refresh_from_db()
+        self.assertEqual(consumer.pk, original_user_id)
+        self.assertEqual(User.objects.filter(username="existing-buyer").count(), 1)
+        self.assertEqual(consumer.role, User.Roles.FARMER)
+        self.assertTrue(consumer.can_buy)
+        self.assertTrue(consumer.check_password("StrongPass123!"))
+        self.assertEqual(consumer.farmer_profile.farm_name, "Existing buyer shop")
+        self.assertEqual(
+            consumer.farmer_profile.verification_status,
+            FarmerProfile.VerificationStatus.PENDING,
+        )

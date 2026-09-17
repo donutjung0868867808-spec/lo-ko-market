@@ -198,10 +198,28 @@ def consumer_signup(request):
 
 
 def farmer_signup(request):
-    return render(request, "accounts/signup_farmer_intro.html")
+    if request.user.is_authenticated:
+        if request.user.is_farmer:
+            return redirect("accounts:farmer_shop_center")
+        if not request.user.is_consumer:
+            messages.error(request, "บัญชีนี้ไม่สามารถสมัครเป็นผู้ขายได้")
+            return redirect("accounts:dashboard")
+    return render(
+        request,
+        "accounts/signup_farmer_intro.html",
+        {"upgrade_existing_account": request.user.is_authenticated},
+    )
 
 
 def farmer_signup_create(request):
+    if request.user.is_authenticated:
+        if request.user.is_farmer:
+            return redirect("accounts:farmer_shop_center")
+        if request.user.is_consumer:
+            return redirect("accounts:farmer_signup_profile")
+        messages.error(request, "บัญชีนี้ไม่สามารถสมัครเป็นผู้ขายได้")
+        return redirect("accounts:dashboard")
+
     if request.method == "POST":
         form = FarmerSignupForm(request.POST)
         if form.is_valid():
@@ -221,42 +239,62 @@ def farmer_signup_create(request):
 
 
 def farmer_signup_profile(request):
-    account_data = request.session.get("farmer_signup_account")
-    if not account_data:
+    upgrading_user = None
+    if request.user.is_authenticated:
+        if request.user.is_farmer:
+            return redirect("accounts:farmer_shop_center")
+        if not request.user.is_consumer:
+            messages.error(request, "บัญชีนี้ไม่สามารถสมัครเป็นผู้ขายได้")
+            return redirect("accounts:dashboard")
+        upgrading_user = request.user
+
+    account_data = request.session.get("farmer_signup_account") if not upgrading_user else None
+    if not upgrading_user and not account_data:
         return redirect("accounts:farmer_signup_create")
 
+    existing_profile = getattr(upgrading_user, "farmer_profile", None) if upgrading_user else None
     if request.method == "POST":
-        profile_form = FarmerProfileForm(request.POST, request.FILES)
+        profile_form = FarmerProfileForm(request.POST, request.FILES, instance=existing_profile)
         if profile_form.is_valid():
-            if User.objects.filter(username=account_data["username"]).exists() or User.objects.filter(
-                email__iexact=account_data["email"]
-            ).exists():
+            if not upgrading_user and (
+                User.objects.filter(username=account_data["username"]).exists()
+                or User.objects.filter(email__iexact=account_data["email"]).exists()
+            ):
                 request.session.pop("farmer_signup_account", None)
                 request.session.modified = True
                 messages.error(request, "ชื่อผู้ใช้หรืออีเมลนี้ถูกใช้งานแล้ว กรุณาสมัครใหม่")
                 return redirect("accounts:farmer_signup_create")
 
             with transaction.atomic():
-                accepted_at = timezone.now()
-                first_name, last_name = split_display_name(account_data["display_name"])
-                user = User(
-                    username=account_data["username"],
-                    display_name=account_data["username"],
-                    first_name=first_name,
-                    last_name=last_name,
-                    email=account_data["email"],
-                    phone=account_data["phone"],
-                    password=account_data["password_hash"],
-                    role=User.Roles.FARMER,
-                    terms_accepted_at=accepted_at,
-                    privacy_accepted_at=accepted_at,
-                    terms_version=settings.TERMS_VERSION,
-                    privacy_version=settings.PRIVACY_VERSION,
-                )
-                user.save()
+                if upgrading_user:
+                    user = upgrading_user
+                    user.role = User.Roles.FARMER
+                    user.save(update_fields=["role"])
+                else:
+                    accepted_at = timezone.now()
+                    first_name, last_name = split_display_name(account_data["display_name"])
+                    user = User(
+                        username=account_data["username"],
+                        display_name=account_data["username"],
+                        first_name=first_name,
+                        last_name=last_name,
+                        email=account_data["email"],
+                        phone=account_data["phone"],
+                        password=account_data["password_hash"],
+                        role=User.Roles.FARMER,
+                        terms_accepted_at=accepted_at,
+                        privacy_accepted_at=accepted_at,
+                        terms_version=settings.TERMS_VERSION,
+                        privacy_version=settings.PRIVACY_VERSION,
+                    )
+                    user.save()
                 profile = profile_form.save(commit=False)
                 profile.user = user
                 profile.save()
+
+            if upgrading_user:
+                messages.success(request, "ส่งข้อมูลสมัครผู้ขายแล้ว บัญชีเดิมของคุณยังใช้ซื้อสินค้าได้ตามปกติ")
+                return redirect("accounts:farmer_shop_center")
 
             request.session.pop("farmer_signup_account", None)
             request.session.modified = True
@@ -264,9 +302,14 @@ def farmer_signup_profile(request):
             messages.success(request, "สมัครบัญชีเกษตรกรเรียบร้อย กรุณาเข้าสู่ระบบเพื่อรอการยืนยัน")
             return redirect("login")
     else:
-        profile_form = FarmerProfileForm(initial={"farm_name": account_data["username"]})
+        initial_name = upgrading_user.username if upgrading_user else account_data["username"]
+        profile_form = FarmerProfileForm(instance=existing_profile, initial={"farm_name": initial_name})
 
-    return render(request, "accounts/signup_farmer_profile.html", {"profile_form": profile_form})
+    return render(
+        request,
+        "accounts/signup_farmer_profile.html",
+        {"profile_form": profile_form, "upgrade_existing_account": bool(upgrading_user)},
+    )
 
 @login_required
 def profile(request):
@@ -1504,7 +1547,7 @@ def conversation_start(request, product_id):
     if product.seller_id == request.user.id:
         messages.info(request, "นี่คือสินค้าของคุณ")
         return redirect(product)
-    if not request.user.is_consumer:
+    if not request.user.can_buy:
         messages.error(request, "การเริ่มแชทจากหน้าสินค้าเปิดให้บัญชีผู้บริโภค")
         return redirect(product)
 
@@ -1531,7 +1574,7 @@ def conversation_start_seller(request, seller_id):
     if seller.pk == request.user.pk:
         messages.info(request, "นี่คือร้านค้าของคุณ")
         return redirect("catalog:seller_store", seller_id=seller.pk)
-    if not request.user.is_consumer:
+    if not request.user.can_buy:
         messages.error(request, "การเริ่มแชทกับร้านค้าเปิดให้บัญชีผู้บริโภค")
         return redirect("catalog:seller_store", seller_id=seller.pk)
 

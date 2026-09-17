@@ -1,16 +1,37 @@
 from decimal import Decimal
 
 from django.conf import settings
-from django.core.validators import FileExtensionValidator, MaxValueValidator, MinValueValidator
+from django.core.exceptions import ValidationError
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.db.models.fields.files import FieldFile
 from django.urls import reverse
 from django.utils import timezone
+from PIL import Image, UnidentifiedImageError
 
 
 def validate_image_size(upload):
     if upload and upload.size > settings.MAX_UPLOAD_SIZE:
-        from django.core.exceptions import ValidationError
         raise ValidationError("รูปภาพมีขนาดใหญ่เกินกำหนด")
+
+
+def validate_image_file(upload):
+    """Allow supported image bytes even when the browser provides no extension."""
+    if not upload or isinstance(upload, FieldFile):
+        return
+
+    position = upload.tell() if hasattr(upload, "tell") else 0
+    try:
+        upload.seek(0)
+        image = Image.open(upload)
+        image.verify()
+        if image.format not in {"JPEG", "PNG", "WEBP"}:
+            raise ValidationError("รองรับเฉพาะรูป JPG, PNG และ WEBP")
+    except (UnidentifiedImageError, OSError, SyntaxError) as exc:
+        raise ValidationError("ไฟล์ที่เลือกไม่ใช่รูปภาพที่ใช้งานได้") from exc
+    finally:
+        if hasattr(upload, "seek"):
+            upload.seek(position)
 
 
 class ProductReview(models.Model):
@@ -54,7 +75,7 @@ class Category(models.Model):
         "รูปหมวดหมู่",
         upload_to="categories/",
         blank=True,
-        validators=[FileExtensionValidator(["jpg", "jpeg", "png", "webp"]), validate_image_size],
+        validators=[validate_image_file, validate_image_size],
     )
     is_active = models.BooleanField(default=True)
 
@@ -118,9 +139,11 @@ class Product(models.Model):
     last_low_stock_notified_at = models.DateTimeField(null=True, blank=True)
     weight_grams = models.PositiveIntegerField(null=True, blank=True)
     image = models.FileField(
+        "รูปภาพหลัก",
         upload_to="products/",
         blank=True,
-        validators=[FileExtensionValidator(["jpg", "jpeg", "png", "webp"]), validate_image_size],
+        validators=[validate_image_file, validate_image_size],
+        help_text="เลือกรูป JPG, PNG หรือ WEBP ได้ แม้ชื่อไฟล์ไม่มีนามสกุล",
     )
     harvest_date = models.DateField(null=True, blank=True)
     expiry_date = models.DateField(null=True, blank=True)
@@ -216,8 +239,9 @@ class Product(models.Model):
 class ProductImage(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="images")
     image = models.FileField(
+        "รูปสินค้าเพิ่มเติม",
         upload_to="products/gallery/%Y/%m/",
-        validators=[FileExtensionValidator(["jpg", "jpeg", "png", "webp"]), validate_image_size],
+        validators=[validate_image_file, validate_image_size],
     )
     alt_text = models.CharField(max_length=180, blank=True)
     sort_order = models.PositiveSmallIntegerField(default=0)
