@@ -84,6 +84,36 @@ class AccountCenterTests(TestCase):
         self.assertContains(farmer_page, reverse("accounts:farmer_shop_center"))
         self.assertContains(farmer_page, "เพิ่มสินค้า")
         self.assertContains(farmer_page, reverse("catalog:product_create"))
+        self.assertContains(farmer_page, "สลับเป็นผู้ซื้อ")
+
+    def test_farmer_can_switch_between_buyer_and_seller_modes(self):
+        farmer = User.objects.create_user(
+            username="mode-switcher",
+            password="pass12345",
+            role=User.Roles.FARMER,
+        )
+        self.client.force_login(farmer)
+
+        buyer_response = self.client.post(
+            reverse("accounts:switch_market_mode", args=["buyer"])
+        )
+        self.assertRedirects(buyer_response, reverse("catalog:product_list"))
+
+        buyer_page = self.client.get(reverse("catalog:product_list"))
+        self.assertContains(buyer_page, "โหมดผู้ซื้อ")
+        self.assertContains(buyer_page, "สลับเป็นผู้ขาย")
+        self.assertNotContains(buyer_page, "หน้าร้านค้าของฉัน")
+        self.assertNotContains(buyer_page, "เพิ่มสินค้า")
+
+        seller_response = self.client.post(
+            reverse("accounts:switch_market_mode", args=["seller"])
+        )
+        self.assertRedirects(seller_response, reverse("accounts:farmer_shop_center"))
+
+        seller_page = self.client.get(reverse("catalog:product_list"))
+        self.assertContains(seller_page, "สลับเป็นผู้ซื้อ")
+        self.assertContains(seller_page, "หน้าร้านค้าของฉัน")
+        self.assertContains(seller_page, "เพิ่มสินค้า")
 
     def test_account_sidebar_links_consumer_to_seller_signup_and_farmer_to_shop(self):
         consumer_page = self.client.get(reverse("accounts:account_history"))
@@ -100,6 +130,9 @@ class AccountCenterTests(TestCase):
         farmer_page = self.client.get(reverse("accounts:account_history"))
         self.assertContains(farmer_page, "ร้านค้าของฉัน")
         self.assertContains(farmer_page, reverse("accounts:farmer_shop_center"))
+        self.assertContains(farmer_page, "สลับเป็นผู้ซื้อ")
+        self.assertContains(farmer_page, reverse("catalog:product_list"))
+        self.assertContains(farmer_page, 'data-lucide="shopping-bag"')
 
     def test_staff_center_menu_is_visible_only_to_community_staff(self):
         consumer_page = self.client.get(reverse("catalog:product_list"))

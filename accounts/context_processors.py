@@ -7,12 +7,19 @@ def notification_summary(request):
             "unread_notification_count": 0,
             "admin_support_chat_count": 0,
             "seller_support_chat_count": 0,
+            "active_market_mode": "seller",
         }
 
     context = {
         "unread_notification_count": request.user.notifications.filter(is_read=False).count(),
         "admin_support_chat_count": 0,
         "seller_support_chat_count": 0,
+        "active_market_mode": (
+            "buyer"
+            if request.user.is_farmer
+            and request.session.get("active_market_mode") == "buyer"
+            else "seller"
+        ),
     }
     from .models import SupportTicket
 

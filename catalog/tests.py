@@ -235,6 +235,12 @@ class ProductCatalogTests(TestCase):
         self.assertContains(response, northern_product.name)
         self.assertNotContains(response, "กาแฟตรัง")
         self.assertContains(response, "จังหวัด เชียงใหม่")
+
+    def test_province_search_suggestions_include_active_community_provinces(self):
+        response = self.client.get(reverse("catalog:product_list"))
+
+        self.assertContains(response, 'data-province-autocomplete')
+        self.assertContains(response, 'data-province-value="เชียงใหม่"')
 class ProductReviewTests(TestCase):
     def setUp(self):
         self.community = Community.objects.create(

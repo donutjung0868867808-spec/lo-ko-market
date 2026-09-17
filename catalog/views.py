@@ -74,9 +74,6 @@ def product_list(request):
         "products": filtered_products(request),
         "categories": categories,
         "communities": communities,
-        "provinces": communities.exclude(province="").values_list(
-            "province", flat=True
-        ).distinct().order_by("province"),
     }
     return render(request, "catalog/product_list.html", context)
 

@@ -13,6 +13,7 @@ urlpatterns = [
     path("verify-email/<uidb64>/<token>/", views.verify_email, name="verify_email"),
     path("resend-verification/", views.resend_verification, name="resend_verification"),
     path("dashboard/", views.dashboard, name="dashboard"),
+    path("mode/<str:mode>/", views.switch_market_mode, name="switch_market_mode"),
     path("staff/", views.staff_dashboard, name="staff_dashboard"),
     path("profile/", views.profile, name="profile"),
     path("shop-center/", views.farmer_shop_center, name="farmer_shop_center"),

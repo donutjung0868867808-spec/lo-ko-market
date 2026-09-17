@@ -46,13 +46,16 @@
       </a>
 
       <form method="get" action="{% url 'catalog:product_list' %}" class="order-3 col-span-1 grid w-full grid-cols-[minmax(105px,0.72fr)_minmax(0,1.6fr)] gap-2 lg:order-none lg:grid-cols-[180px_minmax(280px,1fr)]">
-        <div class="relative min-w-0">
+        <div class="relative min-w-0" data-province-autocomplete>
           <label class="sr-only" for="province-search">ค้นหาจังหวัด</label>
           <i data-lucide="map-pin" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-leaf" aria-hidden="true"></i>
-          <input id="province-search" class="h-10 w-full rounded-md border-0 bg-white pl-9 pr-3 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-rice" type="search" name="province" value="{{ request.GET.province }}" placeholder="ค้นหาจังหวัด" list="province-options" autocomplete="off">
-          <datalist id="province-options">
-            {% for province in provinces %}<option value="{{ province }}">{% endfor %}
-          </datalist>
+          <input id="province-search" class="h-10 w-full rounded-md border-0 bg-white pl-9 pr-3 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-rice" type="search" name="province" value="{{ request.GET.province }}" placeholder="ค้นหาจังหวัด" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="province-suggestions">
+          <div id="province-suggestions" class="absolute left-0 right-0 top-[calc(100%+0.35rem)] z-50 hidden max-h-56 overflow-y-auto rounded-md border border-stone-200 bg-white py-1 text-sm text-slate-800 shadow-lg" role="listbox" aria-label="รายการจังหวัด">
+            {% for province in search_provinces %}
+              <button type="button" class="block w-full px-3 py-2 text-left hover:bg-emerald-50 hover:text-leaf" role="option" data-province-option data-province-value="{{ province }}">{{ province }}</button>
+            {% endfor %}
+            <p class="hidden px-3 py-2 text-slate-500" data-province-empty>ไม่พบจังหวัดที่ตรงกัน</p>
+          </div>
         </div>
         <div class="relative min-w-0">
           <label class="sr-only" for="global-product-search">ค้นหาสินค้า</label>
@@ -110,20 +113,37 @@
             {% if user.is_authenticated %}
               <div class="border-b border-stone-100 px-4 py-3">
                 <p class="truncate font-semibold">{{ user.username }}</p>
-                <p class="mt-0.5 text-xs text-slate-500">{{ user.get_role_display }}</p>
+                <p class="mt-0.5 text-xs text-slate-500">{% if user.is_farmer and active_market_mode == "buyer" %}โหมดผู้ซื้อ{% else %}{{ user.get_role_display }}{% endif %}</p>
               </div>
               <a class="block px-4 py-3 font-medium text-slate-800 hover:bg-stone-50" href="{% url 'accounts:account_history' %}">บัญชีของฉัน</a>
+              {% if user.is_farmer %}
+                {% if active_market_mode == "buyer" %}
+                  {% url "accounts:switch_market_mode" "seller" as switch_mode_url %}
+                {% else %}
+                  {% url "accounts:switch_market_mode" "buyer" as switch_mode_url %}
+                {% endif %}
+                <form method="post" action="{{ switch_mode_url }}">
+                  {% csrf_token %}
+                  <button type="submit" class="flex w-full items-center gap-2 px-4 py-3 text-left font-medium text-leaf hover:bg-emerald-50">
+                    {% if active_market_mode == "buyer" %}
+                      <i data-lucide="store" class="h-4 w-4" aria-hidden="true"></i>สลับเป็นผู้ขาย
+                    {% else %}
+                      <i data-lucide="shopping-bag" class="h-4 w-4" aria-hidden="true"></i>สลับเป็นผู้ซื้อ
+                    {% endif %}
+                  </button>
+                </form>
+              {% endif %}
               {% if user.is_cooperative_staff %}
                 <a class="block px-4 py-3 font-medium text-leaf hover:bg-emerald-50" href="{% url 'accounts:staff_dashboard' %}">ศูนย์เจ้าหน้าที่วิสาหกิจชุมชน</a>
               {% endif %}
-              {% if user.is_farmer %}
+              {% if user.is_farmer and active_market_mode != "buyer" %}
                 <a class="block px-4 py-3 font-medium text-slate-800 hover:bg-stone-50" href="{% url 'catalog:seller_store' user.pk %}">หน้าร้านค้าของฉัน</a>
                 <a class="flex items-center gap-2 px-4 py-3 font-medium text-leaf hover:bg-emerald-50" href="{% url 'accounts:farmer_shop_center' %}"><i data-lucide="store" class="h-4 w-4" aria-hidden="true"></i>ร้านค้าของฉัน</a>
               {% elif user.is_consumer %}
                 <a class="flex items-center gap-2 px-4 py-3 font-medium text-leaf hover:bg-emerald-50" href="{% url 'accounts:farmer_signup' %}"><i data-lucide="store" class="h-4 w-4" aria-hidden="true"></i>สมัครเป็นผู้ขาย</a>
               {% endif %}
               <a class="block px-4 py-3 font-medium text-slate-800 hover:bg-stone-50" href="{% url 'orders:order_list' %}">การซื้อของฉัน</a>
-              {% if user.is_farmer %}
+              {% if user.is_farmer and active_market_mode != "buyer" %}
                 <a class="block px-4 py-3 font-medium text-leaf hover:bg-emerald-50" href="{% url 'catalog:product_create' %}">เพิ่มสินค้า</a>
               {% endif %}
               {% if not request.admin_preview %}
@@ -196,6 +216,91 @@
     if (window.lucide) {
       window.lucide.createIcons();
     }
+
+    document.querySelectorAll("[data-province-autocomplete]").forEach(function (container) {
+      const input = container.querySelector("input");
+      const suggestions = container.querySelector("#province-suggestions");
+      const options = Array.from(container.querySelectorAll("[data-province-option]"));
+      const emptyMessage = container.querySelector("[data-province-empty]");
+      let activeIndex = -1;
+
+      function updateSuggestions() {
+        const query = input.value.trim().toLocaleLowerCase();
+        let visibleCount = 0;
+
+        options.forEach(function (option) {
+          const matches = !query || option.dataset.provinceValue.toLocaleLowerCase().includes(query);
+          option.hidden = !matches;
+          if (matches) visibleCount += 1;
+        });
+
+        emptyMessage.hidden = visibleCount > 0;
+        suggestions.hidden = false;
+        input.setAttribute("aria-expanded", "true");
+        activeIndex = -1;
+      }
+
+      function closeSuggestions() {
+        suggestions.hidden = true;
+        input.setAttribute("aria-expanded", "false");
+        activeIndex = -1;
+        options.forEach(function (option) {
+          option.removeAttribute("aria-selected");
+        });
+      }
+
+      function selectOption(option) {
+        input.value = option.dataset.provinceValue;
+        closeSuggestions();
+        input.focus();
+      }
+
+      function highlightOption(index) {
+        const visibleOptions = options.filter(function (option) { return !option.hidden; });
+        if (!visibleOptions.length) return;
+
+        activeIndex = (index + visibleOptions.length) % visibleOptions.length;
+        visibleOptions.forEach(function (option, optionIndex) {
+          option.setAttribute("aria-selected", String(optionIndex === activeIndex));
+          option.classList.toggle("bg-emerald-50", optionIndex === activeIndex);
+          option.classList.toggle("text-leaf", optionIndex === activeIndex);
+        });
+        visibleOptions[activeIndex].scrollIntoView({ block: "nearest" });
+      }
+
+      input.addEventListener("focus", updateSuggestions);
+      input.addEventListener("input", updateSuggestions);
+      input.addEventListener("keydown", function (event) {
+        const visibleOptions = options.filter(function (option) { return !option.hidden; });
+        if (event.key === "ArrowDown") {
+          event.preventDefault();
+          const nextIndex = activeIndex + 1;
+          updateSuggestions();
+          highlightOption(nextIndex);
+        } else if (event.key === "ArrowUp") {
+          event.preventDefault();
+          const previousIndex = activeIndex - 1;
+          updateSuggestions();
+          highlightOption(previousIndex);
+        } else if (event.key === "Enter" && activeIndex >= 0 && visibleOptions[activeIndex]) {
+          event.preventDefault();
+          selectOption(visibleOptions[activeIndex]);
+        } else if (event.key === "Escape") {
+          closeSuggestions();
+        }
+      });
+
+      options.forEach(function (option) {
+        option.addEventListener("mousedown", function (event) {
+          event.preventDefault();
+          selectOption(option);
+        });
+      });
+
+      document.addEventListener("click", function (event) {
+        if (!container.contains(event.target)) closeSuggestions();
+      });
+    });
 
     document.addEventListener("click", function (event) {
       const toggle = event.target.closest("[data-password-toggle]");

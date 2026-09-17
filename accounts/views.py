@@ -897,6 +897,25 @@ def dashboard(request):
     return render(request, "accounts/dashboard.html", context)
 
 
+@login_required
+@require_POST
+def switch_market_mode(request, mode):
+    if not request.user.is_farmer:
+        raise PermissionDenied
+
+    if mode == "buyer":
+        request.session["active_market_mode"] = "buyer"
+        messages.success(request, "สลับเป็นโหมดผู้ซื้อแล้ว")
+        return redirect("catalog:product_list")
+
+    if mode == "seller":
+        request.session["active_market_mode"] = "seller"
+        messages.success(request, "สลับเป็นโหมดผู้ขายแล้ว")
+        return redirect("accounts:farmer_shop_center")
+
+    raise Http404
+
+
 @role_required(User.Roles.COOPERATIVE_STAFF)
 def farmer_verification(request, profile_id, action):
     profile = get_object_or_404(FarmerProfile, pk=profile_id)
