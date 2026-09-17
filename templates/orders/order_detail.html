@@ -40,7 +40,8 @@
         <div class="border-b border-stone-200 px-5 py-4"><h2 class="font-semibold">รายการสินค้า</h2></div>
         <div class="divide-y divide-stone-100">
           {% for item in order.items.all %}
-            <div class="grid gap-2 px-5 py-4 sm:grid-cols-[1fr_120px_120px]">
+            <div class="grid gap-4 px-5 py-4 sm:grid-cols-[88px_minmax(0,1fr)_120px_120px]">
+              <div class="grid h-[88px] w-[88px] place-items-center overflow-hidden rounded-md border border-emerald-900/15 bg-emerald-50 text-leaf">{% if item.product.image %}<img src="{{ item.product.image.url }}" alt="{{ item.product_name }}" class="h-full w-full object-cover" loading="lazy">{% else %}<i data-lucide="package" class="h-7 w-7" aria-hidden="true"></i><span class="sr-only">ไม่มีรูปสินค้า</span>{% endif %}</div>
               <div><p class="font-medium">{{ item.product_name }}</p><p class="text-sm text-slate-500">{{ item.quantity|floatformat:'-2' }} {{ item.unit }}</p></div>
               <p>{{ item.unit_price|floatformat:2 }} บาท</p><p class="font-semibold">{{ item.line_total|floatformat:2 }} บาท</p>
             </div>

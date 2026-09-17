@@ -97,6 +97,15 @@ class ProductCatalogTests(TestCase):
 
         self.assertContains(response, "/media/categories/category-cover.jpg")
 
+    def test_category_accepts_an_image_without_a_filename_extension(self):
+        category = Category(
+            name="extensionless category",
+            slug="extensionless-category",
+            image=SimpleUploadedFile("download", TEST_IMAGE_BYTES),
+        )
+
+        category.full_clean()
+
     def test_farmer_can_add_multiple_gallery_images_when_creating_a_product(self):
         self.client.force_login(self.farmer)
         files = [

@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django import forms
 from django.db.models import Prefetch
 from django.utils.html import format_html
 from django.utils import timezone
@@ -15,8 +16,25 @@ from .models import (
     StockMovement,
 )
 
+
+class CategoryAdminForm(forms.ModelForm):
+    class Meta:
+        model = Category
+        fields = "__all__"
+        widgets = {
+            "image": forms.ClearableFileInput(
+                attrs={"data-category-image-input": "true"}
+            ),
+        }
+
+    class Media:
+        css = {"all": ("admin/category-image-upload.css",)}
+        js = ("admin/category-image-upload.js",)
+
+
 @admin.register(Category)
 class CategoryAdmin(OwnerOnlyAdminMixin, admin.ModelAdmin):
+    form = CategoryAdminForm
     list_display = ("category_thumbnail", "name", "slug", "is_active")
     list_filter = ("is_active",)
     search_fields = ("name",)

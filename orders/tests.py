@@ -168,6 +168,99 @@ class CartWorkflowTests(TestCase):
         self.assertNotContains(response, "SALE-AS-SELLER")
         self.assertContains(response, "การซื้อของฉัน")
 
+    def test_buyer_order_history_shows_product_image(self):
+        self.product.image = "products/order-history-image.jpg"
+        self.product.save(update_fields=["image"])
+        order = Order.objects.create(
+            buyer=self.buyer,
+            seller=self.seller,
+            community=self.community,
+            shipping_name="Buyer",
+            shipping_phone="0800000000",
+            shipping_address="Buyer address",
+        )
+        OrderItem.objects.create(
+            order=order,
+            product=self.product,
+            product_name=self.product.name,
+            unit=self.product.unit,
+            quantity=Decimal("1.00"),
+            unit_price=self.product.price,
+        )
+        self.client.force_login(self.buyer)
+
+        response = self.client.get(reverse("orders:order_list"))
+
+        self.assertContains(response, self.product.image.url)
+        self.assertContains(response, self.product.name)
+        self.assertContains(
+            response,
+            self.seller.display_name or self.seller.username,
+        )
+        self.assertContains(response, order.reference)
+
+        detail_response = self.client.get(order.get_absolute_url())
+        self.assertContains(detail_response, self.product.image.url)
+
+    def test_buyer_order_history_can_expand_additional_products(self):
+        additional_product = Product.objects.create(
+            seller=self.seller,
+            community=self.community,
+            name="Additional product",
+            description="Second product in an order.",
+            price=Decimal("20.00"),
+            stock_quantity=Decimal("10.00"),
+            status=Product.Status.ACTIVE,
+        )
+        order = Order.objects.create(
+            buyer=self.buyer,
+            seller=self.seller,
+            community=self.community,
+            shipping_name="Buyer",
+            shipping_phone="0800000000",
+            shipping_address="Buyer address",
+        )
+        for product in (self.product, additional_product):
+            OrderItem.objects.create(
+                order=order,
+                product=product,
+                product_name=product.name,
+                unit=product.unit,
+                quantity=Decimal("1.00"),
+                unit_price=product.price,
+            )
+        self.client.force_login(self.buyer)
+
+        response = self.client.get(reverse("orders:order_list"))
+
+        self.assertContains(response, "ดูเพิ่มเติม")
+        self.assertContains(response, "สินค้ารวม 2 รายการ")
+        self.assertContains(response, additional_product.name)
+
+    def test_buyer_can_add_an_order_to_cart_again(self):
+        order = Order.objects.create(
+            buyer=self.buyer,
+            seller=self.seller,
+            community=self.community,
+            shipping_name="Buyer",
+            shipping_phone="0800000000",
+            shipping_address="Buyer address",
+        )
+        OrderItem.objects.create(
+            order=order,
+            product=self.product,
+            product_name=self.product.name,
+            unit=self.product.unit,
+            quantity=Decimal("2.00"),
+            unit_price=self.product.price,
+        )
+        self.client.force_login(self.buyer)
+
+        response = self.client.post(reverse("orders:order_reorder", args=[order.pk]))
+
+        self.assertRedirects(response, reverse("orders:cart"))
+        self.assertEqual(self.client.session["cart"][str(self.product.pk)], "2.00")
+
     def test_cart_does_not_store_one_hundredth_quantity(self):
         self.client.force_login(self.buyer)
 

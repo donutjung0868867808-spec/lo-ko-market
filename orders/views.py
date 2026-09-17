@@ -5,6 +5,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_POST
 
 from accounts.decorators import user_community
 from accounts.forms import ReportForm
@@ -173,6 +174,61 @@ def cart_add(request, product_id):
         messages.success(request, "เพิ่มสินค้าในตะกร้าแล้ว")
         return redirect("orders:cart")
     return redirect(product)
+
+
+@login_required
+@require_POST
+def order_reorder(request, pk):
+    order = get_object_or_404(
+        Order.objects.prefetch_related("items__product"),
+        pk=pk,
+        buyer=request.user,
+    )
+    if not request.user.can_buy and not request.user.is_owner:
+        messages.error(request, "บัญชีนี้ไม่สามารถสั่งซื้อสินค้าได้")
+        return redirect("orders:order_list")
+
+    cart = request.session.get(CART_SESSION_KEY, {})
+    added_count = 0
+    unavailable_count = 0
+
+    for item in order.items.all():
+        product = item.product
+        if (
+            product.status != Product.Status.ACTIVE
+            or product.seller_id == request.user.id
+            or available_quantity(product) <= 0
+        ):
+            unavailable_count += 1
+            continue
+
+        quantity = parse_quantity(
+            item.quantity,
+            default=product.minimum_order_quantity,
+            step=product.quantity_step,
+        )
+        quantity = max(quantity, product.minimum_order_quantity)
+        current_quantity = parse_quantity(
+            cart.get(str(product.pk)),
+            default=Decimal("0.00"),
+            step=product.quantity_step,
+        )
+        next_quantity = min(current_quantity + quantity, available_quantity(product))
+        if next_quantity <= current_quantity:
+            unavailable_count += 1
+            continue
+
+        cart[str(product.pk)] = str(next_quantity)
+        added_count += 1
+
+    request.session[CART_SESSION_KEY] = cart
+    request.session.modified = True
+
+    if added_count:
+        messages.success(request, f"เพิ่มสินค้า {added_count} รายการลงตะกร้าแล้ว")
+    if unavailable_count:
+        messages.warning(request, f"มีสินค้า {unavailable_count} รายการที่ไม่พร้อมสั่งซื้อ")
+    return redirect("orders:cart")
 
 
 @login_required
@@ -431,7 +487,7 @@ def order_list(request):
 def order_detail(request, pk):
     order = get_object_or_404(
         Order.objects.select_related("buyer", "seller", "community", "payment").prefetch_related(
-            "items", "status_history__changed_by", "payment__refunds"
+            "items__product", "status_history__changed_by", "payment__refunds"
         ),
         pk=pk,
     )

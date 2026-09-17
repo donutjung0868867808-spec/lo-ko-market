@@ -1,0 +1,55 @@
+.category-image-picker {
+  align-items: center;
+  background: #f0fdf4;
+  border: 2px dashed #6aa778;
+  border-radius: 6px;
+  color: #176526;
+  cursor: pointer;
+  display: flex;
+  gap: 12px;
+  margin: 8px 0;
+  max-width: 480px;
+  padding: 14px 16px;
+  text-align: left;
+  width: 100%;
+}
+
+.category-image-picker:hover,
+.category-image-picker.is-dragging {
+  background: #dcfce7;
+  border-color: #176526;
+}
+
+.category-image-picker-icon {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.category-image-picker strong,
+.category-image-picker small {
+  display: block;
+}
+
+.category-image-picker small {
+  color: #4b5563;
+  margin-top: 3px;
+}
+
+.category-image-preview {
+  background: #f8fafc;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  margin: 8px 0;
+  max-height: 180px;
+  max-width: 280px;
+  object-fit: contain;
+  padding: 4px;
+}
+
+.category-image-input {
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+  position: absolute;
+  width: 1px;
+}
