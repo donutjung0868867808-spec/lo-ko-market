@@ -10,10 +10,17 @@
   main.market-login > nav {
     display: none;
   }
+
+  .login-brand-logo {
+    height: 22rem;
+    width: 22rem;
+  }
 </style>
 {% endblock %}
 
 {% block main_class %}market-login flex min-h-screen w-full flex-1 items-center bg-white px-4 py-16 sm:px-10 sm:py-10 lg:px-16 xl:px-24{% endblock %}
+
+{% block flash_messages %}{% endblock %}
 
 {% block content %}
 <button
@@ -25,11 +32,21 @@
   <span>ย้อนกลับ</span>
 </button>
 <section class="mx-auto grid w-full max-w-7xl items-center gap-12 xl:grid-cols-[minmax(0,1fr)_460px] xl:gap-24">
-  <div class="hidden justify-center xl:flex" aria-hidden="true">
-    <img src="{% static 'images/market-logo.png' %}" alt="" class="h-72 w-72 object-contain">
+  <div class="hidden flex-col items-center justify-center gap-8 xl:flex">
+    <img src="{% static 'images/market-logo.png' %}" alt="" class="login-brand-logo object-contain">
+    {% if messages %}
+      <div class="w-full max-w-xl rounded-md border border-emerald-200 bg-emerald-50 px-5 py-4 text-base leading-7 text-emerald-950 shadow-sm" role="status">
+        {% for message in messages %}{{ message }}{% if not forloop.last %}<br>{% endif %}{% endfor %}
+      </div>
+    {% endif %}
   </div>
 
   <div class="w-full rounded-3xl border-2 border-leaf bg-white px-5 py-8 shadow-[0_12px_32px_rgba(23,33,29,0.05)] sm:rounded-[2.5rem] sm:px-14 sm:py-11">
+    {% if messages %}
+      <div class="mb-6 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm leading-6 text-emerald-950 xl:hidden" role="status">
+        {% for message in messages %}{{ message }}{% if not forloop.last %}<br>{% endif %}{% endfor %}
+      </div>
+    {% endif %}
     <h1 class="text-center text-2xl font-semibold text-stone-600">เข้าสู่ระบบ</h1>
     <p class="mt-5 text-base leading-7 text-stone-600">เข้าสู่ระบบสำหรับผู้บริโภค เกษตรกร หรือเจ้าหน้าที่ชุมชนด้วยบัญชีของคุณ</p>
 

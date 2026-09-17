@@ -88,7 +88,7 @@
         <p class="mt-2 text-sm text-slate-500">สั่งขั้นต่ำ {{ product.minimum_order_quantity|floatformat:"-2" }} {{ product.get_unit_display }} · เหลือ {{ product.stock_quantity|floatformat:"-2" }} {{ product.get_unit_display }}</p>
       </div>
 
-      {% if product.is_available %}
+      {% if product.is_available and user != product.seller %}
         <form id="product-cart-form" method="post" action="{% url 'orders:cart_add' product.id %}" class="mt-7">
           {% csrf_token %}
           <div class="flex flex-wrap items-center gap-4">
@@ -107,6 +107,8 @@
             <a id="buy-now-link" class="inline-flex min-h-12 items-center justify-center rounded-md bg-leaf px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-800" data-buy-url="{% url 'orders:checkout' product.id %}" href="{% url 'orders:checkout' product.id %}?quantity={{ product.minimum_order_quantity|floatformat:'-2' }}">ซื้อทันที</a>
           </div>
         </form>
+      {% elif user == product.seller %}
+        <div class="mt-7 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-leaf">สินค้านี้อยู่ในร้านค้าของคุณ</div>
       {% else %}
         <div class="mt-7 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">สินค้านี้ยังไม่พร้อมจำหน่าย</div>
       {% endif %}
@@ -147,7 +149,7 @@
           </div>
           <p class="mt-1 truncate text-sm text-slate-600">{{ product.community.name }}</p>
           <div class="mt-3 flex flex-wrap gap-2">
-            {% if user.is_authenticated and user != product.seller and user.is_consumer %}
+            {% if user.is_authenticated and user != product.seller and user.can_buy %}
               <form method="post" action="{% url 'accounts:conversation_start' product.id %}">{% csrf_token %}<button class="inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-leaf px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-800" type="submit"><i data-lucide="message-circle" class="h-4 w-4" aria-hidden="true"></i>แชทกับผู้ขาย</button></form>
             {% elif not user.is_authenticated %}
               <a class="inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-leaf px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-800" href="{% url 'login' %}?next={{ request.path|urlencode }}"><i data-lucide="message-circle" class="h-4 w-4" aria-hidden="true"></i>แชทกับผู้ขาย</a>
@@ -243,23 +245,40 @@
 <script>
   document.addEventListener("DOMContentLoaded", function () {
     const mainImage = document.getElementById("main-product-image");
-    const thumbnails = document.getElementById("product-thumbnails");
-    document.querySelectorAll("[data-gallery-thumb]").forEach(function (button) {
+    const galleryThumbs = Array.from(document.querySelectorAll("[data-gallery-thumb]"));
+
+    function selectGalleryThumb(button, shouldScroll) {
+      if (!mainImage || !button) return;
+      mainImage.src = button.dataset.gallerySrc;
+      mainImage.alt = button.dataset.galleryAlt;
+      galleryThumbs.forEach(function (thumb) {
+        thumb.classList.remove("border-2", "border-leaf");
+        thumb.classList.add("border", "border-stone-300");
+      });
+      button.classList.remove("border", "border-stone-300");
+      button.classList.add("border-2", "border-leaf");
+      if (shouldScroll) {
+        button.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+      }
+    }
+
+    galleryThumbs.forEach(function (button) {
       button.addEventListener("click", function () {
-        if (!mainImage) return;
-        mainImage.src = button.dataset.gallerySrc;
-        mainImage.alt = button.dataset.galleryAlt;
-        document.querySelectorAll("[data-gallery-thumb]").forEach(function (thumb) {
-          thumb.classList.remove("border-2", "border-leaf");
-          thumb.classList.add("border", "border-stone-300");
-        });
-        button.classList.remove("border", "border-stone-300");
-        button.classList.add("border-2", "border-leaf");
+        selectGalleryThumb(button, false);
       });
     });
     document.querySelectorAll("[data-gallery-direction]").forEach(function (button) {
       button.addEventListener("click", function () {
-        if (thumbnails) thumbnails.scrollBy({ left: Number(button.dataset.galleryDirection) * 184, behavior: "smooth" });
+        if (!galleryThumbs.length) return;
+        const currentIndex = Math.max(
+          0,
+          galleryThumbs.findIndex(function (thumb) {
+            return thumb.classList.contains("border-2");
+          }),
+        );
+        const direction = Number(button.dataset.galleryDirection);
+        const nextIndex = (currentIndex + direction + galleryThumbs.length) % galleryThumbs.length;
+        selectGalleryThumb(galleryThumbs[nextIndex], true);
       });
     });
 

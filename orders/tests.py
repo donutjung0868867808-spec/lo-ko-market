@@ -93,6 +93,81 @@ class CartWorkflowTests(TestCase):
         self.assertRedirects(response, reverse("orders:cart"))
         self.assertEqual(self.client.session["cart"][str(self.product.pk)], "2.00")
 
+    def test_seller_can_buy_from_another_store_with_the_same_account(self):
+        seller_buyer = User.objects.create_user(
+            username="seller-who-buys",
+            password="pass",
+            role=User.Roles.FARMER,
+        )
+        self.client.force_login(seller_buyer)
+
+        response = self.client.post(
+            reverse("orders:cart_add", args=[self.product.pk]),
+            {"quantity": "2"},
+        )
+
+        self.assertRedirects(response, reverse("orders:cart"))
+        self.assertEqual(self.client.session["cart"][str(self.product.pk)], "2.00")
+
+    def test_seller_cannot_add_own_product_to_cart(self):
+        self.client.force_login(self.seller)
+
+        response = self.client.post(
+            reverse("orders:cart_add", args=[self.product.pk]),
+            {"quantity": "2"},
+        )
+
+        self.assertRedirects(response, self.product.get_absolute_url())
+        self.assertNotIn(str(self.product.pk), self.client.session.get("cart", {}))
+
+    def test_seller_order_history_shows_purchases_instead_of_store_sales(self):
+        seller_buyer = User.objects.create_user(
+            username="seller-order-history",
+            password="pass",
+            role=User.Roles.FARMER,
+        )
+        purchase = Order.objects.create(
+            reference="PURCHASE-AS-BUYER",
+            buyer=seller_buyer,
+            seller=self.seller,
+            community=self.community,
+            shipping_name="Buyer",
+            shipping_phone="0800000000",
+            shipping_address="Buyer address",
+        )
+        OrderItem.objects.create(
+            order=purchase,
+            product=self.product,
+            product_name=self.product.name,
+            unit=self.product.unit,
+            quantity=Decimal("1.00"),
+            unit_price=self.product.price,
+        )
+        store_sale = Order.objects.create(
+            reference="SALE-AS-SELLER",
+            buyer=self.buyer,
+            seller=seller_buyer,
+            community=self.community,
+            shipping_name="Another buyer",
+            shipping_phone="0800000001",
+            shipping_address="Another address",
+        )
+        OrderItem.objects.create(
+            order=store_sale,
+            product=self.product,
+            product_name="Store product",
+            unit=Product.Unit.KG,
+            quantity=Decimal("1.00"),
+            unit_price=Decimal("20.00"),
+        )
+        self.client.force_login(seller_buyer)
+
+        response = self.client.get(reverse("orders:order_list"))
+
+        self.assertContains(response, "PURCHASE-AS-BUYER")
+        self.assertNotContains(response, "SALE-AS-SELLER")
+        self.assertContains(response, "การซื้อของฉัน")
+
     def test_cart_does_not_store_one_hundredth_quantity(self):
         self.client.force_login(self.buyer)
 

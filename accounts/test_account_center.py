@@ -85,6 +85,22 @@ class AccountCenterTests(TestCase):
         self.assertContains(farmer_page, "เพิ่มสินค้า")
         self.assertContains(farmer_page, reverse("catalog:product_create"))
 
+    def test_account_sidebar_links_consumer_to_seller_signup_and_farmer_to_shop(self):
+        consumer_page = self.client.get(reverse("accounts:account_history"))
+        self.assertContains(consumer_page, "สมัครเป็นผู้ขาย")
+        self.assertContains(consumer_page, reverse("accounts:farmer_signup"))
+
+        farmer = User.objects.create_user(
+            username="account-shop-shortcut",
+            password="pass12345",
+            role=User.Roles.FARMER,
+        )
+        self.client.force_login(farmer)
+
+        farmer_page = self.client.get(reverse("accounts:account_history"))
+        self.assertContains(farmer_page, "ร้านค้าของฉัน")
+        self.assertContains(farmer_page, reverse("accounts:farmer_shop_center"))
+
     def test_staff_center_menu_is_visible_only_to_community_staff(self):
         consumer_page = self.client.get(reverse("catalog:product_list"))
         self.assertNotContains(consumer_page, "ศูนย์เจ้าหน้าที่วิสาหกิจชุมชน")
@@ -109,6 +125,7 @@ class AccountCenterTests(TestCase):
         self.assertContains(staff_page, reverse("accounts:staff_dashboard"))
 
     def test_profile_saves_new_personal_fields(self):
+        original_display_name = self.user.display_name
         response = self.client.post(
             reverse("accounts:account_history"),
             {
@@ -124,7 +141,7 @@ class AccountCenterTests(TestCase):
 
         self.assertRedirects(response, reverse("accounts:account_history"))
         self.user.refresh_from_db()
-        self.assertEqual(self.user.display_name, "สมใจ ใจดี")
+        self.assertEqual(self.user.display_name, original_display_name)
         self.assertEqual(self.user.gender, User.Gender.FEMALE)
         self.assertEqual(self.user.birth_date.isoformat(), "1995-04-12")
 

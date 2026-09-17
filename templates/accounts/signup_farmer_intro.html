@@ -16,15 +16,19 @@
 {% block content %}
 <header class="flex h-[68px] items-center justify-between bg-leaf px-8 text-white sm:px-12">
   <a href="{% url 'catalog:product_list' %}" class="inline-flex h-14 w-14 items-center justify-center" aria-label="หน้าหลัก"><img src="{% static 'images/market-logo.png' %}" alt="โลโก้ตลาดเกษตรชุมชน" class="h-full w-full object-contain"></a>
-  <a href="{% url 'login' %}" class="inline-flex items-center gap-3 text-sm font-semibold hover:text-green-100"><i data-lucide="user-round" class="h-7 w-7" aria-hidden="true"></i><span>มีบัญชีแล้ว</span></a>
+  {% if upgrade_existing_account %}
+    <a href="{% url 'accounts:account_history' %}" class="inline-flex items-center gap-3 text-sm font-semibold hover:text-green-100"><i data-lucide="user-round" class="h-7 w-7" aria-hidden="true"></i><span>บัญชีของฉัน</span></a>
+  {% else %}
+    <a href="{% url 'login' %}" class="inline-flex items-center gap-3 text-sm font-semibold hover:text-green-100"><i data-lucide="user-round" class="h-7 w-7" aria-hidden="true"></i><span>มีบัญชีแล้ว</span></a>
+  {% endif %}
 </header>
 
 <section class="flex flex-1 items-center justify-center px-5 py-12 text-center">
   <div class="-mt-16">
     <img src="{% static 'images/market-logo.png' %}" alt="โลโก้ตลาดเกษตรชุมชน" class="mx-auto h-40 w-40 object-contain">
-    <h1 class="mt-8 text-2xl font-medium text-leaf">ยินดีต้อนรับผู้ขายใหม่</h1>
-    <p class="mt-2 text-base text-stone-600">คุณสามารถเริ่มต้นการขายสินค้าได้ เมื่อได้เตรียมบัญชีผู้ขาย</p>
-    <a href="{% url 'accounts:farmer_signup_create' %}" class="mt-5 inline-flex min-h-12 items-center justify-center rounded-lg bg-[#6fbd19] px-12 text-lg font-semibold text-white transition hover:bg-[#5da414]">สร้างบัญชีผู้ขาย</a>
+    <h1 class="mt-8 text-2xl font-medium text-leaf">{% if upgrade_existing_account %}เปิดร้านค้าด้วยบัญชีนี้{% else %}ยินดีต้อนรับผู้ขายใหม่{% endif %}</h1>
+    <p class="mt-2 text-base text-stone-600">{% if upgrade_existing_account %}ใช้บัญชีเดิมซื้อสินค้าและจัดการร้านค้าของคุณได้ในที่เดียว{% else %}คุณสามารถเริ่มต้นการขายสินค้าได้ เมื่อได้เตรียมบัญชีผู้ขาย{% endif %}</p>
+    <a href="{% if upgrade_existing_account %}{% url 'accounts:farmer_signup_profile' %}{% else %}{% url 'accounts:farmer_signup_create' %}{% endif %}" class="mt-5 inline-flex min-h-12 items-center justify-center rounded-lg bg-[#6fbd19] px-12 text-lg font-semibold text-white transition hover:bg-[#5da414]">{% if upgrade_existing_account %}สมัครเป็นผู้ขาย{% else %}สร้างบัญชีผู้ขาย{% endif %}</a>
   </div>
 </section>
 {% endblock %}

@@ -9,6 +9,13 @@ from django.template.loader import render_to_string
 from .models import AVATAR_MAX_SIZE, Community, DeliveryAddress, DirectMessage, FarmerProfile, NewsPost, Report, ReportMessage, SupportMessage, SupportTicket, User
 
 
+def split_display_name(display_name):
+    parts = display_name.strip().split(maxsplit=1)
+    first_name = parts[0] if parts else ""
+    last_name = parts[1] if len(parts) > 1 else ""
+    return first_name, last_name
+
+
 def validate_upload(upload):
     if upload and upload.size > settings.MAX_UPLOAD_SIZE:
         raise forms.ValidationError("ไฟล์มีขนาดใหญ่เกินกำหนด")
@@ -26,7 +33,7 @@ class StyledFormMixin:
         super().__init__(*args, **kwargs)
         placeholders = {
             "username": "ตัวอย่าง: farmer123",
-            "display_name": "ชื่อที่จะแสดงบนโปรไฟล์",
+            "display_name": "กรอกชื่อและนามสกุล",
             "email": "example@email.com",
             "phone": "0812345678",
             "password1": "รหัสผ่านอย่างน้อย 8 ตัว",
@@ -119,6 +126,9 @@ class BaseSignupForm(StyledFormMixin, UserCreationForm):
 
     def save(self, commit=True):
         user = super().save(commit=False)
+        full_name = self.cleaned_data["display_name"].strip()
+        user.display_name = user.username
+        user.first_name, user.last_name = split_display_name(full_name)
         accepted_at = timezone.now()
         user.terms_accepted_at = accepted_at
         user.privacy_accepted_at = accepted_at
@@ -216,9 +226,8 @@ class SellerStoreProfileForm(StyledFormMixin, forms.ModelForm):
 class UserProfileForm(StyledFormMixin, forms.ModelForm):
     class Meta:
         model = User
-        fields = ["avatar", "display_name", "email", "phone", "first_name", "last_name", "gender", "birth_date"]
+        fields = ["avatar", "email", "phone", "first_name", "last_name", "gender", "birth_date"]
         labels = {
-            "display_name": "ชื่อที่แสดง",
             "email": "อีเมล",
             "phone": "เบอร์โทรศัพท์",
             "first_name": "ชื่อ",
@@ -235,7 +244,7 @@ class UserProfileForm(StyledFormMixin, forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        for name in ["display_name", "email", "phone"]:
+        for name in ["email", "phone"]:
             self.fields[name].required = True
         self.fields["gender"].required = False
 

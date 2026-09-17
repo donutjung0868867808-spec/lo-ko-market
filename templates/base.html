@@ -100,7 +100,7 @@
         <details class="group relative">
           <summary class="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-md hover:bg-white/10" title="โปรไฟล์">
             {% if user.is_authenticated and user.avatar %}
-              <img src="{{ user.avatar.url }}" alt="รูปโปรไฟล์ของ {{ user.display_name|default:user.username }}" class="h-9 w-9 rounded-full border-2 border-white/80 object-cover shadow-sm">
+              <img src="{{ user.avatar.url }}" alt="รูปโปรไฟล์ของ {{ user.username }}" class="h-9 w-9 rounded-full border-2 border-white/80 object-cover shadow-sm">
             {% else %}
               <i data-lucide="user-round" class="h-7 w-7" aria-hidden="true"></i><span class="icon-fallback">โปรไฟล์</span>
             {% endif %}
@@ -109,7 +109,7 @@
           <div class="absolute right-0 mt-2 w-64 overflow-hidden rounded-md border border-stone-200 bg-white py-2 text-sm text-slate-800 shadow-xl">
             {% if user.is_authenticated %}
               <div class="border-b border-stone-100 px-4 py-3">
-                <p class="truncate font-semibold">{{ user.display_name|default:user.username }}</p>
+                <p class="truncate font-semibold">{{ user.username }}</p>
                 <p class="mt-0.5 text-xs text-slate-500">{{ user.get_role_display }}</p>
               </div>
               <a class="block px-4 py-3 font-medium text-slate-800 hover:bg-stone-50" href="{% url 'accounts:account_history' %}">บัญชีของฉัน</a>
@@ -118,7 +118,9 @@
               {% endif %}
               {% if user.is_farmer %}
                 <a class="block px-4 py-3 font-medium text-slate-800 hover:bg-stone-50" href="{% url 'catalog:seller_store' user.pk %}">หน้าร้านค้าของฉัน</a>
-                <a class="block px-4 py-3 font-medium text-slate-800 hover:bg-stone-50" href="{% url 'accounts:farmer_shop_center' %}">ร้านค้าของฉัน</a>
+                <a class="flex items-center gap-2 px-4 py-3 font-medium text-leaf hover:bg-emerald-50" href="{% url 'accounts:farmer_shop_center' %}"><i data-lucide="store" class="h-4 w-4" aria-hidden="true"></i>ร้านค้าของฉัน</a>
+              {% elif user.is_consumer %}
+                <a class="flex items-center gap-2 px-4 py-3 font-medium text-leaf hover:bg-emerald-50" href="{% url 'accounts:farmer_signup' %}"><i data-lucide="store" class="h-4 w-4" aria-hidden="true"></i>สมัครเป็นผู้ขาย</a>
               {% endif %}
               <a class="block px-4 py-3 font-medium text-slate-800 hover:bg-stone-50" href="{% url 'orders:order_list' %}">การซื้อของฉัน</a>
               {% if user.is_farmer %}
@@ -172,13 +174,15 @@
         </button>
       </nav>
     {% endif %}
-    {% if messages %}
-      <div class="mx-auto mb-5 w-full max-w-[1500px] space-y-2 px-4 pt-4 sm:px-6 lg:px-8">
-        {% for message in messages %}
-          <div class="rounded-md border border-stone-200 bg-white px-4 py-3 text-sm shadow-soft">{{ message }}</div>
-        {% endfor %}
-      </div>
-    {% endif %}
+    {% block flash_messages %}
+      {% if messages %}
+        <div class="mx-auto mb-5 w-full max-w-[1500px] space-y-2 px-4 pt-4 sm:px-6 lg:px-8">
+          {% for message in messages %}
+            <div class="rounded-md border border-stone-200 bg-white px-4 py-3 text-sm shadow-soft">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endblock %}
     {% block content %}{% endblock %}
   </main>
 

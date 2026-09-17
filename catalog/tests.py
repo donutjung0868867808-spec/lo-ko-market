@@ -1,4 +1,5 @@
 from decimal import Decimal
+from io import BytesIO
 import tempfile
 from unittest.mock import patch
 
@@ -6,13 +7,24 @@ from django.core.management import call_command
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
+from PIL import Image
 
 
 from accounts.models import Community, FarmerProfile, Notification, User
 
 from orders.models import Order, OrderItem
 
+from .forms import ProductForm
 from .models import Category, Product, ProductReview
+
+
+def test_image_bytes():
+    buffer = BytesIO()
+    Image.new("RGB", (1, 1), color="green").save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
+TEST_IMAGE_BYTES = test_image_bytes()
 
 
 class ProductCatalogTests(TestCase):
@@ -88,8 +100,8 @@ class ProductCatalogTests(TestCase):
     def test_farmer_can_add_multiple_gallery_images_when_creating_a_product(self):
         self.client.force_login(self.farmer)
         files = [
-            SimpleUploadedFile("vegetable-one.jpg", b"first image", content_type="image/jpeg"),
-            SimpleUploadedFile("vegetable-two.webp", b"second image", content_type="image/webp"),
+            SimpleUploadedFile("download", TEST_IMAGE_BYTES, content_type="image/png"),
+            SimpleUploadedFile("vegetable-two.webp", TEST_IMAGE_BYTES, content_type="image/webp"),
         ]
 
         with tempfile.TemporaryDirectory() as media_root, self.settings(MEDIA_ROOT=media_root):
@@ -124,8 +136,8 @@ class ProductCatalogTests(TestCase):
         )
         self.client.force_login(self.farmer)
         files = [
-            SimpleUploadedFile("management-one.jpg", b"first image", content_type="image/jpeg"),
-            SimpleUploadedFile("management-two.png", b"second image", content_type="image/png"),
+            SimpleUploadedFile("management-one.jpg", TEST_IMAGE_BYTES, content_type="image/jpeg"),
+            SimpleUploadedFile("management-two.png", TEST_IMAGE_BYTES, content_type="image/png"),
         ]
 
         with patch("catalog.views.ProductImage.objects.create") as create_image:
@@ -136,6 +148,32 @@ class ProductCatalogTests(TestCase):
 
         self.assertRedirects(response, product.get_absolute_url(), fetch_redirect_response=False)
         self.assertEqual(create_image.call_count, 2)
+
+    def test_existing_product_image_without_extension_can_be_saved(self):
+        product = Product.objects.create(
+            seller=self.farmer,
+            community=self.community,
+            name="product with extensionless image",
+            description="Existing image should not block changes.",
+            price=Decimal("35.00"),
+            stock_quantity=Decimal("10.00"),
+            image="products/download_qp0Inf",
+        )
+
+        form = ProductForm(
+            {
+                "name": product.name,
+                "description": product.description,
+                "unit": product.unit,
+                "price": product.price,
+                "stock_quantity": product.stock_quantity,
+                "minimum_order_quantity": product.minimum_order_quantity,
+                "low_stock_threshold": product.low_stock_threshold,
+            },
+            instance=product,
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
 
     def test_pending_product_is_hidden_from_public(self):
         Product.objects.create(

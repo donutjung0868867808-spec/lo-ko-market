@@ -9,6 +9,14 @@
   #id_gender label { display: inline-flex; align-items: center; gap: .45rem; cursor: pointer; }
   #id_gender input { width: 1rem; height: 1rem; accent-color: #2f6f1d; }
   #id_avatar { position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip: rect(0, 0, 0, 0) !important; white-space: nowrap !important; border: 0 !important; }
+  .avatar-cropper[hidden] { display: none; }
+  .avatar-cropper { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 1rem; background: rgba(15, 23, 42, .58); }
+  .avatar-cropper__dialog { width: min(100%, 31rem); border: 1px solid #bbd0be; border-radius: .5rem; background: #fff; padding: 1.25rem; box-shadow: 0 24px 60px rgba(15, 23, 42, .3); }
+  .avatar-cropper__canvas { display: block; width: min(100%, 22.5rem); aspect-ratio: 1; margin: 1rem auto; touch-action: none; cursor: grab; background: #eef4ef; }
+  .avatar-cropper__canvas:active { cursor: grabbing; }
+  .avatar-cropper__controls { display: grid; gap: .5rem; }
+  .avatar-cropper__range { width: 100%; accent-color: #2f6f1d; }
+  .avatar-cropper__actions { display: flex; justify-content: flex-end; gap: .75rem; margin-top: 1.25rem; }
 </style>
 {% endblock %}
 
@@ -52,11 +60,6 @@
         <div>
           <label class="block text-sm font-semibold text-slate-700">ชื่อผู้ใช้</label>
           <div class="mt-2 flex min-h-11 items-center rounded-md border border-stone-200 bg-stone-100 px-3 text-sm text-slate-600">{{ request.user.username }}</div>
-        </div>
-        <div>
-          <label class="block text-sm font-semibold text-slate-700" for="{{ user_form.display_name.id_for_label }}">{{ user_form.display_name.label }}</label>
-          <div class="mt-2">{{ user_form.display_name }}</div>
-          {% for error in user_form.display_name.errors %}<p class="mt-1 text-sm text-red-700">{{ error }}</p>{% endfor %}
         </div>
         <div>
           <label class="block text-sm font-semibold text-slate-700" for="{{ user_form.first_name.id_for_label }}">{{ user_form.first_name.label }}</label>
@@ -119,13 +122,97 @@
     </form>
   </div>
 </section>
+<div class="avatar-cropper" data-avatar-cropper hidden>
+  <section class="avatar-cropper__dialog" role="dialog" aria-modal="true" aria-labelledby="avatar-cropper-title">
+    <h2 id="avatar-cropper-title" class="text-lg font-semibold text-slate-950">จัดตำแหน่งรูปโปรไฟล์</h2>
+    <p class="mt-1 text-sm text-slate-600">ลากภาพเพื่อจัดมุม และปรับซูมตามต้องการ</p>
+    <canvas class="avatar-cropper__canvas" data-avatar-crop-canvas width="360" height="360" aria-label="พื้นที่จัดตำแหน่งรูปโปรไฟล์"></canvas>
+    <label class="avatar-cropper__controls text-sm font-semibold text-slate-700" for="avatar-crop-zoom">
+      ซูม
+      <input id="avatar-crop-zoom" class="avatar-cropper__range" data-avatar-crop-zoom type="range" min="100" max="300" value="100">
+    </label>
+    <div class="avatar-cropper__actions">
+      <button type="button" data-avatar-crop-cancel class="inline-flex h-10 items-center rounded-md border border-stone-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-stone-50">ยกเลิก</button>
+      <button type="button" data-avatar-crop-save class="inline-flex h-10 items-center rounded-md bg-leaf px-4 text-sm font-semibold text-white hover:bg-emerald-800">ใช้รูปนี้</button>
+    </div>
+  </section>
+</div>
 {% endblock %}
 {% block extra_scripts %}
 <script>
   (() => {
     const input = document.getElementById("id_avatar");
     const error = document.getElementById("avatar-client-error");
-    if (!input) return;
+    const cropper = document.querySelector("[data-avatar-cropper]");
+    const canvas = document.querySelector("[data-avatar-crop-canvas]");
+    const zoom = document.querySelector("[data-avatar-crop-zoom]");
+    const cancel = document.querySelector("[data-avatar-crop-cancel]");
+    const save = document.querySelector("[data-avatar-crop-save]");
+    if (!input || !cropper || !canvas || !zoom || !cancel || !save) return;
+
+    const context = canvas.getContext("2d");
+    const canvasSize = canvas.width;
+    let image = null;
+    let sourceFile = null;
+    let baseScale = 1;
+    let scale = 1;
+    let offsetX = 0;
+    let offsetY = 0;
+    let dragStart = null;
+
+    const closeCropper = () => {
+      cropper.hidden = true;
+      document.body.style.overflow = "";
+      dragStart = null;
+    };
+
+    const updatePreview = (file) => {
+      const previewUrl = URL.createObjectURL(file);
+      document.querySelectorAll("[data-avatar-preview]").forEach((preview) => {
+        preview.src = previewUrl;
+        preview.classList.remove("hidden");
+      });
+      document.querySelectorAll("[data-avatar-fallback]").forEach((fallback) => {
+        fallback.classList.add("hidden");
+        fallback.classList.remove("flex");
+      });
+    };
+
+    const constrainPosition = () => {
+      const imageWidth = image.naturalWidth * scale;
+      const imageHeight = image.naturalHeight * scale;
+      offsetX = Math.min(0, Math.max(canvasSize - imageWidth, offsetX));
+      offsetY = Math.min(0, Math.max(canvasSize - imageHeight, offsetY));
+    };
+
+    const renderCrop = () => {
+      if (!image) return;
+      constrainPosition();
+      context.clearRect(0, 0, canvasSize, canvasSize);
+      context.drawImage(
+        image,
+        offsetX,
+        offsetY,
+        image.naturalWidth * scale,
+        image.naturalHeight * scale,
+      );
+    };
+
+    const openCropper = (file) => {
+      sourceFile = file;
+      image = new Image();
+      image.onload = () => {
+        baseScale = Math.max(canvasSize / image.naturalWidth, canvasSize / image.naturalHeight);
+        scale = baseScale;
+        offsetX = (canvasSize - image.naturalWidth * scale) / 2;
+        offsetY = (canvasSize - image.naturalHeight * scale) / 2;
+        zoom.value = "100";
+        cropper.hidden = false;
+        document.body.style.overflow = "hidden";
+        renderCrop();
+      };
+      image.src = URL.createObjectURL(file);
+    };
 
     document.querySelectorAll("[data-avatar-trigger]").forEach((trigger) => {
       trigger.addEventListener("click", () => input.click());
@@ -152,15 +239,59 @@
 
       error.textContent = "";
       error.classList.add("hidden");
-      const previewUrl = URL.createObjectURL(file);
-      document.querySelectorAll("[data-avatar-preview]").forEach((preview) => {
-        preview.src = previewUrl;
-        preview.classList.remove("hidden");
-      });
-      document.querySelectorAll("[data-avatar-fallback]").forEach((fallback) => {
-        fallback.classList.add("hidden");
-        fallback.classList.remove("flex");
-      });
+      openCropper(file);
+    });
+
+    zoom.addEventListener("input", () => {
+      if (!image) return;
+      scale = baseScale * (Number(zoom.value) / 100);
+      renderCrop();
+    });
+
+    canvas.addEventListener("pointerdown", (event) => {
+      if (!image) return;
+      canvas.setPointerCapture(event.pointerId);
+      dragStart = { x: event.clientX, y: event.clientY, offsetX, offsetY };
+    });
+
+    canvas.addEventListener("pointermove", (event) => {
+      if (!dragStart) return;
+      const ratio = canvasSize / canvas.getBoundingClientRect().width;
+      offsetX = dragStart.offsetX + (event.clientX - dragStart.x) * ratio;
+      offsetY = dragStart.offsetY + (event.clientY - dragStart.y) * ratio;
+      renderCrop();
+    });
+
+    canvas.addEventListener("pointerup", () => {
+      dragStart = null;
+    });
+
+    cancel.addEventListener("click", () => {
+      input.value = "";
+      closeCropper();
+    });
+
+    save.addEventListener("click", () => {
+      canvas.toBlob((blob) => {
+        if (!blob || !sourceFile) return;
+        const croppedFile = new File(
+          [blob],
+          sourceFile.name.replace(/\.[^.]+$/, "") + ".jpg",
+          { type: "image/jpeg" },
+        );
+        if (croppedFile.size > 1024 * 1024) {
+          input.value = "";
+          error.textContent = "รูปที่จัดแล้วมีขนาดเกิน 1 MB กรุณาเลือกภาพอื่น";
+          error.classList.remove("hidden");
+          closeCropper();
+          return;
+        }
+        const transfer = new DataTransfer();
+        transfer.items.add(croppedFile);
+        input.files = transfer.files;
+        updatePreview(croppedFile);
+        closeCropper();
+      }, "image/jpeg", 0.9);
     });
   })();
 </script>

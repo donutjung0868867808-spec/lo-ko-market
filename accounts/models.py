@@ -94,6 +94,10 @@ class User(AbstractUser):
         return self.role == self.Roles.CONSUMER
 
     @property
+    def can_buy(self):
+        return self.role in {self.Roles.CONSUMER, self.Roles.FARMER}
+
+    @property
     def is_farmer(self):
         return self.role == self.Roles.FARMER
 
