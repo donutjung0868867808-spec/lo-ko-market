@@ -125,6 +125,14 @@ class ProductCatalogTests(TestCase):
         self.assertTrue(product.image)
         self.assertEqual(create_image.call_count, 1)
 
+    def test_product_form_explains_multiple_image_uploads(self):
+        self.client.force_login(self.farmer)
+
+        response = self.client.get(reverse("catalog:product_create"))
+
+        self.assertContains(response, "ลากรูปมาวางได้หลายรูป")
+        self.assertContains(response, 'data-product-gallery-input="true"')
+
     def test_farmer_can_add_multiple_images_from_product_management(self):
         product = Product.objects.create(
             seller=self.farmer,

@@ -38,6 +38,7 @@ class ProductForm(StyledFormMixin, forms.ModelForm):
     image = MultipleImageField(
         label="รูปสินค้า",
         required=False,
+        help_text="กดเลือกหรือลากรูปมาวางได้หลายรูป รูปแรกจะใช้เป็นรูปหลัก",
         validators=ProductImage._meta.get_field("image").validators,
         widget=MultipleImageInput(
             attrs={
@@ -129,6 +130,7 @@ class ProductForm(StyledFormMixin, forms.ModelForm):
 class ProductImageForm(StyledFormMixin, forms.Form):
     image = MultipleImageField(
         label="รูปสินค้า",
+        help_text="กดเลือกหรือลากรูปมาวางได้หลายรูป",
         validators=ProductImage._meta.get_field("image").validators,
         widget=MultipleImageInput(
             attrs={

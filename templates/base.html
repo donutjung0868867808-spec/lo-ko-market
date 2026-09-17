@@ -395,6 +395,10 @@
     document.querySelectorAll("[data-product-gallery-input]").forEach(function (input) {
       const preview = document.createElement("div");
       const clearButton = document.createElement("button");
+      const uploadArea = document.createElement("button");
+      const uploadIcon = document.createElement("i");
+      const uploadTitle = document.createElement("span");
+      const uploadHint = document.createElement("span");
       let previewUrls = [];
       let selectedFiles = [];
 
@@ -402,7 +406,20 @@
       clearButton.type = "button";
       clearButton.className = "mt-3 rounded-md border border-red-200 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50";
       clearButton.textContent = "ยกเลิกรูปที่เลือกทั้งหมด";
+      uploadArea.type = "button";
+      uploadArea.className = "mt-2 flex min-h-32 w-full flex-col items-center justify-center gap-1.5 rounded-md border-2 border-dashed border-emerald-700/35 bg-emerald-50/40 px-4 py-5 text-center text-leaf transition hover:border-leaf hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-200";
+      uploadIcon.setAttribute("data-lucide", "images");
+      uploadIcon.className = "h-7 w-7";
+      uploadIcon.setAttribute("aria-hidden", "true");
+      uploadTitle.className = "text-sm font-semibold";
+      uploadTitle.textContent = "เลือกรูปสินค้า";
+      uploadHint.className = "text-xs text-slate-500";
+      uploadHint.textContent = "ลากรูปมาวางที่นี่ หรือกดเพื่อเลือกหลายรูป";
+      uploadArea.append(uploadIcon, uploadTitle, uploadHint);
+      input.classList.add("sr-only");
+      input.insertAdjacentElement("beforebegin", uploadArea);
       input.insertAdjacentElement("beforebegin", preview);
+      if (window.lucide) window.lucide.createIcons();
 
       function clearPreviewUrls() {
         previewUrls.forEach(function (url) { URL.revokeObjectURL(url); });
@@ -417,6 +434,17 @@
         const transfer = new DataTransfer();
         selectedFiles.forEach(function (file) { transfer.items.add(file); });
         input.files = transfer.files;
+      }
+
+      function addFiles(files) {
+        Array.from(files || []).forEach(function (file) {
+          if (!file.type.startsWith("image/")) return;
+          if (!selectedFiles.some(function (selected) { return fileKey(selected) === fileKey(file); })) {
+            selectedFiles.push(file);
+          }
+        });
+        syncSelectedFiles();
+        renderPreviews();
       }
 
       function renderPreviews() {
@@ -436,7 +464,7 @@
           const removeButton = document.createElement("button");
           previewUrls.push(url);
           image.src = url;
-          image.alt = file.name;
+          image.alt = "ตัวอย่าง " + file.name;
           image.className = "h-20 w-20 rounded-md border border-stone-200 bg-white object-cover";
           item.className = "relative h-20 w-20";
           removeButton.type = "button";
@@ -456,13 +484,22 @@
       }
 
       input.addEventListener("change", function () {
-        Array.from(input.files || []).forEach(function (file) {
-          if (!selectedFiles.some(function (selected) { return fileKey(selected) === fileKey(file); })) {
-            selectedFiles.push(file);
-          }
-        });
-        syncSelectedFiles();
-        renderPreviews();
+        addFiles(input.files);
+      });
+      uploadArea.addEventListener("click", function () {
+        input.click();
+      });
+      uploadArea.addEventListener("dragover", function (event) {
+        event.preventDefault();
+        uploadArea.classList.add("border-leaf", "bg-emerald-100");
+      });
+      uploadArea.addEventListener("dragleave", function () {
+        uploadArea.classList.remove("border-leaf", "bg-emerald-100");
+      });
+      uploadArea.addEventListener("drop", function (event) {
+        event.preventDefault();
+        uploadArea.classList.remove("border-leaf", "bg-emerald-100");
+        addFiles(event.dataTransfer.files);
       });
       clearButton.addEventListener("click", function () {
         selectedFiles = [];
