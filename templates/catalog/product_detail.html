@@ -243,23 +243,40 @@
 <script>
   document.addEventListener("DOMContentLoaded", function () {
     const mainImage = document.getElementById("main-product-image");
-    const thumbnails = document.getElementById("product-thumbnails");
-    document.querySelectorAll("[data-gallery-thumb]").forEach(function (button) {
+    const galleryThumbs = Array.from(document.querySelectorAll("[data-gallery-thumb]"));
+
+    function selectGalleryThumb(button, shouldScroll) {
+      if (!mainImage || !button) return;
+      mainImage.src = button.dataset.gallerySrc;
+      mainImage.alt = button.dataset.galleryAlt;
+      galleryThumbs.forEach(function (thumb) {
+        thumb.classList.remove("border-2", "border-leaf");
+        thumb.classList.add("border", "border-stone-300");
+      });
+      button.classList.remove("border", "border-stone-300");
+      button.classList.add("border-2", "border-leaf");
+      if (shouldScroll) {
+        button.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+      }
+    }
+
+    galleryThumbs.forEach(function (button) {
       button.addEventListener("click", function () {
-        if (!mainImage) return;
-        mainImage.src = button.dataset.gallerySrc;
-        mainImage.alt = button.dataset.galleryAlt;
-        document.querySelectorAll("[data-gallery-thumb]").forEach(function (thumb) {
-          thumb.classList.remove("border-2", "border-leaf");
-          thumb.classList.add("border", "border-stone-300");
-        });
-        button.classList.remove("border", "border-stone-300");
-        button.classList.add("border-2", "border-leaf");
+        selectGalleryThumb(button, false);
       });
     });
     document.querySelectorAll("[data-gallery-direction]").forEach(function (button) {
       button.addEventListener("click", function () {
-        if (thumbnails) thumbnails.scrollBy({ left: Number(button.dataset.galleryDirection) * 184, behavior: "smooth" });
+        if (!galleryThumbs.length) return;
+        const currentIndex = Math.max(
+          0,
+          galleryThumbs.findIndex(function (thumb) {
+            return thumb.classList.contains("border-2");
+          }),
+        );
+        const direction = Number(button.dataset.galleryDirection);
+        const nextIndex = (currentIndex + direction + galleryThumbs.length) % galleryThumbs.length;
+        selectGalleryThumb(galleryThumbs[nextIndex], true);
       });
     });
 
