@@ -5,6 +5,7 @@ def notification_summary(request):
     if not request.user.is_authenticated:
         return {
             "unread_notification_count": 0,
+            "cart_item_count": 0,
             "admin_support_chat_count": 0,
             "seller_support_chat_count": 0,
             "active_market_mode": "seller",
@@ -12,6 +13,7 @@ def notification_summary(request):
 
     context = {
         "unread_notification_count": request.user.notifications.filter(is_read=False).count(),
+        "cart_item_count": len(request.session.get("cart", {})),
         "admin_support_chat_count": 0,
         "seller_support_chat_count": 0,
         "active_market_mode": (

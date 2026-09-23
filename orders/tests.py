@@ -93,6 +93,9 @@ class CartWorkflowTests(TestCase):
         self.assertRedirects(response, reverse("orders:cart"))
         self.assertEqual(self.client.session["cart"][str(self.product.pk)], "2.00")
 
+        cart_response = self.client.get(reverse("orders:cart"))
+        self.assertContains(cart_response, 'data-cart-count="1"', html=False)
+
     def test_seller_can_buy_from_another_store_with_the_same_account(self):
         seller_buyer = User.objects.create_user(
             username="seller-who-buys",
@@ -328,6 +331,113 @@ class CartWorkflowTests(TestCase):
         self.product.refresh_from_db()
         self.assertEqual(self.product.stock_quantity, Decimal("7.00"))
         self.assertEqual(self.client.session.get("cart"), {})
+
+    def test_cart_checkout_only_orders_selected_products(self):
+        other_product = Product.objects.create(
+            seller=self.seller,
+            community=self.community,
+            name="Selected later",
+            description="Kept in cart",
+            price=Decimal("40.00"),
+            stock_quantity=Decimal("10.00"),
+            status=Product.Status.ACTIVE,
+        )
+        self.client.force_login(self.buyer)
+        self.client.post(reverse("orders:cart_add", args=[self.product.pk]), {"quantity": "2"})
+        self.client.post(reverse("orders:cart_add", args=[other_product.pk]), {"quantity": "1"})
+
+        response = self.client.post(
+            reverse("orders:cart_checkout"),
+            {
+                "cart_selection": "1",
+                "selected_items": str(self.product.pk),
+                "shipping_name": "Cart buyer",
+                "shipping_phone": "0899999999",
+                "shipping_address": "9 Market Road",
+                "shipping_province": "Chiang Mai",
+                "shipping_postal_code": "50000",
+                "note": "",
+            },
+        )
+
+        order = Order.objects.get(buyer=self.buyer, seller=self.seller)
+        self.assertRedirects(response, reverse("payments:create_checkout", args=[order.pk]), fetch_redirect_response=False)
+        self.assertEqual(list(order.items.values_list("product_id", flat=True)), [self.product.pk])
+        self.assertEqual(order.subtotal, Decimal("50.00"))
+        self.assertEqual(
+            self.client.session.get("cart"),
+            {str(other_product.pk): "1.00"},
+        )
+
+    def test_cart_checkout_shows_shipping_details_after_selecting_products(self):
+        self.client.force_login(self.buyer)
+        self.client.post(reverse("orders:cart_add", args=[self.product.pk]), {"quantity": "1"})
+
+        cart_response = self.client.get(reverse("orders:cart"))
+        self.assertNotContains(cart_response, "ที่อยู่จัดส่ง")
+
+        response = self.client.get(
+            reverse("orders:cart_checkout"),
+            {"cart_selection": "1", "selected_items": str(self.product.pk)},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "orders/cart_checkout.html")
+        self.assertContains(response, "ที่อยู่จัดส่ง")
+        self.assertContains(response, self.product.name)
+
+    def test_cart_update_recalculates_item_and_cart_total(self):
+        self.client.force_login(self.buyer)
+        self.client.post(reverse("orders:cart_add", args=[self.product.pk]), {"quantity": "1"})
+
+        response = self.client.post(
+            reverse("orders:cart_update", args=[self.product.pk]),
+            {"quantity": "2"},
+        )
+
+        self.assertRedirects(response, reverse("orders:cart"))
+        cart_response = self.client.get(reverse("orders:cart"))
+        self.assertEqual(cart_response.context["items"][0]["line_total"], Decimal("50.00"))
+        self.assertEqual(cart_response.context["total"], Decimal("50.00"))
+        self.assertNotContains(cart_response, ">อัปเดต<")
+
+    def test_cart_checkout_keeps_the_quantity_shown_in_the_cart(self):
+        self.client.force_login(self.buyer)
+        self.client.post(reverse("orders:cart_add", args=[self.product.pk]), {"quantity": "1"})
+
+        response = self.client.get(
+            reverse("orders:cart_checkout"),
+            {
+                "cart_selection": "1",
+                "selected_items": str(self.product.pk),
+                f"cart_quantity_{self.product.pk}": "2",
+            },
+        )
+
+        self.assertEqual(response.context["items"][0]["quantity"], Decimal("2.00"))
+        self.assertEqual(response.context["total"], Decimal("50.00"))
+        self.assertEqual(self.client.session["cart"][str(self.product.pk)], "2.00")
+
+    def test_cart_checkout_requires_a_selected_product(self):
+        self.client.force_login(self.buyer)
+        self.client.post(reverse("orders:cart_add", args=[self.product.pk]), {"quantity": "1"})
+
+        response = self.client.post(
+            reverse("orders:cart_checkout"),
+            {
+                "cart_selection": "1",
+                "shipping_name": "Cart buyer",
+                "shipping_phone": "0899999999",
+                "shipping_address": "9 Market Road",
+                "shipping_province": "Chiang Mai",
+                "shipping_postal_code": "50000",
+                "note": "",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "กรุณาเลือกสินค้าอย่างน้อย 1 รายการ")
+        self.assertFalse(Order.objects.filter(buyer=self.buyer).exists())
 
     def test_shipping_rate_uses_destination_and_product_weight(self):
         self.product.weight_grams = 2000

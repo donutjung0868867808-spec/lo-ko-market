@@ -143,8 +143,15 @@ def finalize_order(order, coupon_code=""):
 @login_required
 def cart_detail(request):
     items, total = cart_items(request)
-    form = CartCheckoutForm(initial=buyer_initial(request.user))
-    return render(request, "orders/cart.html", {"items": items, "total": total, "form": form})
+    return render(
+        request,
+        "orders/cart.html",
+        {
+            "items": items,
+            "total": total,
+            "selected_item_ids": {item["product"].pk for item in items},
+        },
+    )
 
 
 @login_required
@@ -273,15 +280,66 @@ def cart_checkout(request):
         messages.warning(request, "ยังไม่มีสินค้าในตะกร้า")
         return redirect("orders:cart")
 
+    selection_data = request.POST if request.method == "POST" else request.GET
+    selection_submitted = selection_data.get("cart_selection") == "1"
+    if request.method == "GET" and selection_submitted:
+        cart = request.session.get(CART_SESSION_KEY, {})
+        cart_changed = False
+        for item in items:
+            product = item["product"]
+            requested_quantity = selection_data.get(f"cart_quantity_{product.pk}")
+            if requested_quantity is None:
+                continue
+            quantity = parse_quantity(
+                requested_quantity,
+                default=item["quantity"],
+                step=product.quantity_step,
+            )
+            quantity = min(quantity, available_quantity(product))
+            if quantity <= 0:
+                cart.pop(str(product.pk), None)
+            else:
+                cart[str(product.pk)] = str(quantity)
+            cart_changed = True
+        if cart_changed:
+            request.session[CART_SESSION_KEY] = cart
+            request.session.modified = True
+            items, total = cart_items(request)
+
+    selected_item_ids = {
+        int(product_id)
+        for product_id in selection_data.getlist("selected_items")
+        if product_id.isdigit()
+    }
+    if selection_submitted:
+        selected_items = [item for item in items if item["product"].pk in selected_item_ids]
+        total = sum((item["line_total"] for item in selected_items), Decimal("0.00"))
+    else:
+        # Keep legacy checkout posts working while the cart UI submits an explicit selection.
+        selected_items = items
+        selected_item_ids = {item["product"].pk for item in items}
+
     form = CartCheckoutForm(request.POST or None, initial=buyer_initial(request.user))
-    if request.method == "POST" and form.is_valid():
+    if request.method == "GET":
+        if not selection_submitted or not selected_items:
+            messages.warning(request, "กรุณาเลือกสินค้าอย่างน้อย 1 รายการ")
+            return redirect("orders:cart")
+        return render(
+            request,
+            "orders/cart_checkout.html",
+            {"items": selected_items, "total": total, "form": form},
+        )
+
+    if selection_submitted and not selected_items:
+        form.add_error(None, "กรุณาเลือกสินค้าอย่างน้อย 1 รายการ")
+    elif form.is_valid():
         cart = request.session.get(CART_SESSION_KEY, {})
         errors = []
         created_orders = []
 
         with transaction.atomic():
             products = Product.objects.select_for_update().select_related("seller", "community").filter(
-                pk__in=cart.keys(),
+                pk__in=selected_item_ids,
                 status=Product.Status.ACTIVE,
             )
             locked_items = []
@@ -352,15 +410,24 @@ def cart_checkout(request):
             for error in errors:
                 form.add_error(None, error)
         else:
-            request.session[CART_SESSION_KEY] = {}
+            for item in locked_items:
+                cart.pop(str(item["product"].pk), None)
+            request.session[CART_SESSION_KEY] = cart
             request.session.modified = True
             if len(created_orders) == 1:
                 return redirect("payments:create_checkout", order_id=created_orders[0].pk)
             messages.success(request, f"สร้างคำสั่งซื้อ {len(created_orders)} รายการแล้ว กรุณาชำระเงินแยกตามผู้ขาย")
             return redirect("orders:order_list")
 
-    items, total = cart_items(request)
-    return render(request, "orders/cart.html", {"items": items, "total": total, "form": form})
+    return render(
+        request,
+        "orders/cart_checkout.html",
+        {
+            "items": selected_items,
+            "total": total,
+            "form": form,
+        },
+    )
 
 
 @login_required
