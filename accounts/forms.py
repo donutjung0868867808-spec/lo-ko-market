@@ -209,13 +209,14 @@ class SellerStoreProfileForm(StyledFormMixin, forms.ModelForm):
 
     class Meta:
         model = FarmerProfile
-        fields = ["farm_name", "province", "district", "address", "bio"]
+        fields = ["farm_name", "province", "district", "address", "bio", "store_cover"]
         labels = {
             "farm_name": "ชื่อร้าน/ฟาร์ม",
             "province": "จังหวัด",
             "district": "อำเภอ/เขต",
             "address": "ที่อยู่ร้าน",
             "bio": "คำอธิบายหน้าร้าน",
+            "store_cover": "รูปปกหน้าร้าน",
         }
         widgets = {
             "address": forms.Textarea(attrs={"rows": 3}),

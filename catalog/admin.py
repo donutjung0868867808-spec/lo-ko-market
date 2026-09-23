@@ -8,6 +8,7 @@ from accounts.admin_permissions import CsvExportAdminMixin, OwnerOnlyAdminMixin,
 
 from .models import (
     Category,
+    HomeSlide,
     Product,
     ProductFavorite,
     ProductImage,
@@ -23,7 +24,10 @@ class CategoryAdminForm(forms.ModelForm):
         fields = "__all__"
         widgets = {
             "image": forms.ClearableFileInput(
-                attrs={"data-category-image-input": "true"}
+                attrs={
+                    "data-admin-image-input": "true",
+                    "data-image-picker-title": "เลือกรูปหมวดสินค้า",
+                }
             ),
         }
 
@@ -47,6 +51,41 @@ class CategoryAdmin(OwnerOnlyAdminMixin, admin.ModelAdmin):
         return format_html(
             '<img src="{}" alt="" style="width:48px;height:48px;object-fit:cover;border-radius:6px;">',
             category.image.url,
+        )
+
+
+class HomeSlideAdminForm(forms.ModelForm):
+    class Meta:
+        model = HomeSlide
+        fields = "__all__"
+        widgets = {
+            "image": forms.ClearableFileInput(
+                attrs={
+                    "data-admin-image-input": "true",
+                    "data-image-picker-title": "เลือกรูปสไลด์หน้าแรก",
+                    "data-image-crop-aspect": "3.25",
+                }
+            ),
+        }
+
+    class Media:
+        css = {"all": ("admin/category-image-upload.css",)}
+        js = ("admin/category-image-upload.js",)
+
+
+@admin.register(HomeSlide)
+class HomeSlideAdmin(OwnerOnlyAdminMixin, admin.ModelAdmin):
+    form = HomeSlideAdminForm
+    list_display = ("slide_thumbnail", "alt_text", "sort_order", "is_active")
+    list_editable = ("sort_order", "is_active")
+    list_filter = ("is_active",)
+    search_fields = ("alt_text",)
+
+    @admin.display(description="ตัวอย่างภาพ")
+    def slide_thumbnail(self, slide):
+        return format_html(
+            '<img src="{}" alt="" style="width:96px;height:56px;object-fit:cover;border-radius:6px;">',
+            slide.image.url,
         )
 
 

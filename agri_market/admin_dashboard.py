@@ -28,6 +28,7 @@ ADMIN_WORKFLOWS = (
         "models": (
             "catalog.product",
             "catalog.category",
+            "catalog.homeslide",
             "catalog.productreview",
             "catalog.productfavorite",
             "catalog.sellerfavorite",
@@ -92,6 +93,7 @@ ADMIN_MODEL_DESCRIPTIONS = {
     "accounts.deliveryaddress": "ที่อยู่จัดส่งที่สมาชิกบันทึกไว้",
     "catalog.product": "รายละเอียด ราคา สต็อก และสถานะการขาย",
     "catalog.category": "หมวดหมู่ที่ใช้ค้นหาและแสดงสินค้า",
+    "catalog.homeslide": "ภาพหน้าปกหน้าแรกที่สลับแสดงอัตโนมัติ",
     "catalog.productreview": "ความคิดเห็นและคะแนนจากผู้ซื้อ",
     "catalog.productfavorite": "รายการสินค้าที่สมาชิกบันทึกไว้",
     "catalog.sellerfavorite": "ร้านค้าที่สมาชิกติดตาม",

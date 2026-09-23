@@ -204,19 +204,37 @@
         <article class="py-5">
           <div class="flex flex-wrap items-center justify-between gap-3"><p class="font-semibold text-slate-900">{{ review.user }}</p><p class="inline-flex items-center gap-1 text-sm font-semibold text-leaf"><i data-lucide="star" class="h-4 w-4 fill-amber-400 text-amber-400" aria-hidden="true"></i>{{ review.rating }}/5</p></div>
           {% if review.comment %}<p class="mt-2 text-sm leading-6 text-slate-700">{{ review.comment }}</p>{% endif %}
+          {% if review.media.all %}
+            <div class="mt-3 flex flex-wrap gap-2">
+              {% for media in review.media.all %}
+                {% if media.media_type == "image" %}
+                  <a href="{{ media.file.url }}" target="_blank" rel="noopener" class="block h-24 w-24 overflow-hidden rounded-md border border-stone-200 bg-stone-50">
+                    <img src="{{ media.file.url }}" alt="รูปประกอบรีวิว" class="h-full w-full object-cover" loading="lazy">
+                  </a>
+                {% else %}
+                  <video controls preload="metadata" class="h-24 w-40 rounded-md border border-stone-200 bg-black" aria-label="วิดีโอประกอบรีวิว">
+                    <source src="{{ media.file.url }}">
+                    เบราว์เซอร์นี้ไม่รองรับวิดีโอ
+                  </video>
+                {% endif %}
+              {% endfor %}
+            </div>
+          {% endif %}
         </article>
       {% empty %}
         <p class="py-6 text-sm text-slate-600">ยังไม่มีรีวิวสำหรับสินค้านี้</p>
       {% endfor %}
     </div>
     {% if user.is_authenticated and user != product.seller %}
-      <form method="post" action="{% url 'catalog:submit_review' product.id %}" class="mt-6 grid gap-3 sm:grid-cols-[140px_minmax(0,1fr)_auto]">
+      <form method="post" enctype="multipart/form-data" action="{% url 'catalog:submit_review' product.id %}" class="mt-6 grid gap-3 sm:grid-cols-[140px_minmax(0,1fr)_auto]">
         {% csrf_token %}
         <label class="sr-only" for="review-rating">คะแนน</label>
         <select id="review-rating" name="rating" class="rounded-md border border-slate-300 bg-white px-3 py-2.5 text-sm"><option value="5">5 ดาว</option><option value="4">4 ดาว</option><option value="3">3 ดาว</option><option value="2">2 ดาว</option><option value="1">1 ดาว</option></select>
         <label class="sr-only" for="review-comment">ความคิดเห็น</label>
         <input id="review-comment" name="comment" class="rounded-md border border-slate-300 px-3 py-2.5 text-sm" placeholder="เขียนความคิดเห็นเกี่ยวกับสินค้า">
         <button class="rounded-md bg-ink px-5 py-2.5 text-sm font-semibold text-white" type="submit">ส่งรีวิว</button>
+        <label class="inline-flex min-h-11 items-center gap-2 text-sm text-slate-600 sm:col-span-2" for="review-media"><i data-lucide="image-plus" class="h-5 w-5 text-leaf" aria-hidden="true"></i>เพิ่มรูปหรือวิดีโอ <span class="text-xs text-slate-500">(สูงสุด 5 ไฟล์)</span></label>
+        <input id="review-media" name="media" type="file" multiple accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime" class="min-h-11 text-sm text-slate-600 sm:col-span-2">
       </form>
     {% endif %}
   </section>

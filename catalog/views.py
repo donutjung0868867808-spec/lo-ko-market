@@ -14,7 +14,18 @@ from orders.models import Order
 
 from accounts.forms import ReportForm
 from .forms import ProductForm, ProductImageForm, ProductReviewForm
-from .models import Category, Product, ProductFavorite, ProductImage, ProductReview, SellerFavorite, StockMovement
+from .models import (
+    Category,
+    HomeSlide,
+    Product,
+    ProductFavorite,
+    ProductImage,
+    ProductReview,
+    ProductReviewMedia,
+    SellerFavorite,
+    StockMovement,
+    review_media_type_for_upload,
+)
 
 
 def ensure_demo_catalog_data():
@@ -74,6 +85,7 @@ def product_list(request):
         "products": filtered_products(request),
         "categories": categories,
         "communities": communities,
+        "hero_slides": HomeSlide.objects.filter(is_active=True),
     }
     return render(request, "catalog/product_list.html", context)
 
@@ -132,7 +144,7 @@ def product_detail(request, pk):
     if request.user.is_authenticated:
         is_product_favorite = ProductFavorite.objects.filter(user=request.user, product=product).exists()
         is_seller_favorite = SellerFavorite.objects.filter(user=request.user, seller=product.seller).exists()
-    reviews = product.reviews.select_related("user")
+    reviews = product.reviews.select_related("user").prefetch_related("media")
     sold_quantity = (
         product.order_items.filter(order__payment_status=Order.PaymentStatus.PAID)
         .aggregate(total=Sum("quantity"))["total"]
@@ -203,13 +215,41 @@ def submit_review(request, pk):
         return redirect(product)
 
     if request.method == "POST":
-        rating = int(request.POST.get("rating", 5))
+        try:
+            rating = int(request.POST.get("rating", 5))
+        except (TypeError, ValueError):
+            rating = 5
+        rating = min(5, max(1, rating))
         comment = request.POST.get("comment", "").strip()
-        ProductReview.objects.update_or_create(
+        media_files = request.FILES.getlist("media")
+        if len(media_files) > 5:
+            messages.error(request, "แนบรูปหรือวิดีโอได้สูงสุด 5 ไฟล์ต่อรีวิว")
+            return redirect(product)
+
+        try:
+            review_media = [
+                ProductReviewMedia(
+                    file=uploaded_file,
+                    media_type=review_media_type_for_upload(uploaded_file),
+                )
+                for uploaded_file in media_files
+            ]
+            for media in review_media:
+                media.full_clean(exclude={"review"})
+        except ValidationError as error:
+            messages.error(request, error.messages[0])
+            return redirect(product)
+
+        review, _ = ProductReview.objects.update_or_create(
             product=product,
             user=request.user,
             defaults={"rating": rating, "comment": comment},
         )
+        if media_files:
+            review.media.all().delete()
+            for media in review_media:
+                media.review = review
+                media.save()
         messages.success(request, "ส่งรีวิวแล้ว")
         return redirect(product)
 

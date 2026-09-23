@@ -160,6 +160,15 @@ class FarmerProfile(models.Model):
     )
     farm_name = models.CharField(max_length=180)
     bio = models.TextField(blank=True)
+    store_cover = models.FileField(
+        "รูปปกหน้าร้าน",
+        upload_to="store-covers/%Y/%m/",
+        blank=True,
+        validators=[
+            FileExtensionValidator(["jpg", "jpeg", "png", "webp"]),
+            validate_file_size,
+        ],
+    )
     document_type = models.CharField(
         max_length=30,
         choices=DocumentType.choices,

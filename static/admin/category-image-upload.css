@@ -53,3 +53,57 @@
   position: absolute;
   width: 1px;
 }
+
+.admin-image-cropper {
+  align-items: center;
+  background: rgba(15, 23, 42, .62);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 20px;
+  position: fixed;
+  z-index: 10000;
+}
+
+.admin-image-cropper-open {
+  overflow: hidden;
+}
+
+.admin-image-cropper__dialog {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, .35);
+  max-width: 760px;
+  padding: 24px;
+  width: min(100%, 760px);
+}
+
+.admin-image-cropper__dialog h2 {
+  margin: 0;
+}
+
+.admin-image-cropper__dialog p {
+  color: #4b5563;
+  margin: 6px 0 16px;
+}
+
+.admin-image-cropper__canvas {
+  background: #eef4ef;
+  border: 2px solid #2f6f1d;
+  cursor: grab;
+  display: block;
+  max-width: 100%;
+  touch-action: none;
+  width: 100%;
+}
+
+.admin-image-cropper__canvas:active {
+  cursor: grabbing;
+}
+
+.admin-image-cropper__actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 20px;
+}

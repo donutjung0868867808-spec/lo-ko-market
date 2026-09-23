@@ -15,7 +15,7 @@ from accounts.models import Community, FarmerProfile, Notification, User
 from orders.models import Order, OrderItem
 
 from .forms import ProductForm
-from .models import Category, Product, ProductReview
+from .models import Category, HomeSlide, Product, ProductReview, ProductReviewMedia
 
 
 def test_image_bytes():
@@ -105,6 +105,24 @@ class ProductCatalogTests(TestCase):
         )
 
         category.full_clean()
+
+    def test_active_home_slides_are_rendered_on_the_marketplace(self):
+        HomeSlide.objects.create(
+            image="home-slides/first-slide.jpg",
+            alt_text="First slide",
+            sort_order=2,
+        )
+        HomeSlide.objects.create(
+            image="home-slides/hidden-slide.jpg",
+            alt_text="Hidden slide",
+            is_active=False,
+        )
+
+        response = self.client.get(reverse("catalog:product_list"))
+
+        self.assertContains(response, "/media/home-slides/first-slide.jpg")
+        self.assertNotContains(response, "/media/home-slides/hidden-slide.jpg")
+        self.assertContains(response, "data-hero-carousel")
 
     def test_farmer_can_add_multiple_gallery_images_when_creating_a_product(self):
         self.client.force_login(self.farmer)
@@ -321,6 +339,56 @@ class ProductReviewTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertTrue(ProductReview.objects.filter(product=self.product, user=self.buyer).exists())
         self.assertEqual(self.product.average_rating, 5)
+
+    def test_buyer_can_attach_an_image_and_video_to_a_review(self):
+        order = Order.objects.create(
+            buyer=self.buyer,
+            seller=self.farmer,
+            community=self.community,
+            shipping_name="ผู้ซื้อ",
+            shipping_phone="0812345678",
+            shipping_address="บ้านเลขที่ 1",
+            payment_status=Order.PaymentStatus.PAID,
+            status=Order.Status.PAID,
+        )
+        OrderItem.objects.create(
+            order=order,
+            product=self.product,
+            product_name=self.product.name,
+            unit=self.product.unit,
+            quantity=Decimal("1"),
+            unit_price=self.product.price,
+        )
+        self.client.force_login(self.buyer)
+        media = [
+            SimpleUploadedFile("review-photo.jpg", TEST_IMAGE_BYTES, content_type="image/jpeg"),
+            SimpleUploadedFile("review-video.mp4", b"test video", content_type="video/mp4"),
+        ]
+
+        with tempfile.TemporaryDirectory() as media_root, self.settings(MEDIA_ROOT=media_root):
+            response = self.client.post(
+                reverse("catalog:submit_review", args=[self.product.pk]),
+                {"rating": 5, "comment": "มีทั้งรูปและวิดีโอ", "media": media},
+            )
+
+        review = ProductReview.objects.get(product=self.product, user=self.buyer)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(review.media.count(), 2)
+        self.assertSetEqual(
+            set(review.media.values_list("media_type", flat=True)),
+            {ProductReviewMedia.MediaType.IMAGE, ProductReviewMedia.MediaType.VIDEO},
+        )
+
+    def test_seller_store_displays_the_seller_avatar(self):
+        self.farmer.avatar = "avatars/store-owner.jpg"
+        self.farmer.save(update_fields=["avatar"])
+        self.farmer.farmer_profile.store_cover = "store-covers/store-owner.jpg"
+        self.farmer.farmer_profile.save(update_fields=["store_cover"])
+
+        response = self.client.get(reverse("catalog:seller_store", args=[self.farmer.pk]))
+
+        self.assertContains(response, "/media/avatars/store-owner.jpg")
+        self.assertContains(response, "/media/store-covers/store-owner.jpg")
 
 
 class ProductDetailInteractionTests(TestCase):

@@ -371,7 +371,11 @@ def farmer_shop_center(request):
         )
     )
     farmer_profile = getattr(request.user, "farmer_profile", None)
-    store_form = SellerStoreProfileForm(request.POST or None, instance=farmer_profile) if farmer_profile else None
+    store_form = SellerStoreProfileForm(
+        request.POST or None,
+        request.FILES or None,
+        instance=farmer_profile,
+    ) if farmer_profile else None
     product_form = ProductForm(request.POST or None, request.FILES or None)
     if request.method == "POST" and request.POST.get("shop_action") == "create_product":
         if not farmer_profile or not farmer_profile.community or not farmer_profile.is_verified:

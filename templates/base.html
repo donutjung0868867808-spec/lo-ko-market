@@ -115,7 +115,7 @@
                 <p class="truncate font-semibold">{{ user.username }}</p>
                 <p class="mt-0.5 text-xs text-slate-500">{% if user.is_farmer and active_market_mode == "buyer" %}โหมดผู้ซื้อ{% else %}{{ user.get_role_display }}{% endif %}</p>
               </div>
-              <a class="block px-4 py-3 font-medium text-slate-800 hover:bg-stone-50" href="{% url 'accounts:account_history' %}">บัญชีของฉัน</a>
+              <a class="flex items-center gap-2 px-4 py-3 font-medium text-slate-800 hover:bg-stone-50" href="{% url 'accounts:account_history' %}"><i data-lucide="user-round" class="h-4 w-4" aria-hidden="true"></i>บัญชีของฉัน</a>
               {% if user.is_farmer %}
                 {% if active_market_mode == "buyer" %}
                   {% url "accounts:switch_market_mode" "seller" as switch_mode_url %}
@@ -134,22 +134,22 @@
                 </form>
               {% endif %}
               {% if user.is_cooperative_staff %}
-                <a class="block px-4 py-3 font-medium text-leaf hover:bg-emerald-50" href="{% url 'accounts:staff_dashboard' %}">ศูนย์เจ้าหน้าที่วิสาหกิจชุมชน</a>
+                <a class="flex items-center gap-2 px-4 py-3 font-medium text-leaf hover:bg-emerald-50" href="{% url 'accounts:staff_dashboard' %}"><i data-lucide="badge-check" class="h-4 w-4" aria-hidden="true"></i>ศูนย์เจ้าหน้าที่วิสาหกิจชุมชน</a>
               {% endif %}
               {% if user.is_farmer and active_market_mode != "buyer" %}
-                <a class="block px-4 py-3 font-medium text-slate-800 hover:bg-stone-50" href="{% url 'catalog:seller_store' user.pk %}">หน้าร้านค้าของฉัน</a>
+                <a class="flex items-center gap-2 px-4 py-3 font-medium text-slate-800 hover:bg-stone-50" href="{% url 'catalog:seller_store' user.pk %}"><i data-lucide="store" class="h-4 w-4" aria-hidden="true"></i>หน้าร้านค้าของฉัน</a>
                 <a class="flex items-center gap-2 px-4 py-3 font-medium text-leaf hover:bg-emerald-50" href="{% url 'accounts:farmer_shop_center' %}"><i data-lucide="store" class="h-4 w-4" aria-hidden="true"></i>ร้านค้าของฉัน</a>
               {% elif user.is_consumer %}
                 <a class="flex items-center gap-2 px-4 py-3 font-medium text-leaf hover:bg-emerald-50" href="{% url 'accounts:farmer_signup' %}"><i data-lucide="store" class="h-4 w-4" aria-hidden="true"></i>สมัครเป็นผู้ขาย</a>
               {% endif %}
-              <a class="block px-4 py-3 font-medium text-slate-800 hover:bg-stone-50" href="{% url 'orders:order_list' %}">การซื้อของฉัน</a>
+              <a class="flex items-center gap-2 px-4 py-3 font-medium text-slate-800 hover:bg-stone-50" href="{% url 'orders:order_list' %}"><i data-lucide="package-check" class="h-4 w-4" aria-hidden="true"></i>การซื้อของฉัน</a>
               {% if user.is_farmer and active_market_mode != "buyer" %}
-                <a class="block px-4 py-3 font-medium text-leaf hover:bg-emerald-50" href="{% url 'catalog:product_create' %}">เพิ่มสินค้า</a>
+                <a class="flex items-center gap-2 px-4 py-3 font-medium text-leaf hover:bg-emerald-50" href="{% url 'catalog:product_create' %}"><i data-lucide="package-plus" class="h-4 w-4" aria-hidden="true"></i>เพิ่มสินค้า</a>
               {% endif %}
               {% if not request.admin_preview %}
                 <form method="post" action="{% url 'logout' %}" class="border-t border-stone-100 pt-1">
                   {% csrf_token %}
-                  <button class="w-full px-4 py-2.5 text-left font-medium text-red-700 hover:bg-red-50" type="submit">ออกจากระบบ</button>
+                  <button class="flex w-full items-center gap-2 px-4 py-2.5 text-left font-medium text-red-700 hover:bg-red-50" type="submit"><i data-lucide="log-out" class="h-4 w-4" aria-hidden="true"></i>ออกจากระบบ</button>
                 </form>
               {% endif %}
             {% else %}
