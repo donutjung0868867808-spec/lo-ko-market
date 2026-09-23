@@ -395,7 +395,14 @@ def farmer_shop_center(request):
             return redirect(f"{reverse('accounts:farmer_shop_center')}?section=products")
     elif request.method == "POST" and request.POST.get("shop_action") == "update_store":
         if store_form and store_form.is_valid():
-            store_form.save()
+            store_profile = store_form.save(commit=False)
+            previous_cover_name = store_profile.store_cover.name if store_profile.store_cover else ""
+            remove_store_cover = request.POST.get("remove_store_cover") == "1"
+            if remove_store_cover and not request.FILES.get("store_cover"):
+                store_profile.store_cover = ""
+            store_profile.save()
+            if remove_store_cover and previous_cover_name:
+                store_profile.store_cover.storage.delete(previous_cover_name)
             messages.success(request, "บันทึกข้อมูลหน้าร้านแล้ว")
             return redirect(f"{reverse('accounts:farmer_shop_center')}?section=store&mode=settings")
     sales = Order.objects.filter(seller=request.user).select_related("buyer").prefetch_related("items").order_by("-created_at")

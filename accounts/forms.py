@@ -221,6 +221,12 @@ class SellerStoreProfileForm(StyledFormMixin, forms.ModelForm):
         widgets = {
             "address": forms.Textarea(attrs={"rows": 3}),
             "bio": forms.Textarea(attrs={"rows": 4, "placeholder": "แนะนำร้านค้า จุดเด่น หรือวิธีดูแลสินค้า"}),
+            "store_cover": forms.FileInput(
+                attrs={
+                    "accept": "image/jpeg,image/png,image/webp",
+                    "data-store-cover-input": "",
+                }
+            ),
         }
 
 

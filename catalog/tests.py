@@ -436,6 +436,14 @@ class ProductDetailInteractionTests(TestCase):
         self.assertContains(response, reverse("catalog:seller_store", args=[self.farmer.pk]))
         self.assertContains(response, reverse("accounts:conversation_start", args=[self.product.pk]))
 
+    def test_product_detail_displays_the_seller_avatar(self):
+        self.farmer.avatar = "avatars/detail-seller.jpg"
+        self.farmer.save(update_fields=["avatar"])
+
+        response = self.client.get(reverse("catalog:product_detail", args=[self.product.pk]))
+
+        self.assertContains(response, "/media/avatars/detail-seller.jpg")
+
     def test_seller_store_filters_category_and_sorts_by_price(self):
         vegetables = Category.objects.create(name="ผักทดสอบ", slug="store-vegetables")
         fruit = Category.objects.create(name="ผลไม้ทดสอบ", slug="store-fruit")

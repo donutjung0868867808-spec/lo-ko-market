@@ -80,9 +80,56 @@
         <section class="space-y-5">
           <header class="flex flex-wrap items-center justify-between gap-4 border-b border-stone-300 pb-4"><div><p class="text-sm font-semibold text-leaf">ร้านค้า</p><h1 class="mt-1 text-2xl font-semibold text-slate-950">{% if request.GET.mode == "settings" %}ตั้งค่าร้านค้า{% elif request.GET.mode == "design" %}ตัวอย่างหน้าร้าน{% else %}รายละเอียดหน้าร้าน{% endif %}</h1></div>{% if farmer_profile %}<a href="{% url 'catalog:seller_store' request.user.pk %}" target="_blank" rel="noopener" class="inline-flex h-10 items-center gap-2 rounded-md border border-emerald-900/25 px-4 text-sm font-semibold text-leaf hover:bg-emerald-50"><i data-lucide="external-link" class="h-4 w-4" aria-hidden="true"></i>ดูหน้าร้านจริง</a>{% endif %}</header>
           {% if request.GET.mode == "settings" and store_form %}
-            <form method="post" enctype="multipart/form-data" class="rounded-lg border border-stone-200 bg-white p-5 shadow-sm sm:p-6">{% csrf_token %}<input type="hidden" name="shop_action" value="update_store">{% if farmer_profile.store_cover %}<img src="{{ farmer_profile.store_cover.url }}" alt="รูปปกหน้าร้านปัจจุบัน" class="mb-5 h-40 w-full rounded-md border border-stone-200 object-cover">{% endif %}<div class="grid gap-4 md:grid-cols-2">{% for field in store_form %}<div class="{% if field.name == "address" or field.name == "bio" or field.name == "store_cover" %}md:col-span-2{% endif %}"><label class="mb-1.5 block text-sm font-semibold text-slate-800" for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% for error in field.errors %}<p class="mt-1 text-sm text-red-700">{{ error }}</p>{% endfor %}</div>{% endfor %}</div><div class="mt-6 flex justify-end"><button type="submit" class="inline-flex h-10 items-center gap-2 rounded-md bg-leaf px-4 text-sm font-semibold text-white hover:bg-emerald-800"><i data-lucide="save" class="h-4 w-4" aria-hidden="true"></i>บันทึกข้อมูลร้าน</button></div></form>
+            <form method="post" enctype="multipart/form-data" class="rounded-lg border border-stone-200 bg-white p-5 shadow-sm sm:p-6">
+              {% csrf_token %}
+              <input type="hidden" name="shop_action" value="update_store">
+              <div class="grid gap-4 md:grid-cols-2">
+                {% for field in store_form %}
+                  <div class="{% if field.name == "address" or field.name == "bio" or field.name == "store_cover" %}md:col-span-2{% endif %}">
+                    <label class="mb-1.5 block text-sm font-semibold text-slate-800" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {% if field.name == "store_cover" %}
+                      <figure data-store-cover-preview class="{% if not farmer_profile.store_cover %}hidden {% endif %}overflow-hidden rounded-md border border-stone-200 bg-stone-100">
+                        <div class="aspect-[16/5]">
+                          <img data-store-cover-preview-image {% if farmer_profile.store_cover %}src="{{ farmer_profile.store_cover.url }}"{% endif %} alt="ตัวอย่างรูปปกหน้าร้าน" class="h-full w-full object-cover">
+                        </div>
+                      </figure>
+                      <p class="mt-3 text-sm font-medium text-slate-700">แนะนำ 1600 x 500 พิกเซล (สัดส่วน 16:5)</p>
+                      <p class="mt-1 text-xs leading-5 text-slate-500">รองรับ JPG, JPEG, PNG, WEBP ขนาดไฟล์ไม่เกิน 5 MB ภาพจะถูกครอบให้พอดีกับแบนเนอร์หน้าร้าน</p>
+                      <div class="mt-3">{{ field }}</div>
+                      {% if farmer_profile.store_cover %}
+                        <input type="hidden" name="remove_store_cover" value="0" data-store-cover-remove-input>
+                        <button type="button" data-store-cover-remove class="mt-3 inline-flex h-9 items-center gap-2 rounded-md border border-red-200 bg-white px-3 text-sm font-semibold text-red-700 hover:bg-red-50"><i data-lucide="trash-2" class="h-4 w-4" aria-hidden="true"></i>ลบรูปปกปัจจุบัน</button>
+                      {% endif %}
+                      <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <p data-store-cover-file-details class="text-sm text-slate-600" aria-live="polite">{% if farmer_profile.store_cover %}รูปปกปัจจุบัน{% else %}ยังไม่ได้เลือกไฟล์{% endif %}</p>
+                        <button type="button" data-store-cover-clear hidden class="text-sm font-semibold text-red-700 hover:underline">ยกเลิกรูปที่เลือก</button>
+                      </div>
+                    {% else %}
+                      {{ field }}
+                    {% endif %}
+                    {% for error in field.errors %}<p class="mt-1 text-sm text-red-700">{{ error }}</p>{% endfor %}
+                  </div>
+                {% endfor %}
+              </div>
+              <div class="mt-6 flex justify-end">
+                <button type="submit" class="inline-flex h-10 items-center gap-2 rounded-md bg-leaf px-4 text-sm font-semibold text-white hover:bg-emerald-800"><i data-lucide="save" class="h-4 w-4" aria-hidden="true"></i>บันทึกข้อมูลร้าน</button>
+              </div>
+            </form>
           {% elif request.GET.mode == "design" %}
-            <section class="overflow-hidden rounded-lg border border-emerald-900/20 bg-white"><div class="bg-leaf px-6 py-8 text-white"><p class="text-sm font-semibold text-emerald-100">{{ farmer_profile.community.name|default:"ตลาดเกษตรชุมชน" }}</p><h2 class="mt-2 text-3xl font-semibold">{{ farmer_profile.farm_name|default:request.user.username }}</h2><p class="mt-3 max-w-2xl text-sm leading-6 text-white/90">{{ farmer_profile.bio|default:"เพิ่มคำอธิบายร้านจากเมนูตั้งค่าร้านค้า" }}</p></div><div class="flex flex-wrap items-center justify-between gap-4 px-6 py-5"><p class="text-sm text-slate-600">หน้าร้านสาธารณะใช้ชื่อร้าน ชุมชน และคำอธิบายนี้</p><a href="?section=store&mode=settings" class="inline-flex h-10 items-center rounded-md border border-emerald-900/25 px-4 text-sm font-semibold text-leaf hover:bg-emerald-50">แก้ไขข้อมูลที่แสดง</a></div></section>
+            <section class="overflow-hidden rounded-lg border border-emerald-900/20 bg-white">
+              <div class="relative min-h-[205px] overflow-hidden bg-leaf px-6 py-8 text-white">
+                {% if farmer_profile.store_cover %}
+                  <img src="{{ farmer_profile.store_cover.url }}" alt="ตัวอย่างรูปปก {{ farmer_profile.farm_name|default:request.user.username }}" class="absolute inset-0 h-full w-full object-cover">
+                  <div class="absolute inset-0 bg-black/40" aria-hidden="true"></div>
+                {% endif %}
+                <div class="relative max-w-2xl">
+                  <p class="text-sm font-semibold text-emerald-100">{{ farmer_profile.community.name|default:"ตลาดเกษตรชุมชน" }}</p>
+                  <h2 class="mt-2 text-3xl font-semibold">{{ farmer_profile.farm_name|default:request.user.username }}</h2>
+                  <p class="mt-3 max-w-2xl text-sm leading-6 text-white/90">{{ farmer_profile.bio|default:"เพิ่มคำอธิบายร้านจากเมนูตั้งค่าร้านค้า" }}</p>
+                </div>
+              </div>
+              <div class="flex flex-wrap items-center justify-between gap-4 px-6 py-5"><p class="text-sm text-slate-600">หน้าร้านสาธารณะใช้ชื่อร้าน ชุมชน และคำอธิบายนี้</p><a href="?section=store&mode=settings" class="inline-flex h-10 items-center rounded-md border border-emerald-900/25 px-4 text-sm font-semibold text-leaf hover:bg-emerald-50">แก้ไขข้อมูลที่แสดง</a></div>
+            </section>
           {% else %}
             <section class="grid gap-5 rounded-lg border border-stone-200 bg-white p-6 md:grid-cols-[160px_minmax(0,1fr)]"><div class="grid h-28 w-28 place-items-center rounded-full bg-emerald-50 text-leaf"><i data-lucide="sprout" class="h-12 w-12" aria-hidden="true"></i></div><div><h2 class="text-xl font-semibold text-slate-950">{{ farmer_profile.farm_name|default:request.user.username }}</h2><p class="mt-2 text-sm text-slate-600">{{ farmer_profile.community.name|default:"ยังไม่ได้เลือกชุมชน" }}</p><p class="mt-4 whitespace-pre-wrap text-sm leading-6 text-slate-700">{{ farmer_profile.bio|default:"ยังไม่มีคำอธิบายหน้าร้าน" }}</p><dl class="mt-5 grid gap-3 text-sm sm:grid-cols-2"><div><dt class="text-slate-500">ที่ตั้ง</dt><dd class="mt-1 font-medium">{{ farmer_profile.district|default:"-" }} {{ farmer_profile.province|default:"" }}</dd></div><div><dt class="text-slate-500">สถานะร้าน</dt><dd class="mt-1 font-medium text-leaf">{% if farmer_profile.is_verified %}ยืนยันแล้ว{% else %}รอตรวจสอบ{% endif %}</dd></div></dl><a href="?section=store&mode=settings" class="mt-6 inline-flex h-10 items-center rounded-md bg-leaf px-4 text-sm font-semibold text-white hover:bg-emerald-800">แก้ไขข้อมูลหน้าร้าน</a></div></section>
           {% endif %}
@@ -104,6 +151,24 @@
     </main>
   </div>
 </section>
+<div data-store-cover-cropper class="fixed inset-0 z-[70] hidden place-items-center bg-black/70 p-4">
+  <section class="w-full max-w-5xl rounded-md bg-white p-5 shadow-xl sm:p-6" role="dialog" aria-modal="true" aria-labelledby="store-cover-cropper-title">
+    <div class="flex items-start justify-between gap-4">
+      <div>
+        <h2 id="store-cover-cropper-title" class="text-lg font-semibold text-slate-950">จัดตำแหน่งรูปปกหน้าร้าน</h2>
+        <p class="mt-1 text-sm text-slate-600">ลากภาพเพื่อเลือกจุดตัด ซูมด้วยล้อเมาส์หรือสองนิ้วบนรูป</p>
+      </div>
+    </div>
+    <div class="mt-5 overflow-hidden rounded-md border border-stone-200 bg-slate-950">
+      <canvas data-store-cover-crop-canvas width="1600" height="500" class="block w-full touch-none" aria-label="ตัวอย่างรูปปกหน้าร้านในกรอบ 16 ต่อ 5"></canvas>
+    </div>
+    <p data-store-cover-crop-details class="mt-3 text-sm text-slate-600" aria-live="polite"></p>
+    <div class="mt-5 flex justify-end gap-3">
+      <button type="button" data-store-cover-crop-cancel class="inline-flex h-10 items-center rounded-md border border-stone-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-stone-50">ยกเลิก</button>
+      <button type="button" data-store-cover-crop-save class="inline-flex h-10 items-center rounded-md bg-leaf px-4 text-sm font-semibold text-white hover:bg-emerald-800">ใช้รูปนี้</button>
+    </div>
+  </section>
+</div>
   <nav aria-label="เครื่องมือศูนย์ร้านค้า" class="fixed inset-x-0 bottom-0 z-40 flex h-14 overflow-hidden rounded-t-lg border border-emerald-900/25 bg-white shadow-lg md:inset-x-auto md:bottom-auto md:right-0 md:top-1/2 md:block md:h-auto md:-translate-y-1/2 md:rounded-l-lg md:rounded-tr-none">
     <a href="{% url 'accounts:support_chat' %}" title="แชทกับผู้ดูแล" class="relative flex h-14 flex-1 items-center justify-center border-r border-stone-200 text-leaf hover:bg-emerald-50 md:w-14 md:flex-none md:border-b md:border-r-0"><i data-lucide="headset" class="h-6 w-6" aria-hidden="true"></i>{% if seller_support_chat_count %}<span class="absolute right-2 top-2 min-w-4 rounded-full bg-amber-400 px-1 text-center text-[10px] font-bold leading-4 text-slate-950">{{ seller_support_chat_count }}</span>{% endif %}<span class="sr-only">แชทกับผู้ดูแล</span></a>
     <a href="{% url 'accounts:notifications' %}" title="การแจ้งเตือน" class="relative flex h-14 flex-1 items-center justify-center border-r border-stone-200 text-leaf hover:bg-emerald-50 md:w-14 md:flex-none md:border-b md:border-r-0"><i data-lucide="bell" class="h-6 w-6" aria-hidden="true"></i>{% if unread_notification_count %}<span class="absolute right-2 top-2 min-w-4 rounded-full bg-amber-400 px-1 text-center text-[10px] font-bold leading-4 text-slate-950">{{ unread_notification_count }}</span>{% endif %}<span class="sr-only">การแจ้งเตือน</span></a>
@@ -132,6 +197,293 @@
           .map((item) => item.dataset.shopMenu);
         window.localStorage.setItem(storageKey, JSON.stringify(currentOpenGroups));
       });
+    });
+  })();
+
+  (() => {
+    const input = document.querySelector("[data-store-cover-input]");
+    const preview = document.querySelector("[data-store-cover-preview]");
+    const previewImage = document.querySelector("[data-store-cover-preview-image]");
+    const details = document.querySelector("[data-store-cover-file-details]");
+    const clear = document.querySelector("[data-store-cover-clear]");
+    const removeInput = document.querySelector("[data-store-cover-remove-input]");
+    const removeButton = document.querySelector("[data-store-cover-remove]");
+    const cropper = document.querySelector("[data-store-cover-cropper]");
+    const canvas = document.querySelector("[data-store-cover-crop-canvas]");
+    const cropDetails = document.querySelector("[data-store-cover-crop-details]");
+    const cancel = document.querySelector("[data-store-cover-crop-cancel]");
+    const save = document.querySelector("[data-store-cover-crop-save]");
+    if (!input || !preview || !previewImage || !details || !clear || !cropper || !canvas || !cropDetails || !cancel || !save) return;
+
+    const context = canvas.getContext("2d");
+    const initialPreviewSource = previewImage.getAttribute("src");
+    const initialDetails = details.textContent;
+    const canvasWidth = canvas.width;
+    const canvasHeight = canvas.height;
+    let previewUrl = null;
+    let sourceUrl = null;
+    let image = null;
+    let sourceFile = null;
+    let acceptedFile = null;
+    let baseScale = 1;
+    let scale = 1;
+    let offsetX = 0;
+    let offsetY = 0;
+    let dragStart = null;
+    let pinchStart = null;
+    const activePointers = new Map();
+
+    const formatFileSize = (bytes) => {
+      if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+      return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    };
+
+    const setInputFile = (file) => {
+      const transfer = new DataTransfer();
+      if (file) transfer.items.add(file);
+      input.files = transfer.files;
+    };
+
+    const closeCropper = () => {
+      cropper.classList.add("hidden");
+      cropper.classList.remove("grid");
+      document.body.style.overflow = "";
+      dragStart = null;
+      pinchStart = null;
+      activePointers.clear();
+      if (sourceUrl) {
+        URL.revokeObjectURL(sourceUrl);
+        sourceUrl = null;
+      }
+    };
+
+    const constrainPosition = () => {
+      const imageWidth = image.naturalWidth * scale;
+      const imageHeight = image.naturalHeight * scale;
+      offsetX = Math.min(0, Math.max(canvasWidth - imageWidth, offsetX));
+      offsetY = Math.min(0, Math.max(canvasHeight - imageHeight, offsetY));
+    };
+
+    const renderCrop = () => {
+      if (!image) return;
+      constrainPosition();
+      context.clearRect(0, 0, canvasWidth, canvasHeight);
+      context.drawImage(image, offsetX, offsetY, image.naturalWidth * scale, image.naturalHeight * scale);
+    };
+
+    const clampScale = (value) => Math.min(baseScale * 5, Math.max(baseScale, value));
+
+    const zoomAt = (nextScale, pointX = canvasWidth / 2, pointY = canvasHeight / 2) => {
+      const limitedScale = clampScale(nextScale);
+      const ratio = limitedScale / scale;
+      offsetX = pointX - (pointX - offsetX) * ratio;
+      offsetY = pointY - (pointY - offsetY) * ratio;
+      scale = limitedScale;
+      renderCrop();
+    };
+
+    const canvasPoint = (event) => {
+      const bounds = canvas.getBoundingClientRect();
+      return {
+        x: (event.clientX - bounds.left) * (canvasWidth / bounds.width),
+        y: (event.clientY - bounds.top) * (canvasHeight / bounds.height),
+      };
+    };
+
+    const pointerDistance = (first, second) => Math.hypot(first.x - second.x, first.y - second.y);
+    const pointerCenter = (first, second) => ({ x: (first.x + second.x) / 2, y: (first.y + second.y) / 2 });
+
+    const showPreview = (file) => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      previewUrl = URL.createObjectURL(file);
+      previewImage.src = previewUrl;
+      preview.hidden = false;
+      preview.classList.remove("hidden");
+      clear.hidden = false;
+      details.textContent = `${file.name} - ${formatFileSize(file.size)} - 1600 x 500 px (จัดตำแหน่งแล้ว)`;
+      if (removeInput) removeInput.value = "0";
+      if (removeButton) removeButton.textContent = "ลบรูปปกปัจจุบัน";
+    };
+
+    const restorePreviousSelection = () => {
+      if (acceptedFile) {
+        setInputFile(acceptedFile);
+        return;
+      }
+      input.value = "";
+    };
+
+    const openCropper = (file) => {
+      sourceFile = file;
+      image = new Image();
+      sourceUrl = URL.createObjectURL(file);
+      image.onload = () => {
+        baseScale = Math.max(canvasWidth / image.naturalWidth, canvasHeight / image.naturalHeight);
+        scale = baseScale;
+        offsetX = (canvasWidth - image.naturalWidth * scale) / 2;
+        offsetY = (canvasHeight - image.naturalHeight * scale) / 2;
+        cropDetails.textContent = `${file.name} - ${formatFileSize(file.size)} - ต้นฉบับ ${image.naturalWidth} x ${image.naturalHeight} px`;
+        cropper.classList.remove("hidden");
+        cropper.classList.add("grid");
+        document.body.style.overflow = "hidden";
+        renderCrop();
+      };
+      image.onerror = () => {
+        details.textContent = "ไม่สามารถเปิดไฟล์รูปภาพนี้ได้";
+        restorePreviousSelection();
+      };
+      image.src = sourceUrl;
+    };
+
+    input.addEventListener("change", () => {
+      const [file] = input.files || [];
+      if (!file) return;
+
+      const supportedName = /\.(jpe?g|png|webp)$/i.test(file.name);
+      const supportedType = !file.type || ["image/jpeg", "image/png", "image/webp"].includes(file.type);
+      if (!supportedName || !supportedType) {
+        restorePreviousSelection();
+        details.textContent = "กรุณาเลือกไฟล์ JPG, JPEG, PNG หรือ WEBP";
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        restorePreviousSelection();
+        details.textContent = "รูปปกหน้าร้านต้องมีขนาดไม่เกิน 5 MB";
+        return;
+      }
+
+      openCropper(file);
+    });
+
+    canvas.addEventListener("wheel", (event) => {
+      if (!image) return;
+      event.preventDefault();
+      const point = canvasPoint(event);
+      zoomAt(scale * (event.deltaY < 0 ? 1.12 : 1 / 1.12), point.x, point.y);
+    }, { passive: false });
+
+    canvas.addEventListener("pointerdown", (event) => {
+      if (!image) return;
+      canvas.setPointerCapture(event.pointerId);
+      activePointers.set(event.pointerId, canvasPoint(event));
+      if (activePointers.size === 1) {
+        dragStart = { x: event.clientX, y: event.clientY, offsetX, offsetY };
+      } else if (activePointers.size === 2) {
+        const [first, second] = activePointers.values();
+        pinchStart = {
+          distance: pointerDistance(first, second),
+          center: pointerCenter(first, second),
+          scale,
+          offsetX,
+          offsetY,
+        };
+        dragStart = null;
+      }
+    });
+
+    canvas.addEventListener("pointermove", (event) => {
+      if (!activePointers.has(event.pointerId)) return;
+      activePointers.set(event.pointerId, canvasPoint(event));
+      if (activePointers.size === 2 && pinchStart) {
+        const [first, second] = activePointers.values();
+        const nextScale = clampScale(pinchStart.scale * (pointerDistance(first, second) / pinchStart.distance));
+        const center = pointerCenter(first, second);
+        const ratio = nextScale / pinchStart.scale;
+        offsetX = center.x - (pinchStart.center.x - pinchStart.offsetX) * ratio;
+        offsetY = center.y - (pinchStart.center.y - pinchStart.offsetY) * ratio;
+        scale = nextScale;
+        renderCrop();
+      } else if (dragStart) {
+        const ratio = canvasWidth / canvas.getBoundingClientRect().width;
+        offsetX = dragStart.offsetX + (event.clientX - dragStart.x) * ratio;
+        offsetY = dragStart.offsetY + (event.clientY - dragStart.y) * ratio;
+        renderCrop();
+      }
+    });
+
+    const finishPointer = (event) => {
+      activePointers.delete(event.pointerId);
+      dragStart = null;
+      pinchStart = null;
+    };
+    canvas.addEventListener("pointerup", finishPointer);
+    canvas.addEventListener("pointercancel", finishPointer);
+
+    cancel.addEventListener("click", () => {
+      restorePreviousSelection();
+      closeCropper();
+    });
+
+    save.addEventListener("click", () => {
+      canvas.toBlob((blob) => {
+        if (!blob || !sourceFile) return;
+        const croppedFile = new File(
+          [blob],
+          sourceFile.name.replace(/\.[^.]+$/, "") + "-cover.jpg",
+          { type: "image/jpeg" },
+        );
+        if (croppedFile.size > 5 * 1024 * 1024) {
+          details.textContent = "รูปที่จัดตำแหน่งแล้วมีขนาดเกิน 5 MB กรุณาเลือกรูปอื่น";
+          restorePreviousSelection();
+          closeCropper();
+          return;
+        }
+        acceptedFile = croppedFile;
+        setInputFile(croppedFile);
+        showPreview(croppedFile);
+        closeCropper();
+      }, "image/jpeg", 0.9);
+    });
+
+    clear.addEventListener("click", () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+        previewUrl = null;
+      }
+      acceptedFile = null;
+      input.value = "";
+      clear.hidden = true;
+      details.textContent = initialDetails;
+      if (initialPreviewSource) {
+        previewImage.src = initialPreviewSource;
+        preview.hidden = false;
+        preview.classList.remove("hidden");
+      } else {
+        previewImage.removeAttribute("src");
+        preview.hidden = true;
+        preview.classList.add("hidden");
+      }
+    });
+
+    if (removeInput && removeButton) {
+      removeButton.addEventListener("click", () => {
+        const isRemoving = removeInput.value !== "1";
+        removeInput.value = isRemoving ? "1" : "0";
+        removeButton.textContent = isRemoving ? "ยกเลิกการลบรูปปก" : "ลบรูปปกปัจจุบัน";
+        if (isRemoving) {
+          if (previewUrl) {
+            URL.revokeObjectURL(previewUrl);
+            previewUrl = null;
+          }
+          acceptedFile = null;
+          input.value = "";
+          clear.hidden = true;
+          previewImage.removeAttribute("src");
+          preview.hidden = true;
+          preview.classList.add("hidden");
+          details.textContent = "รูปปกจะถูกลบเมื่อบันทึกข้อมูลร้าน";
+        } else if (initialPreviewSource) {
+          previewImage.src = initialPreviewSource;
+          preview.hidden = false;
+          preview.classList.remove("hidden");
+          details.textContent = initialDetails;
+        }
+      });
+    }
+
+    window.addEventListener("beforeunload", () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      if (sourceUrl) URL.revokeObjectURL(sourceUrl);
     });
   })();
 </script>

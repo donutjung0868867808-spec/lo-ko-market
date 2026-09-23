@@ -143,3 +143,51 @@ class FarmerShopCenterTests(TestCase):
         self.profile.refresh_from_db()
         self.assertEqual(self.profile.farm_name, "ฟาร์มใหม่")
         self.assertEqual(self.profile.bio, "ผักปลูกสดจากสวน")
+
+    def test_store_settings_shows_cover_image_requirements_and_preview(self):
+        self.profile.store_cover = "store-covers/current-cover.jpg"
+        self.profile.save(update_fields=["store_cover"])
+
+        response = self.client.get(
+            f"{reverse('accounts:farmer_shop_center')}?section=store&mode=settings"
+        )
+
+        self.assertContains(response, 'data-store-cover-input')
+        self.assertContains(response, 'data-store-cover-preview')
+        self.assertContains(response, 'data-store-cover-cropper')
+        self.assertContains(response, 'data-store-cover-clear')
+        self.assertContains(response, 'data-store-cover-remove')
+        self.assertNotContains(response, 'type="checkbox" name="store_cover-clear"')
+        self.assertContains(response, 'z-[70] hidden place-items-center')
+        self.assertContains(response, "1600 x 500")
+        self.assertContains(response, "ขนาดไฟล์ไม่เกิน 5 MB")
+
+    def test_store_design_displays_the_saved_cover_image(self):
+        self.profile.store_cover = "store-covers/design-preview.jpg"
+        self.profile.save(update_fields=["store_cover"])
+
+        response = self.client.get(
+            f"{reverse('accounts:farmer_shop_center')}?section=store&mode=design"
+        )
+
+        self.assertContains(response, self.profile.store_cover.url)
+
+    def test_seller_can_remove_the_store_cover_with_the_remove_button(self):
+        self.profile.store_cover.save("remove-me.jpg", ContentFile(b"store cover"), save=True)
+
+        response = self.client.post(
+            reverse("accounts:farmer_shop_center"),
+            {
+                "shop_action": "update_store",
+                "farm_name": self.profile.farm_name,
+                "province": self.profile.province,
+                "district": self.profile.district,
+                "address": self.profile.address,
+                "bio": self.profile.bio,
+                "remove_store_cover": "1",
+            },
+        )
+
+        self.assertRedirects(response, f"{reverse('accounts:farmer_shop_center')}?section=store&mode=settings")
+        self.profile.refresh_from_db()
+        self.assertFalse(self.profile.store_cover)
