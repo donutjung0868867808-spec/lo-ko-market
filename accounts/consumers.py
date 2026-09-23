@@ -1,6 +1,7 @@
 import json
 import time
 from http.cookies import SimpleCookie
+from importlib import import_module
 
 from asgiref.sync import async_to_sync
 from channels.generic.websocket import JsonWebsocketConsumer
@@ -74,7 +75,8 @@ class AuthenticatedConsumer(JsonWebsocketConsumer):
         except PermissionDenied:
             self.close(code=4403)
             return
-        counts = notification_summary(SimpleNamespace(user=self.user))
+        session = import_module(settings.SESSION_ENGINE).SessionStore(self.scope.get("session_key"))
+        counts = notification_summary(SimpleNamespace(user=self.user, session=session))
         self.send_json({"type": "notifications", **counts})
 
 

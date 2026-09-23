@@ -15,7 +15,7 @@ from accounts.models import Community, FarmerProfile, Notification, StoreCoverSl
 from orders.models import Order, OrderItem
 
 from .forms import ProductForm
-from .models import Category, HomeSlide, Product, ProductReview, ProductReviewMedia
+from .models import Category, HomeSlide, Product, ProductDetailImage, ProductReview, ProductReviewMedia
 
 
 def test_image_bytes():
@@ -158,7 +158,41 @@ class ProductCatalogTests(TestCase):
         response = self.client.get(reverse("catalog:product_create"))
 
         self.assertContains(response, "ลากรูปมาวางได้หลายรูป")
-        self.assertContains(response, 'data-product-gallery-input="true"')
+        self.assertContains(response, 'data-product-detail-image-input="true"')
+        markup = response.content.decode()
+        self.assertLess(markup.index('id_description'), markup.index('data-product-detail-image-input="true"'))
+
+    def test_farmer_can_add_images_inside_product_details(self):
+        self.client.force_login(self.farmer)
+        files = [
+            SimpleUploadedFile("detail-one.png", TEST_IMAGE_BYTES, content_type="image/png"),
+            SimpleUploadedFile("detail-two.webp", TEST_IMAGE_BYTES, content_type="image/webp"),
+        ]
+
+        with tempfile.TemporaryDirectory() as media_root, self.settings(MEDIA_ROOT=media_root):
+            response = self.client.post(
+                reverse("catalog:product_create"),
+                {
+                    "name": "ผักพร้อมรูปประกอบรายละเอียด",
+                    "description": "รายละเอียดที่มีรูปประกอบ",
+                    "unit": Product.Unit.KG,
+                    "price": "35.00",
+                    "stock_quantity": "10.00",
+                    "minimum_order_quantity": "0.50",
+                    "low_stock_threshold": "5.00",
+                    "detail_images": files,
+                },
+            )
+            product = Product.objects.get(name="ผักพร้อมรูปประกอบรายละเอียด")
+            self.assertRedirects(response, product.get_absolute_url(), fetch_redirect_response=False)
+            self.assertFalse(product.image)
+            self.assertEqual(ProductDetailImage.objects.filter(product=product).count(), 2)
+            product.status = Product.Status.ACTIVE
+            product.save(update_fields=["status"])
+            detail_page = self.client.get(product.get_absolute_url())
+
+        self.assertContains(detail_page, "detail-one")
+        self.assertContains(detail_page, "detail-two")
 
     def test_farmer_can_add_multiple_images_from_product_management(self):
         product = Product.objects.create(

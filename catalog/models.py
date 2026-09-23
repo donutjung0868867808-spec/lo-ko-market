@@ -330,6 +330,25 @@ class ProductImage(models.Model):
         ordering = ["sort_order", "id"]
 
 
+class ProductDetailImage(models.Model):
+    """Images that illustrate the written product description, not the product gallery."""
+
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="detail_images")
+    image = models.FileField(
+        "รูปประกอบรายละเอียดสินค้า",
+        upload_to="products/details/%Y/%m/",
+        validators=[validate_image_file, validate_image_size],
+    )
+    alt_text = models.CharField(max_length=180, blank=True)
+    sort_order = models.PositiveSmallIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "รูปประกอบรายละเอียดสินค้า"
+        verbose_name_plural = "รูปประกอบรายละเอียดสินค้า"
+        ordering = ["sort_order", "id"]
+
+
 class StockMovement(models.Model):
     class MovementType(models.TextChoices):
         MANUAL = "manual", "ปรับสต็อก"

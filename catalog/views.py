@@ -3,7 +3,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.management import call_command
 from django.db import transaction
-from django.db.models import Avg, Count, Prefetch, Q, Sum
+from django.db.models import Avg, Count, Max, Prefetch, Q, Sum
 from django.shortcuts import get_object_or_404, redirect, render
 
 from accounts.decorators import role_required, user_community
@@ -18,6 +18,7 @@ from .models import (
     Category,
     HomeSlide,
     Product,
+    ProductDetailImage,
     ProductFavorite,
     ProductImage,
     ProductReview,
@@ -37,6 +38,13 @@ def ensure_demo_catalog_data():
 def save_product_gallery_images(product, images):
     for image in images:
         ProductImage.objects.create(product=product, image=image)
+
+
+def save_product_detail_images(product, images):
+    next_sort_order = product.detail_images.aggregate(last=Max("sort_order"))["last"] or 0
+    for image in images:
+        next_sort_order += 1
+        ProductDetailImage.objects.create(product=product, image=image, sort_order=next_sort_order)
 
 
 def use_first_gallery_image_as_cover(product, images):
@@ -126,7 +134,7 @@ def can_manage_product(user, product):
 
 def product_detail(request, pk):
     product = get_object_or_404(
-        Product.objects.select_related("seller", "community", "category").prefetch_related("images"),
+        Product.objects.select_related("seller", "community", "category").prefetch_related("images", "detail_images"),
         pk=pk,
     )
     if product.status != Product.Status.ACTIVE:
@@ -271,11 +279,13 @@ def product_create(request):
     if request.method == "POST" and form.is_valid():
         product = form.save(commit=False)
         gallery_images = use_first_gallery_image_as_cover(product, form.cleaned_data["image"])
+        detail_images = form.cleaned_data["detail_images"]
         product.seller = request.user
         product.community = profile.community
         product.status = Product.Status.PENDING
         product.save()
         save_product_gallery_images(product, gallery_images)
+        save_product_detail_images(product, detail_images)
         messages.success(request, "ส่งสินค้าให้เจ้าหน้าที่ตรวจสอบแล้ว")
         return redirect(product)
 
@@ -304,6 +314,7 @@ def product_update(request, pk):
     if request.method == "POST" and form.is_valid():
         remove_image = request.POST.get("remove_image") == "1" and not request.FILES.get("image")
         gallery_images = form.cleaned_data["image"]
+        detail_images = form.cleaned_data["detail_images"]
         with transaction.atomic():
             product = form.save(commit=False)
             if remove_image:
@@ -313,6 +324,7 @@ def product_update(request, pk):
                 product.status = Product.Status.PENDING
             product.save()
             save_product_gallery_images(product, gallery_images)
+            save_product_detail_images(product, detail_images)
             if product.stock_quantity != old_stock:
                 StockMovement.objects.create(
                     product=product,

@@ -81,6 +81,8 @@ def serialize_message(message, room=None):
         "sender_name": message.sender.display_name or message.sender.username,
         "sender_avatar_url": message.sender.avatar.url if message.sender.avatar else None,
         "body": message.body, "created_at": message.created_at.isoformat(),
+        "attachment_url": reverse("accounts:conversation_media", args=[message.pk]) if getattr(message, "attachment", None) else None,
+        "media_type": getattr(message, "media_type", ""),
         "client_id": str(message.client_id) if message.client_id else None,
         "read_at": read_at.isoformat() if read_at else None,
         "reader_name": (reader.display_name or reader.username) if reader else None,

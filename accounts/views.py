@@ -5,7 +5,7 @@ import uuid
 from pathlib import Path
 
 from django.conf import settings
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.contrib.auth.hashers import make_password
@@ -23,7 +23,7 @@ from django.utils.http import url_has_allowed_host_and_scheme, urlsafe_base64_de
 from django.views.decorators.http import require_POST
 
 from catalog.forms import ProductForm
-from catalog.models import Product, ProductFavorite, ProductImage, ProductReview, SellerFavorite
+from catalog.models import Product, ProductDetailImage, ProductFavorite, ProductImage, ProductReview, SellerFavorite
 from orders.models import Order
 from payments.models import CustomerPaymentProfile, SavedPaymentMethod, SellerPaymentAccount, SellerSettlement
 
@@ -47,7 +47,8 @@ from .forms import (
     UserProfileForm,
     split_display_name,
 )
-from .models import AuditEvent, ChatBlock, Conversation, DeliveryAddress, DirectMessage, FarmerProfile, NewsPost, Notification, Report, ReportMessage, StoreCoverSlide, SupportMessage, SupportTicket, User
+from .models import AuditEvent, ChatBlock, Conversation, DeliveryAddress, DirectMessage, FarmerProfile, NewsPost, Notification, Report, ReportMessage, StoreCoverSlide, SupportMessage, SupportTicket, User, chat_media_type_for_upload
+from .realtime import serialize_message
 from .services import (
     clear_login_failures,
     is_login_blocked,
@@ -383,6 +384,7 @@ def farmer_shop_center(request):
         elif product_form.is_valid():
             product = product_form.save(commit=False)
             gallery_images = list(product_form.cleaned_data["image"])
+            detail_images = product_form.cleaned_data["detail_images"]
             if not product.image and gallery_images:
                 product.image = gallery_images.pop(0)
             product.seller = request.user
@@ -391,6 +393,8 @@ def farmer_shop_center(request):
             product.save()
             for image in gallery_images:
                 ProductImage.objects.create(product=product, image=image)
+            for sort_order, image in enumerate(detail_images, start=1):
+                ProductDetailImage.objects.create(product=product, image=image, sort_order=sort_order)
             messages.success(request, "ส่งสินค้าให้เจ้าหน้าที่ตรวจสอบแล้ว")
             return redirect(f"{reverse('accounts:farmer_shop_center')}?section=products")
     elif request.method == "POST" and request.POST.get("shop_action") == "update_store":
@@ -1378,14 +1382,14 @@ def send_notification(request, user_id=None):
     )
 
 
-def _private_file_response(field_file):
+def _private_file_response(field_file, *, as_attachment=True):
     if not field_file or not field_file.name:
         raise Http404
     filename = Path(field_file.name).name
     content_type, _ = mimetypes.guess_type(filename)
     response = FileResponse(
         field_file.open("rb"),
-        as_attachment=True,
+        as_attachment=as_attachment,
         filename=filename,
         content_type=content_type or "application/octet-stream",
     )
@@ -1552,6 +1556,7 @@ def conversations_list(request):
                 filter=Q(messages__read_at__isnull=True) & ~Q(messages__sender=request.user),
             ),
             last_message_body=Subquery(latest_message.values("body")[:1]),
+            last_message_media_type=Subquery(latest_message.values("media_type")[:1]),
             last_message_at=Subquery(latest_message.values("created_at")[:1]),
         )
         .order_by("-updated_at")
@@ -1745,7 +1750,7 @@ def conversation_detail(request, pk):
         read_at__isnull=True,
     ).exclude(sender=request.user).update(read_at=timezone.now())
 
-    form = DirectMessageForm(request.POST or None)
+    form = DirectMessageForm(request.POST or None, request.FILES or None)
     if request.method == "POST":
         if not can_send:
             messages.error(request, "ไม่สามารถส่งข้อความในบทสนทนานี้ได้")
@@ -1762,6 +1767,8 @@ def conversation_detail(request, pk):
                 direct_message = form.save(commit=False)
                 direct_message.conversation = conversation
                 direct_message.sender = request.user
+                if direct_message.attachment:
+                    direct_message.media_type = chat_media_type_for_upload(direct_message.attachment)
                 direct_message.full_clean()
                 direct_message.save()
                 Conversation.objects.filter(pk=conversation.pk).update(updated_at=timezone.now())
@@ -1791,3 +1798,76 @@ def conversation_detail(request, pk):
             "form": form,
         },
     )
+
+
+@login_required
+@require_POST
+@transaction.atomic
+def conversation_media_upload(request, pk):
+    """Upload one piece of chat media and publish it to the live conversation."""
+    conversation = _conversation_for_user(request, pk)
+    other_participant = conversation.other_participant(request.user)
+    blocked = ChatBlock.objects.filter(
+        Q(blocker=request.user, blocked=other_participant)
+        | Q(blocker=other_participant, blocked=request.user)
+    ).exists()
+    if blocked:
+        return JsonResponse({"error": "ไม่สามารถส่งข้อความในบทสนทนานี้ได้"}, status=403)
+
+    attachment = request.FILES.get("attachment")
+    body = (request.POST.get("body") or "").strip()
+    if not attachment:
+        return JsonResponse({"error": "กรุณาเลือกไฟล์รูปภาพหรือวิดีโอ"}, status=400)
+    if len(body) > 2000:
+        return JsonResponse({"error": "ข้อความต้องไม่เกิน 2,000 ตัวอักษร"}, status=400)
+
+    try:
+        client_id = uuid.UUID(request.POST.get("client_id", ""))
+    except (ValueError, AttributeError):
+        return JsonResponse({"error": "ไม่พบรหัสการส่งไฟล์ กรุณาลองใหม่"}, status=400)
+
+    existing = DirectMessage.objects.filter(sender=request.user, client_id=client_id).first()
+    if existing:
+        if existing.conversation_id != conversation.pk:
+            return JsonResponse({"error": "รหัสการส่งไฟล์นี้ถูกใช้งานแล้ว"}, status=409)
+        return JsonResponse({"message": serialize_message(existing, conversation)})
+
+    if DirectMessage.objects.filter(
+        conversation=conversation,
+        sender=request.user,
+        created_at__gte=timezone.now() - timedelta(minutes=1),
+    ).count() >= 12:
+        return JsonResponse({"error": "คุณส่งข้อความเร็วเกินไป กรุณารอประมาณ 1 นาทีแล้วลองใหม่"}, status=429)
+
+    try:
+        media_type = chat_media_type_for_upload(attachment)
+        message = DirectMessage(
+            conversation=conversation,
+            sender=request.user,
+            client_id=client_id,
+            body=body,
+            attachment=attachment,
+            media_type=media_type,
+        )
+        message.full_clean()
+        message.save()
+    except ValidationError as error:
+        return JsonResponse({"error": error.messages[0]}, status=400)
+
+    Conversation.objects.filter(pk=conversation.pk).update(updated_at=message.created_at)
+    notify_user(
+        other_participant,
+        title=f"ข้อความใหม่จาก {request.user}",
+        message=(f"เกี่ยวกับสินค้า {conversation.product.name}" if conversation.product_id else "เกี่ยวกับร้านค้าของคุณ"),
+        link=reverse("accounts:conversation_detail", args=[conversation.pk]),
+        send_email_message=False,
+    )
+    return JsonResponse({"message": serialize_message(message, conversation)}, status=201)
+
+
+@login_required
+def conversation_media(request, message_id):
+    message = get_object_or_404(DirectMessage.objects.select_related("conversation"), pk=message_id)
+    if request.user.pk not in {message.conversation.buyer_id, message.conversation.seller_id}:
+        raise Http404
+    return _private_file_response(message.attachment, as_attachment=False)

@@ -153,6 +153,29 @@ class FarmerShopCenterTests(TestCase):
         self.assertEqual(self.profile.farm_name, "ฟาร์มใหม่")
         self.assertEqual(self.profile.bio, "ผักปลูกสดจากสวน")
 
+    def test_store_name_update_is_reflected_on_public_store_with_existing_slides(self):
+        slide = StoreCoverSlide.objects.create(
+            profile=self.profile,
+            image="store-cover-slides/existing-slide.jpg",
+        )
+        response = self.client.post(
+            reverse("accounts:farmer_shop_center"),
+            {
+                "shop_action": "update_store",
+                "farm_name": "ชื่อร้านใหม่",
+                "province": self.profile.province,
+                "district": self.profile.district,
+                "address": self.profile.address,
+                "bio": self.profile.bio,
+            },
+        )
+
+        self.assertRedirects(response, f"{reverse('accounts:farmer_shop_center')}?section=store&mode=settings")
+        public_store = self.client.get(reverse("catalog:seller_store", args=[self.seller.pk]))
+        self.assertContains(public_store, "ชื่อร้านใหม่")
+        settings_page = self.client.get(f"{reverse('accounts:farmer_shop_center')}?section=store&mode=settings")
+        self.assertContains(settings_page, f'form="store-cover-slide-delete-{slide.pk}"')
+
     def test_store_settings_shows_cover_image_requirements_and_preview(self):
         self.profile.store_cover = "store-covers/current-cover.jpg"
         self.profile.save(update_fields=["store_cover"])

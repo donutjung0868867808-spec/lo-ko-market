@@ -5,6 +5,7 @@ from django.core.validators import FileExtensionValidator
 from django.db import models
 from django.db.models.functions import Lower
 from django.utils import timezone
+from PIL import Image, UnidentifiedImageError
 
 from agri_market.storage import private_storage
 
@@ -17,6 +18,43 @@ def validate_file_size(upload):
 
 
 AVATAR_MAX_SIZE = 1024 * 1024
+CHAT_VIDEO_MAX_SIZE = 25 * 1024 * 1024
+CHAT_VIDEO_EXTENSIONS = (".mp4", ".mov", ".webm")
+
+
+def chat_media_type_for_upload(upload):
+    """Identify chat media from its bytes where possible, not only its filename."""
+    if not upload:
+        raise ValidationError("กรุณาเลือกไฟล์รูปภาพหรือวิดีโอ")
+
+    source = getattr(upload, "file", upload)
+    try:
+        source.seek(0)
+        with Image.open(source) as image:
+            image.verify()
+        source.seek(0)
+        return "image"
+    except (UnidentifiedImageError, OSError, SyntaxError, ValueError):
+        try:
+            source.seek(0)
+        except (AttributeError, OSError):
+            pass
+
+    filename = (getattr(upload, "name", "") or "").lower()
+    content_type = (getattr(upload, "content_type", "") or "").lower()
+    if any(filename.endswith(extension) for extension in CHAT_VIDEO_EXTENSIONS) and (
+        not content_type or content_type.startswith("video/")
+    ):
+        return "video"
+    raise ValidationError("รองรับเฉพาะรูป JPG, PNG, WEBP และวิดีโอ MP4, MOV, WEBM")
+
+
+def validate_chat_media_file(upload):
+    media_type = chat_media_type_for_upload(upload)
+    maximum_size = settings.MAX_UPLOAD_SIZE if media_type == "image" else CHAT_VIDEO_MAX_SIZE
+    if upload.size > maximum_size:
+        limit = "5 MB" if media_type == "image" else "25 MB"
+        raise ValidationError(f"ไฟล์{('รูปภาพ' if media_type == 'image' else 'วิดีโอ')}มีขนาดใหญ่เกิน {limit}")
 
 
 def validate_avatar_size(upload):
@@ -641,6 +679,10 @@ class Conversation(models.Model):
 
 
 class DirectMessage(models.Model):
+    class MediaType(models.TextChoices):
+        IMAGE = "image", "รูปภาพ"
+        VIDEO = "video", "วิดีโอ"
+
     client_id = models.UUIDField(null=True, blank=True, editable=False)
     conversation = models.ForeignKey(
         Conversation,
@@ -654,7 +696,15 @@ class DirectMessage(models.Model):
         on_delete=models.CASCADE,
         related_name="direct_messages",
     )
-    body = models.TextField("ข้อความ", max_length=2000)
+    body = models.TextField("ข้อความ", max_length=2000, blank=True)
+    attachment = models.FileField(
+        "ไฟล์แนบ",
+        upload_to="chat-media/%Y/%m/",
+        storage=private_storage,
+        blank=True,
+        validators=[validate_chat_media_file],
+    )
+    media_type = models.CharField("ประเภทสื่อ", max_length=10, choices=MediaType.choices, blank=True)
     read_at = models.DateTimeField("วันที่อ่าน", null=True, blank=True)
     created_at = models.DateTimeField("วันที่ส่ง", auto_now_add=True)
 
@@ -678,6 +728,10 @@ class DirectMessage(models.Model):
             self.conversation.seller_id,
         }:
             raise ValidationError("ผู้ส่งต้องเป็นผู้เข้าร่วมบทสนทนา")
+        if not self.body.strip() and not self.attachment:
+            raise ValidationError("กรุณาพิมพ์ข้อความหรือแนบรูปภาพหรือวิดีโอ")
+        if self.attachment and not self.media_type:
+            self.media_type = chat_media_type_for_upload(self.attachment)
 
 
 class SupportTicket(models.Model):

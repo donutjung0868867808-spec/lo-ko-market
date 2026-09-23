@@ -142,7 +142,7 @@ class BaseSignupForm(StyledFormMixin, UserCreationForm):
     def save(self, commit=True):
         user = super().save(commit=False)
         full_name = self.cleaned_data["display_name"].strip()
-        user.display_name = user.username
+        user.display_name = full_name
         user.first_name, user.last_name = split_display_name(full_name)
         accepted_at = timezone.now()
         user.terms_accepted_at = accepted_at
@@ -275,8 +275,9 @@ class SellerStoreProfileForm(StyledFormMixin, forms.ModelForm):
 class UserProfileForm(StyledFormMixin, forms.ModelForm):
     class Meta:
         model = User
-        fields = ["avatar", "email", "phone", "first_name", "last_name", "gender", "birth_date"]
+        fields = ["avatar", "display_name", "email", "phone", "first_name", "last_name", "gender", "birth_date"]
         labels = {
+            "display_name": "ชื่อที่แสดง",
             "email": "อีเมล",
             "phone": "เบอร์โทรศัพท์",
             "first_name": "ชื่อ",
@@ -556,23 +557,29 @@ class SupportMessageForm(StyledFormMixin, forms.ModelForm):
 class DirectMessageForm(StyledFormMixin, forms.ModelForm):
     class Meta:
         model = DirectMessage
-        fields = ["body"]
-        labels = {"body": "ข้อความ"}
+        fields = ["body", "attachment"]
+        labels = {"body": "ข้อความ", "attachment": "รูปภาพหรือวิดีโอ"}
         widgets = {
             "body": forms.Textarea(
                 attrs={
-                    "rows": 3,
+                    "rows": 1,
                     "maxlength": 2000,
                     "placeholder": "พิมพ์ข้อความถึงผู้ขาย",
                 }
-            )
+            ),
+            "attachment": forms.FileInput(
+                attrs={"accept": "image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm"}
+            ),
         }
 
-    def clean_body(self):
-        body = self.cleaned_data["body"].strip()
-        if not body:
-            raise forms.ValidationError("กรุณาพิมพ์ข้อความ")
-        return body
+    def clean(self):
+        cleaned_data = super().clean()
+        body = (cleaned_data.get("body") or "").strip()
+        attachment = cleaned_data.get("attachment")
+        if not body and not attachment:
+            raise forms.ValidationError("กรุณาพิมพ์ข้อความหรือแนบรูปภาพหรือวิดีโอ")
+        cleaned_data["body"] = body
+        return cleaned_data
 class DeliveryAddressForm(StyledFormMixin, forms.ModelForm):
     class Meta:
         model = DeliveryAddress

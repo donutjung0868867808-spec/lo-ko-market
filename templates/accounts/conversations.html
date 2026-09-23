@@ -23,7 +23,7 @@
             <h2 class="font-semibold text-slate-950">{% if conversation.buyer_id == user.id %}{{ conversation.seller }}{% else %}{{ conversation.buyer }}{% endif %}</h2>
             {% if conversation.unread_count %}<span class="rounded-md bg-leaf px-2 py-0.5 text-xs font-semibold text-white">{{ conversation.unread_count }} ข้อความใหม่</span>{% endif %}
           </div>
-          <p class="mt-1 truncate text-sm text-slate-700">{{ conversation.last_message_body|default:"เริ่มบทสนทนาแล้ว" }}</p>
+          <p class="mt-1 truncate text-sm text-slate-700">{% if conversation.last_message_body %}{{ conversation.last_message_body }}{% elif conversation.last_message_media_type == "image" %}<i data-lucide="image" class="mr-1 inline h-4 w-4" aria-hidden="true"></i>รูปภาพ{% elif conversation.last_message_media_type == "video" %}<i data-lucide="video" class="mr-1 inline h-4 w-4" aria-hidden="true"></i>วิดีโอ{% else %}เริ่มบทสนทนาแล้ว{% endif %}</p>
           <p class="mt-1 text-xs text-slate-500">{% if conversation.product %}{{ conversation.product.name }} · {{ conversation.product.community.name }}{% else %}สนทนาทั่วไปกับร้านค้า · {{ conversation.seller.farmer_profile.community.name|default:"ร้านค้าเกษตรชุมชน" }}{% endif %}{% if conversation.order %} · {{ conversation.order.reference }}{% endif %}</p>
         </div>
         <time class="text-xs text-slate-500" datetime="{{ conversation.updated_at|date:'c' }}">{{ conversation.updated_at|date:"d/m/Y H:i" }}</time>

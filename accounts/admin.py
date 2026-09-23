@@ -702,7 +702,7 @@ class DirectMessageInline(admin.TabularInline):
     model = DirectMessage
     extra = 0
     can_delete = False
-    fields = ("sender", "body", "read_at", "created_at")
+    fields = ("sender", "body", "attachment", "media_type", "read_at", "created_at")
     readonly_fields = fields
     verbose_name = "ข้อความ"
     verbose_name_plural = "ข้อความในบทสนทนา"

@@ -1,11 +1,16 @@
+import uuid
+from io import BytesIO
+
 from django.conf import settings
 from django.contrib.auth.tokens import default_token_generator
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import override_settings
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 from django.test import Client, TestCase
 from django.urls import reverse
 from unittest.mock import call, patch
+from PIL import Image
 
 from catalog.models import Product, StockMovement
 from orders.models import Order, OrderItem
@@ -693,6 +698,39 @@ class BuyerSellerConversationTests(TestCase):
                 body="สินค้านี้เก็บเกี่ยววันนี้ไหม",
             ).exists()
         )
+
+    def test_participants_can_upload_private_chat_image(self):
+        conversation = Conversation.objects.create(
+            buyer=self.buyer,
+            seller=self.seller,
+            product=self.product,
+        )
+        image_bytes = BytesIO()
+        Image.new("RGB", (2, 2), "green").save(image_bytes, format="PNG")
+        image = SimpleUploadedFile("delivery-proof.png", image_bytes.getvalue(), content_type="image/png")
+        self.client.force_login(self.buyer)
+        response = self.client.post(
+            reverse("accounts:conversation_media_upload", args=[conversation.pk]),
+            {"body": "หลักฐานการจัดส่ง", "attachment": image, "client_id": str(uuid.uuid4())},
+        )
+
+        self.assertEqual(response.status_code, 201, response.content)
+        message = DirectMessage.objects.get(conversation=conversation)
+        self.assertEqual(message.media_type, DirectMessage.MediaType.IMAGE)
+        self.assertEqual(message.body, "หลักฐานการจัดส่ง")
+        buyer_media = self.client.get(reverse("accounts:conversation_media", args=[message.pk]))
+        self.assertContains(buyer_media, b"PNG", status_code=200)
+        buyer_media.close()
+
+        self.client.force_login(self.seller)
+        seller_media = self.client.get(reverse("accounts:conversation_media", args=[message.pk]))
+        self.assertEqual(seller_media.status_code, 200)
+        seller_media.close()
+        self.client.force_login(self.outsider)
+        outsider_media = self.client.get(reverse("accounts:conversation_media", args=[message.pk]))
+        self.assertEqual(outsider_media.status_code, 404)
+        outsider_media.close()
+        message.attachment.delete(save=False)
 
     def test_third_party_cannot_open_conversation(self):
         conversation = Conversation.objects.create(

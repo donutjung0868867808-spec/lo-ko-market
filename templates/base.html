@@ -34,9 +34,9 @@
 </head>
 <body class="flex min-h-screen flex-col bg-white text-ink">
   <header class="sticky top-0 z-40 bg-leaf text-white shadow-sm">
-    <div class="relative mx-auto grid min-h-[68px] w-full max-w-[1500px] grid-cols-1 items-center gap-x-3 gap-y-2 px-4 py-2 sm:px-6 lg:grid-cols-[220px_minmax(420px,1fr)_auto] lg:px-8">
+    <div class="relative mx-auto grid w-full max-w-[1500px] grid-cols-1 items-center gap-x-3 gap-y-2 px-4 py-2 sm:px-6 lg:grid-cols-[220px_minmax(420px,1fr)_auto] lg:px-8" style="min-height: 84px;">
       <a href="{% url 'catalog:product_list' %}" class="flex min-w-0 items-center gap-2.5" aria-label="หน้าหลักตลาดเกษตรชุมชน">
-        <span class="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-md bg-white p-0.5">
+        <span class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-md bg-white p-0.5">
           <img src="{% static 'images/market-logo.png' %}" alt="โลโก้ตลาดเกษตรชุมชน" class="h-full w-full object-contain">
         </span>
         <span class="hidden min-w-0 sm:block">
@@ -69,9 +69,9 @@
 
       <nav class="absolute right-4 top-2 flex shrink-0 items-center justify-end gap-1 sm:right-6 sm:gap-2 lg:static" aria-label="เมนูผู้ใช้">
         {% if user.is_authenticated %}
-          <a data-notification-bell class="relative flex h-11 w-11 items-center justify-center rounded-md hover:bg-white/10" href="{% url 'accounts:notifications' %}" title="การแจ้งเตือน">
+          <a data-notification-bell class="relative flex h-10 w-10 items-center justify-center rounded-md hover:bg-white/10" href="{% url 'accounts:notifications' %}" title="การแจ้งเตือน">
         {% else %}
-          <a data-notification-bell class="relative flex h-11 w-11 items-center justify-center rounded-md hover:bg-white/10" href="{% url 'login' %}?next={% url 'accounts:notifications' %}" title="การแจ้งเตือน">
+          <a data-notification-bell class="relative flex h-10 w-10 items-center justify-center rounded-md hover:bg-white/10" href="{% url 'login' %}?next={% url 'accounts:notifications' %}" title="การแจ้งเตือน">
         {% endif %}
             <i data-lucide="bell" class="h-7 w-7" aria-hidden="true"></i><span class="icon-fallback">แจ้งเตือน</span>
             {% if unread_notification_count %}
@@ -83,18 +83,18 @@
           </a>
 
         {% if user.is_authenticated %}
-          <a class="flex h-11 w-11 items-center justify-center rounded-md hover:bg-white/10" href="{% url 'accounts:favorites' %}" title="สินค้าที่ถูกใจ">
+          <a class="flex h-10 w-10 items-center justify-center rounded-md hover:bg-white/10" href="{% url 'accounts:favorites' %}" title="สินค้าที่ถูกใจ">
         {% else %}
-          <a class="flex h-11 w-11 items-center justify-center rounded-md hover:bg-white/10" href="{% url 'login' %}?next={% url 'accounts:favorites' %}" title="สินค้าที่ถูกใจ">
+          <a class="flex h-10 w-10 items-center justify-center rounded-md hover:bg-white/10" href="{% url 'login' %}?next={% url 'accounts:favorites' %}" title="สินค้าที่ถูกใจ">
         {% endif %}
             <i data-lucide="heart" class="h-7 w-7" aria-hidden="true"></i><span class="icon-fallback text-lg">♡</span>
             <span class="sr-only">สินค้าที่ถูกใจ</span>
           </a>
 
         {% if user.is_authenticated %}
-          <a class="relative flex h-11 w-11 items-center justify-center rounded-md hover:bg-white/10" href="{% url 'orders:cart' %}" title="ตะกร้าสินค้า">
+          <a class="relative flex h-10 w-10 items-center justify-center rounded-md hover:bg-white/10" href="{% url 'orders:cart' %}" title="ตะกร้าสินค้า">
         {% else %}
-          <a class="relative flex h-11 w-11 items-center justify-center rounded-md hover:bg-white/10" href="{% url 'login' %}?next={% url 'orders:cart' %}" title="ตะกร้าสินค้า">
+          <a class="relative flex h-10 w-10 items-center justify-center rounded-md hover:bg-white/10" href="{% url 'login' %}?next={% url 'orders:cart' %}" title="ตะกร้าสินค้า">
         {% endif %}
             <i data-lucide="shopping-cart" class="h-7 w-7" aria-hidden="true"></i><span class="icon-fallback">ตะกร้า</span>
             {% if cart_item_count %}
@@ -106,7 +106,7 @@
           </a>
 
         <details class="group relative">
-          <summary class="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-md hover:bg-white/10" title="โปรไฟล์">
+          <summary class="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-md hover:bg-white/10" title="โปรไฟล์">
             {% if user.is_authenticated and user.avatar %}
               <img src="{{ user.avatar.url }}" alt="รูปโปรไฟล์ของ {{ user.username }}" class="h-9 w-9 rounded-full border-2 border-white/80 object-cover shadow-sm">
             {% else %}
@@ -120,7 +120,7 @@
                 <p class="truncate font-semibold">{{ user.username }}</p>
                 <p class="mt-0.5 text-xs text-slate-500">{% if user.is_farmer and active_market_mode == "buyer" %}โหมดผู้ซื้อ{% else %}{{ user.get_role_display }}{% endif %}</p>
               </div>
-              <a class="flex items-center gap-2 px-4 py-3 font-medium text-slate-800 hover:bg-stone-50" href="{% url 'accounts:account_history' %}"><i data-lucide="user-round" class="h-4 w-4" aria-hidden="true"></i>บัญชีของฉัน</a>
+              <a class="flex items-center gap-2 px-4 py-3 font-medium {% if request.resolver_match.url_name == 'account_history' %}text-leaf hover:bg-emerald-50{% else %}text-slate-800 hover:bg-stone-50{% endif %}" href="{% url 'accounts:account_history' %}"><i data-lucide="user-round" class="h-4 w-4" aria-hidden="true"></i>บัญชีของฉัน</a>
               {% if user.is_farmer %}
                 {% if active_market_mode == "buyer" %}
                   {% url "accounts:switch_market_mode" "seller" as switch_mode_url %}
@@ -129,7 +129,7 @@
                 {% endif %}
                 <form method="post" action="{{ switch_mode_url }}">
                   {% csrf_token %}
-                  <button type="submit" class="flex w-full items-center gap-2 px-4 py-3 text-left font-medium text-leaf hover:bg-emerald-50">
+                  <button type="submit" class="flex w-full items-center gap-2 px-4 py-3 text-left font-medium text-slate-800 hover:bg-stone-50">
                     {% if active_market_mode == "buyer" %}
                       <i data-lucide="store" class="h-4 w-4" aria-hidden="true"></i>สลับเป็นผู้ขาย
                     {% else %}
@@ -139,17 +139,17 @@
                 </form>
               {% endif %}
               {% if user.is_cooperative_staff %}
-                <a class="flex items-center gap-2 px-4 py-3 font-medium text-leaf hover:bg-emerald-50" href="{% url 'accounts:staff_dashboard' %}"><i data-lucide="badge-check" class="h-4 w-4" aria-hidden="true"></i>ศูนย์เจ้าหน้าที่วิสาหกิจชุมชน</a>
+                <a class="flex items-center gap-2 px-4 py-3 font-medium {% if request.resolver_match.url_name == 'staff_dashboard' %}text-leaf hover:bg-emerald-50{% else %}text-slate-800 hover:bg-stone-50{% endif %}" href="{% url 'accounts:staff_dashboard' %}"><i data-lucide="badge-check" class="h-4 w-4" aria-hidden="true"></i>ศูนย์เจ้าหน้าที่วิสาหกิจชุมชน</a>
               {% endif %}
               {% if user.is_farmer and active_market_mode != "buyer" %}
-                <a class="flex items-center gap-2 px-4 py-3 font-medium text-slate-800 hover:bg-stone-50" href="{% url 'catalog:seller_store' user.pk %}"><i data-lucide="store" class="h-4 w-4" aria-hidden="true"></i>หน้าร้านค้าของฉัน</a>
-                <a class="flex items-center gap-2 px-4 py-3 font-medium text-leaf hover:bg-emerald-50" href="{% url 'accounts:farmer_shop_center' %}"><i data-lucide="store" class="h-4 w-4" aria-hidden="true"></i>ร้านค้าของฉัน</a>
+                <a class="flex items-center gap-2 px-4 py-3 font-medium {% if request.resolver_match.url_name == 'seller_store' %}text-leaf hover:bg-emerald-50{% else %}text-slate-800 hover:bg-stone-50{% endif %}" href="{% url 'catalog:seller_store' user.pk %}"><i data-lucide="store" class="h-4 w-4" aria-hidden="true"></i>หน้าร้านค้าของฉัน</a>
+                <a class="flex items-center gap-2 px-4 py-3 font-medium {% if request.resolver_match.url_name == 'farmer_shop_center' %}text-leaf hover:bg-emerald-50{% else %}text-slate-800 hover:bg-stone-50{% endif %}" href="{% url 'accounts:farmer_shop_center' %}"><i data-lucide="store" class="h-4 w-4" aria-hidden="true"></i>ร้านค้าของฉัน</a>
               {% elif user.is_consumer %}
-                <a class="flex items-center gap-2 px-4 py-3 font-medium text-leaf hover:bg-emerald-50" href="{% url 'accounts:farmer_signup' %}"><i data-lucide="store" class="h-4 w-4" aria-hidden="true"></i>สมัครเป็นผู้ขาย</a>
+                <a class="flex items-center gap-2 px-4 py-3 font-medium {% if request.resolver_match.url_name == 'farmer_signup' %}text-leaf hover:bg-emerald-50{% else %}text-slate-800 hover:bg-stone-50{% endif %}" href="{% url 'accounts:farmer_signup' %}"><i data-lucide="store" class="h-4 w-4" aria-hidden="true"></i>สมัครเป็นผู้ขาย</a>
               {% endif %}
-              <a class="flex items-center gap-2 px-4 py-3 font-medium text-slate-800 hover:bg-stone-50" href="{% url 'orders:order_list' %}"><i data-lucide="package-check" class="h-4 w-4" aria-hidden="true"></i>การซื้อของฉัน</a>
+              <a class="flex items-center gap-2 px-4 py-3 font-medium {% if request.resolver_match.url_name == 'order_list' %}text-leaf hover:bg-emerald-50{% else %}text-slate-800 hover:bg-stone-50{% endif %}" href="{% url 'orders:order_list' %}"><i data-lucide="package-check" class="h-4 w-4" aria-hidden="true"></i>การซื้อของฉัน</a>
               {% if user.is_farmer and active_market_mode != "buyer" %}
-                <a class="flex items-center gap-2 px-4 py-3 font-medium text-leaf hover:bg-emerald-50" href="{% url 'catalog:product_create' %}"><i data-lucide="package-plus" class="h-4 w-4" aria-hidden="true"></i>เพิ่มสินค้า</a>
+                <a class="flex items-center gap-2 px-4 py-3 font-medium {% if request.resolver_match.url_name == 'product_create' %}text-leaf hover:bg-emerald-50{% else %}text-slate-800 hover:bg-stone-50{% endif %}" href="{% url 'catalog:product_create' %}"><i data-lucide="package-plus" class="h-4 w-4" aria-hidden="true"></i>เพิ่มสินค้า</a>
               {% endif %}
               {% if not request.admin_preview %}
                 <form method="post" action="{% url 'logout' %}" class="border-t border-stone-100 pt-1">
@@ -417,9 +417,9 @@
       uploadIcon.className = "h-7 w-7";
       uploadIcon.setAttribute("aria-hidden", "true");
       uploadTitle.className = "text-sm font-semibold";
-      uploadTitle.textContent = "เลือกรูปสินค้า";
+      uploadTitle.textContent = input.dataset.productGalleryTitle || "เลือกรูปสินค้า";
       uploadHint.className = "text-xs text-slate-500";
-      uploadHint.textContent = "ลากรูปมาวางที่นี่ หรือกดเพื่อเลือกหลายรูป";
+      uploadHint.textContent = input.dataset.productGalleryHint || "ลากรูปมาวางที่นี่ หรือกดเพื่อเลือกหลายรูป";
       uploadArea.append(uploadIcon, uploadTitle, uploadHint);
       input.classList.add("sr-only");
       input.insertAdjacentElement("beforebegin", uploadArea);
@@ -516,7 +516,7 @@
   </script>
   {% block extra_scripts %}{% endblock %}
   {% if user.is_authenticated %}
-    <link rel="stylesheet" href="{% static 'realtime-chat.css' %}?v=20260910-16">
+    <link rel="stylesheet" href="{% static 'realtime-chat.css' %}?v=20260924-17">
     <script src="{% static 'realtime-notifications.js' %}"></script>
   {% endif %}
 </body>
