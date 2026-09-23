@@ -3,6 +3,7 @@ from datetime import timedelta
 from urllib.parse import urlsplit
 from django.conf import settings
 from django.contrib.auth.forms import PasswordResetForm, UserCreationForm
+from django.core.validators import FileExtensionValidator
 from django.utils import timezone
 from django.template.loader import render_to_string
 
@@ -55,6 +56,20 @@ class StyledFormMixin:
                 field.help_text = help_texts[name]
             if name in {"display_name", "email", "phone"}:
                 field.required = True
+
+
+class MultipleFileInput(forms.FileInput):
+    allow_multiple_selected = True
+
+
+class MultipleFileField(forms.FileField):
+    def clean(self, data, initial=None):
+        if not data:
+            return []
+        if not isinstance(data, (list, tuple)):
+            data = [data]
+        clean_file = super().clean
+        return [clean_file(file, initial) for file in data]
 
 
 class PasswordResetRequestForm(PasswordResetForm):
@@ -206,6 +221,33 @@ class FarmerProfileForm(StyledFormMixin, forms.ModelForm):
 
 class SellerStoreProfileForm(StyledFormMixin, forms.ModelForm):
     """Editable storefront details that do not affect farmer verification."""
+
+    store_cover_slides = MultipleFileField(
+        label="เพิ่มรูปสไลด์หน้าร้าน",
+        required=False,
+        validators=[
+            FileExtensionValidator(["jpg", "jpeg", "png", "webp"]),
+            validate_upload,
+        ],
+        widget=MultipleFileInput(
+            attrs={
+                "accept": "image/jpeg,image/png,image/webp",
+                "data-store-cover-slides-input": "",
+            }
+        ),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.order_fields([
+            "farm_name",
+            "province",
+            "district",
+            "address",
+            "bio",
+            "store_cover",
+            "store_cover_slides",
+        ])
 
     class Meta:
         model = FarmerProfile

@@ -78,14 +78,29 @@
     <a class="shrink-0 border-b-2 border-transparent px-1 pb-3 hover:text-leaf" href="#all-products">สินค้าทั้งหมด</a>
   </nav>
 
-  <div class="relative mt-4 flex min-h-[210px] items-center overflow-hidden rounded-md border border-stone-200 bg-leaf sm:min-h-[250px]">
-    {% if seller_profile.store_cover %}<img class="absolute inset-0 h-full w-full object-cover" src="{{ seller_profile.store_cover.url }}" alt="รูปปก {{ seller_profile.farm_name|default:seller.username }}">{% elif featured_product.image %}<img class="absolute inset-0 h-full w-full object-cover" src="{{ featured_product.image.url }}" alt="">{% elif featured_product.images.first %}<img class="absolute inset-0 h-full w-full object-cover" src="{{ featured_product.images.first.image.url }}" alt="">{% else %}<img class="absolute inset-0 h-full w-full object-cover" src="{% static 'images/market-hero.webp' %}" alt="">{% endif %}
+  <div class="relative mt-4" data-store-cover-carousel style="padding-left: 3.5rem; padding-right: 3.5rem;">
+    <div class="relative flex min-h-[210px] items-center overflow-hidden rounded-md border border-stone-200 bg-leaf sm:min-h-[250px]">
+    {% for slide in store_cover_slides %}
+      <img data-store-cover-slide class="absolute inset-0 h-full w-full object-cover transition-opacity duration-700" src="{{ slide.url }}" alt="{{ slide.alt_text }}" style="opacity:{% if forloop.first %}1{% else %}0{% endif %}">
+    {% empty %}
+      {% if featured_product.image %}<img data-store-cover-slide class="absolute inset-0 h-full w-full object-cover" src="{{ featured_product.image.url }}" alt="">{% elif featured_product.images.first %}<img data-store-cover-slide class="absolute inset-0 h-full w-full object-cover" src="{{ featured_product.images.first.image.url }}" alt="">{% else %}<img data-store-cover-slide class="absolute inset-0 h-full w-full object-cover" src="{% static 'images/market-hero.webp' %}" alt="">{% endif %}
+    {% endfor %}
     <div class="absolute inset-0 bg-black/40" aria-hidden="true"></div>
-    <div class="relative max-w-2xl px-6 py-10 text-white sm:px-10">
+    <div class="relative max-w-2xl py-10 text-white" style="padding-left: 4.5rem; padding-right: 4.5rem;">
       <p class="text-sm font-semibold text-green-100">{{ seller_profile.community.name|default:"สินค้าเกษตรจากชุมชน" }}</p>
       <h2 class="mt-2 text-2xl font-semibold sm:text-3xl">{{ seller_profile.farm_name|default:seller }}</h2>
       <p class="mt-3 line-clamp-3 text-sm leading-7 text-white/90">{{ seller_profile.bio|default:seller_profile.community.description|default:"สินค้าเกษตรจากผู้ขายชุมชน ส่งตรงถึงผู้บริโภค" }}</p>
     </div>
+    {% if store_cover_slides|length > 1 %}
+      <div class="absolute bottom-4 right-4 z-10 flex gap-2" aria-label="เลือกภาพสไลด์หน้าร้าน">
+        {% for slide in store_cover_slides %}<button type="button" data-store-cover-slide-control="{{ forloop.counter0 }}" class="h-2.5 w-2.5 rounded-full border border-white bg-white {% if not forloop.first %}opacity-60{% endif %}" aria-label="แสดงภาพที่ {{ forloop.counter }}"></button>{% endfor %}
+      </div>
+    {% endif %}
+    </div>
+    {% if store_cover_slides|length > 1 %}
+      <button type="button" data-store-cover-slide-step="-1" class="absolute z-10 grid h-10 w-10 place-items-center rounded-full border border-emerald-900/25 bg-white text-leaf shadow-sm hover:bg-emerald-50" style="left: 0; top: 50%; transform: translateY(-50%);" aria-label="ภาพก่อนหน้า"><i data-lucide="chevron-left" class="h-6 w-6" aria-hidden="true"></i></button>
+      <button type="button" data-store-cover-slide-step="1" class="absolute z-10 grid h-10 w-10 place-items-center rounded-full border border-emerald-900/25 bg-white text-leaf shadow-sm hover:bg-emerald-50" style="right: 0; top: 50%; transform: translateY(-50%);" aria-label="ภาพถัดไป"><i data-lucide="chevron-right" class="h-6 w-6" aria-hidden="true"></i></button>
+    {% endif %}
   </div>
 
   {% if recommended_products %}
@@ -141,4 +156,40 @@
     </div>
   </section>
 </section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  document.querySelectorAll("[data-store-cover-carousel]").forEach(function (carousel) {
+    const slides = Array.from(carousel.querySelectorAll("[data-store-cover-slide]"));
+    const controls = Array.from(carousel.querySelectorAll("[data-store-cover-slide-control]"));
+    const stepButtons = Array.from(carousel.querySelectorAll("[data-store-cover-slide-step]"));
+    if (slides.length < 2) return;
+
+    let activeIndex = 0;
+    function showSlide(index) {
+      activeIndex = (index + slides.length) % slides.length;
+      slides.forEach(function (slide, slideIndex) {
+        slide.style.opacity = slideIndex === activeIndex ? "1" : "0";
+      });
+      controls.forEach(function (control, controlIndex) {
+        control.classList.toggle("opacity-60", controlIndex !== activeIndex);
+      });
+    }
+
+    controls.forEach(function (control) {
+      control.addEventListener("click", function () {
+        showSlide(Number(control.dataset.storeCoverSlideControl));
+      });
+    });
+    stepButtons.forEach(function (button) {
+      button.addEventListener("click", function () {
+        showSlide(activeIndex + Number(button.dataset.storeCoverSlideStep));
+      });
+    });
+    window.setInterval(function () {
+      showSlide(activeIndex + 1);
+    }, 5000);
+  });
+</script>
 {% endblock %}

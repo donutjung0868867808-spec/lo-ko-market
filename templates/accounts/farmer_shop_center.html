@@ -80,7 +80,7 @@
         <section class="space-y-5">
           <header class="flex flex-wrap items-center justify-between gap-4 border-b border-stone-300 pb-4"><div><p class="text-sm font-semibold text-leaf">ร้านค้า</p><h1 class="mt-1 text-2xl font-semibold text-slate-950">{% if request.GET.mode == "settings" %}ตั้งค่าร้านค้า{% elif request.GET.mode == "design" %}ตัวอย่างหน้าร้าน{% else %}รายละเอียดหน้าร้าน{% endif %}</h1></div>{% if farmer_profile %}<a href="{% url 'catalog:seller_store' request.user.pk %}" target="_blank" rel="noopener" class="inline-flex h-10 items-center gap-2 rounded-md border border-emerald-900/25 px-4 text-sm font-semibold text-leaf hover:bg-emerald-50"><i data-lucide="external-link" class="h-4 w-4" aria-hidden="true"></i>ดูหน้าร้านจริง</a>{% endif %}</header>
           {% if request.GET.mode == "settings" and store_form %}
-            <form method="post" enctype="multipart/form-data" class="rounded-lg border border-stone-200 bg-white p-5 shadow-sm sm:p-6">
+            <form method="post" enctype="multipart/form-data" data-store-settings-form class="rounded-lg border border-stone-200 bg-white p-5 shadow-sm sm:p-6">
               {% csrf_token %}
               <input type="hidden" name="shop_action" value="update_store">
               <div class="grid gap-4 md:grid-cols-2">
@@ -104,6 +104,24 @@
                         <p data-store-cover-file-details class="text-sm text-slate-600" aria-live="polite">{% if farmer_profile.store_cover %}รูปปกปัจจุบัน{% else %}ยังไม่ได้เลือกไฟล์{% endif %}</p>
                         <button type="button" data-store-cover-clear hidden class="text-sm font-semibold text-red-700 hover:underline">ยกเลิกรูปที่เลือก</button>
                       </div>
+                    {% elif field.name == "store_cover_slides" %}
+                      {{ field }}
+                      <p class="mt-2 text-xs leading-5 text-slate-500">เลือกได้หลายรูปในครั้งเดียว ระบบจะแสดงต่อจากรูปปกหลักเป็นสไลด์อัตโนมัติ</p>
+                      <p data-store-cover-slides-details class="mt-2 text-sm text-slate-600" aria-live="polite">ยังไม่ได้เลือกรูปสไลด์</p>
+                      <div data-store-cover-slides-preview hidden class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4"></div>
+                      {% if farmer_profile.store_cover_slides.all %}
+                        <div class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                          {% for slide in farmer_profile.store_cover_slides.all %}
+                            <div class="overflow-hidden rounded-md border border-stone-200 bg-white">
+                              <img src="{{ slide.image.url }}" alt="รูปสไลด์หน้าร้าน {{ forloop.counter }}" class="aspect-[16/5] w-full object-cover">
+                              <div class="flex items-center justify-between gap-2 p-2">
+                                <span class="text-xs text-slate-500">สไลด์ {{ forloop.counter }}</span>
+                                <form method="post" action="{% url 'accounts:store_cover_slide_delete' slide.id %}">{% csrf_token %}<button type="submit" class="text-xs font-semibold text-red-700 hover:underline">ลบ</button></form>
+                              </div>
+                            </div>
+                          {% endfor %}
+                        </div>
+                      {% endif %}
                     {% else %}
                       {{ field }}
                     {% endif %}
@@ -131,7 +149,14 @@
               <div class="flex flex-wrap items-center justify-between gap-4 px-6 py-5"><p class="text-sm text-slate-600">หน้าร้านสาธารณะใช้ชื่อร้าน ชุมชน และคำอธิบายนี้</p><a href="?section=store&mode=settings" class="inline-flex h-10 items-center rounded-md border border-emerald-900/25 px-4 text-sm font-semibold text-leaf hover:bg-emerald-50">แก้ไขข้อมูลที่แสดง</a></div>
             </section>
           {% else %}
-            <section class="grid gap-5 rounded-lg border border-stone-200 bg-white p-6 md:grid-cols-[160px_minmax(0,1fr)]"><div class="grid h-28 w-28 place-items-center rounded-full bg-emerald-50 text-leaf"><i data-lucide="sprout" class="h-12 w-12" aria-hidden="true"></i></div><div><h2 class="text-xl font-semibold text-slate-950">{{ farmer_profile.farm_name|default:request.user.username }}</h2><p class="mt-2 text-sm text-slate-600">{{ farmer_profile.community.name|default:"ยังไม่ได้เลือกชุมชน" }}</p><p class="mt-4 whitespace-pre-wrap text-sm leading-6 text-slate-700">{{ farmer_profile.bio|default:"ยังไม่มีคำอธิบายหน้าร้าน" }}</p><dl class="mt-5 grid gap-3 text-sm sm:grid-cols-2"><div><dt class="text-slate-500">ที่ตั้ง</dt><dd class="mt-1 font-medium">{{ farmer_profile.district|default:"-" }} {{ farmer_profile.province|default:"" }}</dd></div><div><dt class="text-slate-500">สถานะร้าน</dt><dd class="mt-1 font-medium text-leaf">{% if farmer_profile.is_verified %}ยืนยันแล้ว{% else %}รอตรวจสอบ{% endif %}</dd></div></dl><a href="?section=store&mode=settings" class="mt-6 inline-flex h-10 items-center rounded-md bg-leaf px-4 text-sm font-semibold text-white hover:bg-emerald-800">แก้ไขข้อมูลหน้าร้าน</a></div></section>
+            <section class="grid gap-5 rounded-lg border border-stone-200 bg-white p-6 md:grid-cols-[160px_minmax(0,1fr)]">
+              {% if request.user.avatar %}
+                <img src="{{ request.user.avatar.url }}" alt="รูปโปรไฟล์ {{ request.user.display_name|default:request.user.username }}" class="h-28 w-28 rounded-full border border-emerald-200 object-cover">
+              {% else %}
+                <div class="grid h-28 w-28 place-items-center rounded-full bg-emerald-50 text-leaf"><i data-lucide="sprout" class="h-12 w-12" aria-hidden="true"></i></div>
+              {% endif %}
+              <div><h2 class="text-xl font-semibold text-slate-950">{{ farmer_profile.farm_name|default:request.user.username }}</h2><p class="mt-2 text-sm text-slate-600">{{ farmer_profile.community.name|default:"ยังไม่ได้เลือกชุมชน" }}</p><p class="mt-4 whitespace-pre-wrap text-sm leading-6 text-slate-700">{{ farmer_profile.bio|default:"ยังไม่มีคำอธิบายหน้าร้าน" }}</p><dl class="mt-5 grid gap-3 text-sm sm:grid-cols-2"><div><dt class="text-slate-500">ที่ตั้ง</dt><dd class="mt-1 font-medium">{{ farmer_profile.district|default:"-" }} {{ farmer_profile.province|default:"" }}</dd></div><div><dt class="text-slate-500">สถานะร้าน</dt><dd class="mt-1 font-medium text-leaf">{% if farmer_profile.is_verified %}ยืนยันแล้ว{% else %}รอตรวจสอบ{% endif %}</dd></div></dl><a href="?section=store&mode=settings" class="mt-6 inline-flex h-10 items-center rounded-md bg-leaf px-4 text-sm font-semibold text-white hover:bg-emerald-800">แก้ไขข้อมูลหน้าร้าน</a></div>
+            </section>
           {% endif %}
         </section>
       {% elif shop_section == "marketing" %}
@@ -155,7 +180,7 @@
   <section class="w-full max-w-5xl rounded-md bg-white p-5 shadow-xl sm:p-6" role="dialog" aria-modal="true" aria-labelledby="store-cover-cropper-title">
     <div class="flex items-start justify-between gap-4">
       <div>
-        <h2 id="store-cover-cropper-title" class="text-lg font-semibold text-slate-950">จัดตำแหน่งรูปปกหน้าร้าน</h2>
+        <h2 id="store-cover-cropper-title" data-store-cover-cropper-title class="text-lg font-semibold text-slate-950">จัดตำแหน่งรูปปกหน้าร้าน</h2>
         <p class="mt-1 text-sm text-slate-600">ลากภาพเพื่อเลือกจุดตัด ซูมด้วยล้อเมาส์หรือสองนิ้วบนรูป</p>
       </div>
     </div>
@@ -165,7 +190,7 @@
     <p data-store-cover-crop-details class="mt-3 text-sm text-slate-600" aria-live="polite"></p>
     <div class="mt-5 flex justify-end gap-3">
       <button type="button" data-store-cover-crop-cancel class="inline-flex h-10 items-center rounded-md border border-stone-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-stone-50">ยกเลิก</button>
-      <button type="button" data-store-cover-crop-save class="inline-flex h-10 items-center rounded-md bg-leaf px-4 text-sm font-semibold text-white hover:bg-emerald-800">ใช้รูปนี้</button>
+      <button type="button" data-store-cover-crop-save class="inline-flex h-10 items-center rounded-md bg-leaf px-4 text-sm font-semibold text-white hover:bg-emerald-800">ใช้รูปนี้และบันทึก</button>
     </div>
   </section>
 </div>
@@ -202,6 +227,7 @@
 
   (() => {
     const input = document.querySelector("[data-store-cover-input]");
+    const slidesInput = document.querySelector("[data-store-cover-slides-input]");
     const preview = document.querySelector("[data-store-cover-preview]");
     const previewImage = document.querySelector("[data-store-cover-preview-image]");
     const details = document.querySelector("[data-store-cover-file-details]");
@@ -209,10 +235,14 @@
     const removeInput = document.querySelector("[data-store-cover-remove-input]");
     const removeButton = document.querySelector("[data-store-cover-remove]");
     const cropper = document.querySelector("[data-store-cover-cropper]");
+    const cropperTitle = document.querySelector("[data-store-cover-cropper-title]");
     const canvas = document.querySelector("[data-store-cover-crop-canvas]");
     const cropDetails = document.querySelector("[data-store-cover-crop-details]");
     const cancel = document.querySelector("[data-store-cover-crop-cancel]");
     const save = document.querySelector("[data-store-cover-crop-save]");
+    const slidesDetails = document.querySelector("[data-store-cover-slides-details]");
+    const slidesPreview = document.querySelector("[data-store-cover-slides-preview]");
+    const storeSettingsForm = document.querySelector("[data-store-settings-form]");
     if (!input || !preview || !previewImage || !details || !clear || !cropper || !canvas || !cropDetails || !cancel || !save) return;
 
     const context = canvas.getContext("2d");
@@ -224,7 +254,11 @@
     let sourceUrl = null;
     let image = null;
     let sourceFile = null;
+    let activeInput = input;
     let acceptedFile = null;
+    let pendingSlideFiles = [];
+    let acceptedSlideFiles = [];
+    let slidePreviewUrls = [];
     let baseScale = 1;
     let scale = 1;
     let offsetX = 0;
@@ -238,10 +272,60 @@
       return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
     };
 
-    const setInputFile = (file) => {
+    const setInputFiles = (target, files) => {
       const transfer = new DataTransfer();
-      if (file) transfer.items.add(file);
-      input.files = transfer.files;
+      files.forEach((file) => transfer.items.add(file));
+      target.files = transfer.files;
+    };
+
+    const setInputFile = (file) => {
+      setInputFiles(input, file ? [file] : []);
+    };
+
+    const clearSlidePreviewUrls = () => {
+      slidePreviewUrls.forEach((url) => URL.revokeObjectURL(url));
+      slidePreviewUrls = [];
+    };
+
+    const renderSlidePreviews = () => {
+      if (!slidesPreview) return;
+      clearSlidePreviewUrls();
+      slidesPreview.replaceChildren();
+      slidesPreview.hidden = !acceptedSlideFiles.length;
+      if (!acceptedSlideFiles.length) return;
+
+      acceptedSlideFiles.forEach((file, index) => {
+        const imageUrl = URL.createObjectURL(file);
+        slidePreviewUrls.push(imageUrl);
+        const item = document.createElement("div");
+        const image = document.createElement("img");
+        const footer = document.createElement("div");
+        const label = document.createElement("span");
+        const removeButton = document.createElement("button");
+        item.className = "overflow-hidden rounded-md border border-emerald-300 bg-emerald-50/40";
+        image.src = imageUrl;
+        image.alt = `รูปสไลด์ใหม่ ${index + 1}`;
+        image.className = "aspect-[16/5] w-full object-cover";
+        footer.className = "flex items-center justify-between gap-2 p-2";
+        label.className = "text-xs font-medium text-slate-600";
+        label.textContent = `รูปที่กำลังเพิ่ม ${index + 1}`;
+        removeButton.type = "button";
+        removeButton.className = "text-xs font-semibold text-red-700 hover:underline";
+        removeButton.textContent = "ยกเลิก";
+        removeButton.addEventListener("click", () => {
+          acceptedSlideFiles.splice(index, 1);
+          setInputFiles(slidesInput, acceptedSlideFiles);
+          renderSlidePreviews();
+          if (slidesDetails) {
+            slidesDetails.textContent = acceptedSlideFiles.length
+              ? `จัดตำแหน่งรูปสไลด์แล้ว ${acceptedSlideFiles.length} รูป พร้อมบันทึกข้อมูลร้าน`
+              : "ยังไม่ได้เลือกรูปสไลด์";
+          }
+        });
+        footer.append(label, removeButton);
+        item.append(image, footer);
+        slidesPreview.append(item);
+      });
     };
 
     const closeCropper = () => {
@@ -313,8 +397,9 @@
       input.value = "";
     };
 
-    const openCropper = (file) => {
+    const openCropper = (file, target) => {
       sourceFile = file;
+      activeInput = target;
       image = new Image();
       sourceUrl = URL.createObjectURL(file);
       image.onload = () => {
@@ -322,6 +407,7 @@
         scale = baseScale;
         offsetX = (canvasWidth - image.naturalWidth * scale) / 2;
         offsetY = (canvasHeight - image.naturalHeight * scale) / 2;
+        cropperTitle.textContent = target === slidesInput ? "จัดตำแหน่งรูปสไลด์หน้าร้าน" : "จัดตำแหน่งรูปปกหน้าร้าน";
         cropDetails.textContent = `${file.name} - ${formatFileSize(file.size)} - ต้นฉบับ ${image.naturalWidth} x ${image.naturalHeight} px`;
         cropper.classList.remove("hidden");
         cropper.classList.add("grid");
@@ -329,31 +415,68 @@
         renderCrop();
       };
       image.onerror = () => {
-        details.textContent = "ไม่สามารถเปิดไฟล์รูปภาพนี้ได้";
-        restorePreviousSelection();
+        if (target === slidesInput && slidesDetails) {
+          slidesDetails.textContent = "ไม่สามารถเปิดไฟล์รูปภาพนี้ได้";
+          setInputFiles(slidesInput, []);
+        } else {
+          details.textContent = "ไม่สามารถเปิดไฟล์รูปภาพนี้ได้";
+          restorePreviousSelection();
+        }
       };
       image.src = sourceUrl;
+    };
+
+    const isSupportedImage = (file) => {
+      const supportedName = /\.(jpe?g|png|webp)$/i.test(file.name);
+      const supportedType = !file.type || ["image/jpeg", "image/png", "image/webp"].includes(file.type);
+      return supportedName && supportedType && file.size <= 5 * 1024 * 1024;
     };
 
     input.addEventListener("change", () => {
       const [file] = input.files || [];
       if (!file) return;
-
-      const supportedName = /\.(jpe?g|png|webp)$/i.test(file.name);
-      const supportedType = !file.type || ["image/jpeg", "image/png", "image/webp"].includes(file.type);
-      if (!supportedName || !supportedType) {
+      if (!isSupportedImage(file)) {
         restorePreviousSelection();
-        details.textContent = "กรุณาเลือกไฟล์ JPG, JPEG, PNG หรือ WEBP";
+        details.textContent = "กรุณาเลือก JPG, JPEG, PNG หรือ WEBP ขนาดไม่เกิน 5 MB";
         return;
       }
-      if (file.size > 5 * 1024 * 1024) {
-        restorePreviousSelection();
-        details.textContent = "รูปปกหน้าร้านต้องมีขนาดไม่เกิน 5 MB";
-        return;
-      }
-
-      openCropper(file);
+      openCropper(file, input);
     });
+
+    const cropNextSlide = () => {
+      const file = pendingSlideFiles.shift();
+      if (file) {
+        openCropper(file, slidesInput);
+        return;
+      }
+      setInputFiles(slidesInput, acceptedSlideFiles);
+      renderSlidePreviews();
+      if (slidesDetails) {
+        slidesDetails.textContent = `จัดตำแหน่งรูปสไลด์แล้ว ${acceptedSlideFiles.length} รูป กำลังบันทึกข้อมูลร้าน`;
+      }
+      if (storeSettingsForm && acceptedSlideFiles.length) {
+        save.disabled = true;
+        storeSettingsForm.requestSubmit();
+        return;
+      }
+      closeCropper();
+    };
+
+    if (slidesInput) {
+      slidesInput.addEventListener("change", () => {
+        const files = Array.from(slidesInput.files || []);
+        if (!files.length) return;
+        const invalidFile = files.find((file) => !isSupportedImage(file));
+        if (invalidFile) {
+          setInputFiles(slidesInput, []);
+          if (slidesDetails) slidesDetails.textContent = "กรุณาเลือก JPG, JPEG, PNG หรือ WEBP ขนาดไม่เกิน 5 MB";
+          return;
+        }
+        pendingSlideFiles = files;
+        acceptedSlideFiles = [];
+        cropNextSlide();
+      });
+    }
 
     canvas.addEventListener("wheel", (event) => {
       if (!image) return;
@@ -410,7 +533,15 @@
     canvas.addEventListener("pointercancel", finishPointer);
 
     cancel.addEventListener("click", () => {
-      restorePreviousSelection();
+      if (activeInput === slidesInput) {
+        pendingSlideFiles = [];
+        acceptedSlideFiles = [];
+        setInputFiles(slidesInput, []);
+        renderSlidePreviews();
+        if (slidesDetails) slidesDetails.textContent = "ยกเลิกการเลือกรูปสไลด์แล้ว";
+      } else {
+        restorePreviousSelection();
+      }
       closeCropper();
     });
 
@@ -423,15 +554,29 @@
           { type: "image/jpeg" },
         );
         if (croppedFile.size > 5 * 1024 * 1024) {
-          details.textContent = "รูปที่จัดตำแหน่งแล้วมีขนาดเกิน 5 MB กรุณาเลือกรูปอื่น";
-          restorePreviousSelection();
+          if (activeInput === slidesInput) {
+            pendingSlideFiles = [];
+            acceptedSlideFiles = [];
+            setInputFiles(slidesInput, []);
+            renderSlidePreviews();
+            if (slidesDetails) slidesDetails.textContent = "รูปสไลด์ที่จัดตำแหน่งแล้วมีขนาดเกิน 5 MB กรุณาเลือกรูปอื่น";
+          } else {
+            details.textContent = "รูปที่จัดตำแหน่งแล้วมีขนาดเกิน 5 MB กรุณาเลือกรูปอื่น";
+            restorePreviousSelection();
+          }
           closeCropper();
           return;
         }
-        acceptedFile = croppedFile;
-        setInputFile(croppedFile);
-        showPreview(croppedFile);
-        closeCropper();
+        if (activeInput === slidesInput) {
+          acceptedSlideFiles.push(croppedFile);
+          closeCropper();
+          cropNextSlide();
+        } else {
+          acceptedFile = croppedFile;
+          setInputFile(croppedFile);
+          showPreview(croppedFile);
+          closeCropper();
+        }
       }, "image/jpeg", 0.9);
     });
 
@@ -484,6 +629,7 @@
     window.addEventListener("beforeunload", () => {
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       if (sourceUrl) URL.revokeObjectURL(sourceUrl);
+      clearSlidePreviewUrls();
     });
   })();
 </script>

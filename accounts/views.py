@@ -13,7 +13,7 @@ from django.contrib.auth.tokens import default_token_generator
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm
 from django.db import transaction
-from django.db.models import Avg, Count, F, OuterRef, Prefetch, Q, Subquery, Sum
+from django.db.models import Avg, Count, F, Max, OuterRef, Prefetch, Q, Subquery, Sum
 from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -47,7 +47,7 @@ from .forms import (
     UserProfileForm,
     split_display_name,
 )
-from .models import AuditEvent, ChatBlock, Conversation, DeliveryAddress, DirectMessage, FarmerProfile, NewsPost, Notification, Report, ReportMessage, SupportMessage, SupportTicket, User
+from .models import AuditEvent, ChatBlock, Conversation, DeliveryAddress, DirectMessage, FarmerProfile, NewsPost, Notification, Report, ReportMessage, StoreCoverSlide, SupportMessage, SupportTicket, User
 from .services import (
     clear_login_failures,
     is_login_blocked,
@@ -403,6 +403,16 @@ def farmer_shop_center(request):
             store_profile.save()
             if remove_store_cover and previous_cover_name:
                 store_profile.store_cover.storage.delete(previous_cover_name)
+            next_sort_order = (
+                store_profile.store_cover_slides.aggregate(last=Max("sort_order"))["last"] or 0
+            )
+            for image in store_form.cleaned_data["store_cover_slides"]:
+                next_sort_order += 1
+                StoreCoverSlide.objects.create(
+                    profile=store_profile,
+                    image=image,
+                    sort_order=next_sort_order,
+                )
             messages.success(request, "บันทึกข้อมูลหน้าร้านแล้ว")
             return redirect(f"{reverse('accounts:farmer_shop_center')}?section=store&mode=settings")
     sales = Order.objects.filter(seller=request.user).select_related("buyer").prefetch_related("items").order_by("-created_at")
@@ -672,6 +682,23 @@ def support_ticket_detail(request, pk):
         "accounts/support_ticket_detail.html",
         {"ticket": ticket, "form": form, "can_manage": can_manage},
     )
+
+
+@role_required(User.Roles.FARMER)
+@require_POST
+def store_cover_slide_delete(request, slide_id):
+    slide = get_object_or_404(
+        StoreCoverSlide.objects.select_related("profile"),
+        pk=slide_id,
+        profile__user=request.user,
+    )
+    image_name = slide.image.name
+    storage = slide.image.storage
+    slide.delete()
+    if image_name:
+        storage.delete(image_name)
+    messages.success(request, "ลบรูปสไลด์หน้าร้านแล้ว")
+    return redirect(f"{reverse('accounts:farmer_shop_center')}?section=store&mode=settings")
 
 @login_required
 def addresses_list(request):

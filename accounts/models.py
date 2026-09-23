@@ -224,6 +224,33 @@ class FarmerProfile(models.Model):
         self.save(update_fields=["verification_status", "verified_by", "verified_at", "rejection_reason"])
 
 
+class StoreCoverSlide(models.Model):
+    profile = models.ForeignKey(
+        FarmerProfile,
+        on_delete=models.CASCADE,
+        related_name="store_cover_slides",
+    )
+    image = models.FileField(
+        "รูปสไลด์หน้าร้าน",
+        upload_to="store-cover-slides/%Y/%m/",
+        validators=[
+            FileExtensionValidator(["jpg", "jpeg", "png", "webp"]),
+            validate_file_size,
+        ],
+    )
+    sort_order = models.PositiveSmallIntegerField("ลำดับ", default=0)
+    is_active = models.BooleanField("เปิดใช้งาน", default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "รูปสไลด์หน้าร้าน"
+        verbose_name_plural = "รูปสไลด์หน้าร้าน"
+        ordering = ["sort_order", "id"]
+
+    def __str__(self):
+        return f"รูปสไลด์ {self.profile.farm_name} #{self.pk}"
+
+
 class DeliveryAddress(models.Model):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,

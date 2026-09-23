@@ -1,12 +1,13 @@
 from decimal import Decimal
 
 from django.core.files.base import ContentFile
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
 
 from catalog.models import Category, Product, ProductImage, ProductReview
 
-from .models import Community, FarmerProfile, User
+from .models import Community, FarmerProfile, StoreCoverSlide, User
 
 
 class FarmerShopCenterTests(TestCase):
@@ -69,6 +70,14 @@ class FarmerShopCenterTests(TestCase):
         marketing = self.client.get(f"{center_url}?section=marketing&mode=store")
         self.assertContains(marketing, "การประชาสัมพันธ์ร้าน")
         self.assertContains(marketing, reverse("catalog:seller_store", args=[self.seller.pk]))
+
+    def test_store_details_displays_the_seller_avatar(self):
+        self.seller.avatar = "avatars/store-details.jpg"
+        self.seller.save(update_fields=["avatar"])
+
+        response = self.client.get(f"{reverse('accounts:farmer_shop_center')}?section=store")
+
+        self.assertContains(response, self.seller.avatar.url)
 
     def test_selected_menu_group_stays_open_after_navigation(self):
         center_url = reverse("accounts:farmer_shop_center")
@@ -191,3 +200,26 @@ class FarmerShopCenterTests(TestCase):
         self.assertRedirects(response, f"{reverse('accounts:farmer_shop_center')}?section=store&mode=settings")
         self.profile.refresh_from_db()
         self.assertFalse(self.profile.store_cover)
+
+    def test_seller_can_add_and_remove_store_cover_slides(self):
+        upload = SimpleUploadedFile("slide-one.jpg", b"slide image", content_type="image/jpeg")
+        response = self.client.post(
+            reverse("accounts:farmer_shop_center"),
+            {
+                "shop_action": "update_store",
+                "farm_name": self.profile.farm_name,
+                "province": self.profile.province,
+                "district": self.profile.district,
+                "address": self.profile.address,
+                "bio": self.profile.bio,
+                "store_cover_slides": [upload],
+            },
+        )
+
+        self.assertRedirects(response, f"{reverse('accounts:farmer_shop_center')}?section=store&mode=settings")
+        slide = StoreCoverSlide.objects.get(profile=self.profile)
+
+        response = self.client.post(reverse("accounts:store_cover_slide_delete", args=[slide.pk]))
+
+        self.assertRedirects(response, f"{reverse('accounts:farmer_shop_center')}?section=store&mode=settings")
+        self.assertFalse(StoreCoverSlide.objects.filter(pk=slide.pk).exists())

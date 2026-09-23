@@ -10,7 +10,7 @@ from django.urls import reverse
 from PIL import Image
 
 
-from accounts.models import Community, FarmerProfile, Notification, User
+from accounts.models import Community, FarmerProfile, Notification, StoreCoverSlide, User
 
 from orders.models import Order, OrderItem
 
@@ -389,6 +389,17 @@ class ProductReviewTests(TestCase):
 
         self.assertContains(response, "/media/avatars/store-owner.jpg")
         self.assertContains(response, "/media/store-covers/store-owner.jpg")
+
+    def test_seller_store_displays_cover_slides(self):
+        StoreCoverSlide.objects.create(
+            profile=self.farmer.farmer_profile,
+            image="store-cover-slides/store-owner-slide.jpg",
+        )
+
+        response = self.client.get(reverse("catalog:seller_store", args=[self.farmer.pk]))
+
+        self.assertContains(response, "/media/store-cover-slides/store-owner-slide.jpg")
+        self.assertContains(response, "data-store-cover-carousel")
 
 
 class ProductDetailInteractionTests(TestCase):

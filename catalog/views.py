@@ -600,6 +600,22 @@ def seller_store(request, seller_id):
         ).order_by("-favorite_count", "-created_at")
 
     featured_product = active_products.first()
+    store_cover_slides = []
+    if seller_profile:
+        if seller_profile.store_cover:
+            store_cover_slides.append(
+                {
+                    "url": seller_profile.store_cover.url,
+                    "alt_text": f"รูปปก {seller_profile.farm_name or seller.username}",
+                }
+            )
+        store_cover_slides.extend(
+            {
+                "url": slide.image.url,
+                "alt_text": f"รูปสไลด์ {seller_profile.farm_name or seller.username}",
+            }
+            for slide in seller_profile.store_cover_slides.filter(is_active=True)
+        )
     is_following = False
     if request.user.is_authenticated:
         is_following = SellerFavorite.objects.filter(
@@ -617,6 +633,7 @@ def seller_store(request, seller_id):
             "categories": categories,
             "recommended_products": recommended_products,
             "featured_product": featured_product,
+            "store_cover_slides": store_cover_slides,
             "product_count": active_products.count(),
             "filtered_product_count": products.count(),
             "follower_count": seller.seller_favorited_by.count(),

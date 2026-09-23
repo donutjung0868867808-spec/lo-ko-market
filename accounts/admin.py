@@ -38,6 +38,7 @@ from .models import (
     Notification,
     Report,
     ReportMessage,
+    StoreCoverSlide,
     SupportMessage,
     SupportTicket,
     User,
@@ -410,6 +411,12 @@ class CommunityAdmin(RoleScopedAdminMixin, admin.ModelAdmin):
         return ("created_at", "updated_at")
 
 
+class StoreCoverSlideInline(admin.TabularInline):
+    model = StoreCoverSlide
+    extra = 0
+    fields = ("image", "sort_order", "is_active")
+
+
 @admin.register(FarmerProfile)
 class FarmerProfileAdmin(CsvExportAdminMixin, RoleScopedAdminMixin, admin.ModelAdmin):
     staff_access = True
@@ -430,6 +437,7 @@ class FarmerProfileAdmin(CsvExportAdminMixin, RoleScopedAdminMixin, admin.ModelA
         ("verification_status", "สถานะตรวจสอบ"),
         ("created_at", "วันที่สมัคร"),
     )
+    inlines = (StoreCoverSlideInline,)
     readonly_fields = ("created_at", "updated_at", "verified_by", "verified_at")
     fieldsets = (
         ("ข้อมูลบัญชีและชุมชน", {"fields": ("user", "community")}),
