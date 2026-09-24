@@ -287,7 +287,8 @@ class FarmerShopCenterTests(TestCase):
         self.assertFalse(self.profile.store_cover)
 
     def test_seller_can_add_and_remove_store_cover_slides(self):
-        upload = SimpleUploadedFile("slide-one.jpg", b"slide image", content_type="image/jpeg")
+        first_upload = SimpleUploadedFile("slide-one.jpg", b"slide image", content_type="image/jpeg")
+        second_upload = SimpleUploadedFile("slide-two.jpg", b"second slide image", content_type="image/jpeg")
         response = self.client.post(
             reverse("accounts:farmer_shop_center"),
             {
@@ -297,14 +298,17 @@ class FarmerShopCenterTests(TestCase):
                 "district": self.profile.district,
                 "address": self.profile.address,
                 "bio": self.profile.bio,
-                "store_cover_slides": [upload],
+                "store_cover_slides": [first_upload, second_upload],
             },
         )
 
         self.assertRedirects(response, f"{reverse('accounts:farmer_shop_center')}?section=store&mode=settings")
-        slide = StoreCoverSlide.objects.get(profile=self.profile)
+        slides = list(StoreCoverSlide.objects.filter(profile=self.profile).order_by("sort_order"))
+        self.assertEqual(len(slides), 2)
+        self.assertLess(slides[0].sort_order, slides[1].sort_order)
 
-        response = self.client.post(reverse("accounts:store_cover_slide_delete", args=[slide.pk]))
+        response = self.client.post(reverse("accounts:store_cover_slide_delete", args=[slides[0].pk]))
 
         self.assertRedirects(response, f"{reverse('accounts:farmer_shop_center')}?section=store&mode=settings")
-        self.assertFalse(StoreCoverSlide.objects.filter(pk=slide.pk).exists())
+        self.assertFalse(StoreCoverSlide.objects.filter(pk=slides[0].pk).exists())
+        self.assertTrue(StoreCoverSlide.objects.filter(pk=slides[1].pk).exists())
