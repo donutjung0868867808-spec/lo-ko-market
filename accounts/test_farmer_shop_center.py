@@ -229,6 +229,7 @@ class FarmerShopCenterTests(TestCase):
         self.assertContains(response, "ไฟล์ต้นฉบับไม่เกิน 50 MB")
         self.assertContains(response, "ภาพแบนเนอร์ขนาดไม่เกิน 5 MB")
         self.assertContains(response, "MAX_SOURCE_IMAGE_SIZE")
+        self.assertContains(response, "กดบันทึกข้อมูลร้านเพื่อเพิ่มสไลด์")
 
     def test_store_name_is_saved_when_cover_file_is_invalid(self):
         invalid_cover = SimpleUploadedFile(

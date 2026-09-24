@@ -245,7 +245,6 @@
     const save = document.querySelector("[data-store-cover-crop-save]");
     const slidesDetails = document.querySelector("[data-store-cover-slides-details]");
     const slidesPreview = document.querySelector("[data-store-cover-slides-preview]");
-    const storeSettingsForm = document.querySelector("[data-store-settings-form]");
     if (!input || !preview || !previewImage || !details || !clear || !cropper || !canvas || !cropDetails || !cancel || !save) return;
 
     const context = canvas.getContext("2d");
@@ -457,12 +456,7 @@
       setInputFiles(slidesInput, acceptedSlideFiles);
       renderSlidePreviews();
       if (slidesDetails) {
-        slidesDetails.textContent = `จัดตำแหน่งรูปสไลด์แล้ว ${acceptedSlideFiles.length} รูป กำลังบันทึกข้อมูลร้าน`;
-      }
-      if (storeSettingsForm && acceptedSlideFiles.length) {
-        save.disabled = true;
-        storeSettingsForm.requestSubmit();
-        return;
+        slidesDetails.textContent = `จัดตำแหน่งรูปสไลด์แล้ว ${acceptedSlideFiles.length} รูป กดบันทึกข้อมูลร้านเพื่อเพิ่มสไลด์`;
       }
       closeCropper();
     };
