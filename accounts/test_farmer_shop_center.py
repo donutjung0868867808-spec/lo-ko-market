@@ -226,9 +226,34 @@ class FarmerShopCenterTests(TestCase):
         self.assertNotContains(response, 'type="checkbox" name="store_cover-clear"')
         self.assertContains(response, 'z-[70] hidden place-items-center')
         self.assertContains(response, "1600 x 500")
-        self.assertContains(response, "ไฟล์ต้นฉบับไม่เกิน 20 MB")
+        self.assertContains(response, "ไฟล์ต้นฉบับไม่เกิน 50 MB")
         self.assertContains(response, "ภาพแบนเนอร์ขนาดไม่เกิน 5 MB")
         self.assertContains(response, "MAX_SOURCE_IMAGE_SIZE")
+
+    def test_store_name_is_saved_when_cover_file_is_invalid(self):
+        invalid_cover = SimpleUploadedFile(
+            "cover.txt",
+            b"not an image",
+            content_type="text/plain",
+        )
+
+        response = self.client.post(
+            reverse("accounts:farmer_shop_center"),
+            {
+                "shop_action": "update_store",
+                "farm_name": "ชื่อร้านที่บันทึกได้",
+                "province": self.profile.province,
+                "district": self.profile.district,
+                "address": self.profile.address,
+                "bio": self.profile.bio,
+                "store_cover": invalid_cover,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.profile.refresh_from_db()
+        self.assertEqual(self.profile.farm_name, "ชื่อร้านที่บันทึกได้")
+        self.assertContains(response, "บันทึกชื่อและข้อมูลร้านแล้ว")
 
     def test_store_design_displays_the_saved_cover_image(self):
         self.profile.store_cover = "store-covers/design-preview.jpg"

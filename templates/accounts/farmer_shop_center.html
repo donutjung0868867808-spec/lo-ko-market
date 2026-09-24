@@ -94,7 +94,7 @@
                         </div>
                       </figure>
                       <p class="mt-3 text-sm font-medium text-slate-700">แนะนำ 1600 x 500 พิกเซล (สัดส่วน 16:5)</p>
-                      <p class="mt-1 text-xs leading-5 text-slate-500">รองรับ JPG, JPEG, PNG, WEBP ไฟล์ต้นฉบับไม่เกิน 20 MB ระบบจะครอบและย่อเป็นภาพแบนเนอร์ขนาดไม่เกิน 5 MB</p>
+                      <p class="mt-1 text-xs leading-5 text-slate-500">รองรับ JPG, JPEG, PNG, WEBP ไฟล์ต้นฉบับไม่เกิน 50 MB ระบบจะครอบและย่อเป็นภาพแบนเนอร์ขนาดไม่เกิน 5 MB</p>
                       <div class="mt-3">{{ field }}</div>
                       {% if farmer_profile.store_cover %}
                         <input type="hidden" name="remove_store_cover" value="0" data-store-cover-remove-input>
@@ -430,10 +430,11 @@
       image.src = sourceUrl;
     };
 
-    const MAX_SOURCE_IMAGE_SIZE = 20 * 1024 * 1024;
+    const MAX_SOURCE_IMAGE_SIZE = 50 * 1024 * 1024;
     const isSupportedImage = (file) => {
-      const supportedName = /\.(jpe?g|png|webp)$/i.test(file.name);
-      return supportedName && file.size <= MAX_SOURCE_IMAGE_SIZE;
+      const supportedName = /\.(jpe?g|jfif|png|webp)$/i.test(file.name);
+      const supportedMime = (file.type || "").startsWith("image/");
+      return (supportedName || supportedMime) && file.size <= MAX_SOURCE_IMAGE_SIZE;
     };
 
     input.addEventListener("change", () => {
@@ -441,7 +442,7 @@
       if (!file) return;
       if (!isSupportedImage(file)) {
         restorePreviousSelection();
-        details.textContent = "กรุณาเลือก JPG, JPEG, PNG หรือ WEBP ไฟล์ต้นฉบับไม่เกิน 20 MB";
+        details.textContent = "กรุณาเลือก JPG, JPEG, PNG หรือ WEBP ไฟล์ต้นฉบับไม่เกิน 50 MB";
         return;
       }
       openCropper(file, input);
@@ -473,7 +474,7 @@
         const invalidFile = files.find((file) => !isSupportedImage(file));
         if (invalidFile) {
           setInputFiles(slidesInput, []);
-          if (slidesDetails) slidesDetails.textContent = "กรุณาเลือก JPG, JPEG, PNG หรือ WEBP ไฟล์ต้นฉบับไม่เกิน 20 MB";
+          if (slidesDetails) slidesDetails.textContent = "กรุณาเลือก JPG, JPEG, PNG หรือ WEBP ไฟล์ต้นฉบับไม่เกิน 50 MB";
           return;
         }
         pendingSlideFiles = files;
@@ -549,7 +550,7 @@
       closeCropper();
     });
 
-    save.addEventListener("click", () => {
+    const saveCroppedImage = (quality = 0.9) => {
       canvas.toBlob((blob) => {
         if (!blob || !sourceFile) return;
         const croppedFile = new File(
@@ -557,6 +558,10 @@
           sourceFile.name.replace(/\.[^.]+$/, "") + "-cover.jpg",
           { type: "image/jpeg" },
         );
+        if (croppedFile.size > 5 * 1024 * 1024 && quality > 0.5) {
+          saveCroppedImage(Math.max(0.5, quality - 0.15));
+          return;
+        }
         if (croppedFile.size > 5 * 1024 * 1024) {
           if (activeInput === slidesInput) {
             pendingSlideFiles = [];
@@ -581,7 +586,11 @@
           showPreview(croppedFile);
           closeCropper();
         }
-      }, "image/jpeg", 0.9);
+      }, "image/jpeg", quality);
+    };
+
+    save.addEventListener("click", () => {
+      saveCroppedImage();
     });
 
     clear.addEventListener("click", () => {

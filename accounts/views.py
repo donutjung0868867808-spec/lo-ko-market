@@ -40,6 +40,7 @@ from .forms import (
     ReportMessageForm,
     ReportResolutionForm,
     StaffFarmerProfileForm,
+    SellerStoreDetailsForm,
     SellerStoreProfileForm,
     SupportMessageForm,
     SupportTicketCreateForm,
@@ -377,6 +378,10 @@ def farmer_shop_center(request):
         request.FILES or None,
         instance=farmer_profile,
     ) if farmer_profile else None
+    store_details_form = SellerStoreDetailsForm(
+        request.POST or None,
+        instance=farmer_profile,
+    ) if farmer_profile else None
     product_form = ProductForm(request.POST or None, request.FILES or None)
     if request.method == "POST" and request.POST.get("shop_action") == "create_product":
         if not farmer_profile or not farmer_profile.community or not farmer_profile.is_verified:
@@ -398,28 +403,34 @@ def farmer_shop_center(request):
             messages.success(request, "ส่งสินค้าให้เจ้าหน้าที่ตรวจสอบแล้ว")
             return redirect(f"{reverse('accounts:farmer_shop_center')}?section=products")
     elif request.method == "POST" and request.POST.get("shop_action") == "update_store":
-        if store_form and store_form.is_valid():
-            store_profile = store_form.save(commit=False)
-            previous_cover_name = store_profile.store_cover.name if store_profile.store_cover else ""
-            remove_store_cover = request.POST.get("remove_store_cover") == "1"
-            if remove_store_cover and not request.FILES.get("store_cover"):
-                store_profile.store_cover = ""
-            store_profile.save()
-            if remove_store_cover and previous_cover_name:
-                store_profile.store_cover.storage.delete(previous_cover_name)
-            next_sort_order = (
-                store_profile.store_cover_slides.aggregate(last=Max("sort_order"))["last"] or 0
-            )
-            for image in store_form.cleaned_data["store_cover_slides"]:
-                next_sort_order += 1
-                StoreCoverSlide.objects.create(
-                    profile=store_profile,
-                    image=image,
-                    sort_order=next_sort_order,
+        if store_details_form and store_details_form.is_valid():
+            store_profile = store_details_form.save(commit=False)
+            if store_form and store_form.is_valid():
+                previous_cover_name = store_profile.store_cover.name if store_profile.store_cover else ""
+                remove_store_cover = request.POST.get("remove_store_cover") == "1"
+                if remove_store_cover and not request.FILES.get("store_cover"):
+                    store_profile.store_cover = ""
+                store_profile.save()
+                if remove_store_cover and previous_cover_name:
+                    store_profile.store_cover.storage.delete(previous_cover_name)
+                next_sort_order = (
+                    store_profile.store_cover_slides.aggregate(last=Max("sort_order"))["last"] or 0
                 )
-            messages.success(request, f"บันทึกข้อมูลหน้าร้านแล้ว ชื่อร้าน: {store_profile.farm_name}")
-            return redirect(f"{reverse('accounts:farmer_shop_center')}?section=store&mode=settings")
-        if store_form:
+                for image in store_form.cleaned_data["store_cover_slides"]:
+                    next_sort_order += 1
+                    StoreCoverSlide.objects.create(
+                        profile=store_profile,
+                        image=image,
+                        sort_order=next_sort_order,
+                    )
+                messages.success(request, f"บันทึกข้อมูลหน้าร้านแล้ว ชื่อร้าน: {store_profile.farm_name}")
+                return redirect(f"{reverse('accounts:farmer_shop_center')}?section=store&mode=settings")
+            store_profile.save()
+            messages.warning(
+                request,
+                "บันทึกชื่อและข้อมูลร้านแล้ว แต่รูปปกหรือรูปสไลด์ไม่ผ่านการตรวจสอบ",
+            )
+        elif store_form:
             messages.error(request, "บันทึกข้อมูลร้านค้าไม่สำเร็จ กรุณาตรวจสอบข้อมูลที่ทำเครื่องหมายไว้")
     sales = Order.objects.filter(seller=request.user).select_related("buyer").prefetch_related("items").order_by("-created_at")
     paid_sales = sales.filter(payment_status=Order.PaymentStatus.PAID)

@@ -219,8 +219,27 @@ class FarmerProfileForm(StyledFormMixin, forms.ModelForm):
         return cleaned_data
 
 
-class SellerStoreProfileForm(StyledFormMixin, forms.ModelForm):
-    """Editable storefront details that do not affect farmer verification."""
+class SellerStoreDetailsForm(StyledFormMixin, forms.ModelForm):
+    """Store text fields saved independently from optional cover media."""
+
+    class Meta:
+        model = FarmerProfile
+        fields = ["farm_name", "province", "district", "address", "bio"]
+        labels = {
+            "farm_name": "ชื่อร้าน/ฟาร์ม",
+            "province": "จังหวัด",
+            "district": "อำเภอ/เขต",
+            "address": "ที่อยู่ร้าน",
+            "bio": "คำอธิบายหน้าร้าน",
+        }
+        widgets = {
+            "address": forms.Textarea(attrs={"rows": 3}),
+            "bio": forms.Textarea(attrs={"rows": 4, "placeholder": "แนะนำร้านค้า จุดเด่น หรือวิธีดูแลสินค้า"}),
+        }
+
+
+class SellerStoreProfileForm(SellerStoreDetailsForm):
+    """Store details together with optional cover media for the settings UI."""
 
     store_cover_slides = MultipleFileField(
         label="เพิ่มรูปสไลด์หน้าร้าน",
@@ -249,20 +268,14 @@ class SellerStoreProfileForm(StyledFormMixin, forms.ModelForm):
             "store_cover_slides",
         ])
 
-    class Meta:
-        model = FarmerProfile
-        fields = ["farm_name", "province", "district", "address", "bio", "store_cover"]
+    class Meta(SellerStoreDetailsForm.Meta):
+        fields = [*SellerStoreDetailsForm.Meta.fields, "store_cover"]
         labels = {
-            "farm_name": "ชื่อร้าน/ฟาร์ม",
-            "province": "จังหวัด",
-            "district": "อำเภอ/เขต",
-            "address": "ที่อยู่ร้าน",
-            "bio": "คำอธิบายหน้าร้าน",
+            **SellerStoreDetailsForm.Meta.labels,
             "store_cover": "รูปปกหน้าร้าน",
         }
         widgets = {
-            "address": forms.Textarea(attrs={"rows": 3}),
-            "bio": forms.Textarea(attrs={"rows": 4, "placeholder": "แนะนำร้านค้า จุดเด่น หรือวิธีดูแลสินค้า"}),
+            **SellerStoreDetailsForm.Meta.widgets,
             "store_cover": forms.FileInput(
                 attrs={
                     "accept": "image/jpeg,image/png,image/webp",
