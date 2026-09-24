@@ -79,6 +79,37 @@ if os.environ.get("DJANGO_SETTINGS_MODULE") == "agri_market.browser_test_setting
                 self.assertEqual(errors, [])
                 browser.close()
 
+        def test_store_slide_is_saved_after_crop_and_submit(self):
+            seller_cookie = self.cookie(self.seller)
+            if sys.platform == "win32":
+                previous_policy = asyncio.get_event_loop_policy()
+                asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+                self.addCleanup(asyncio.set_event_loop_policy, previous_policy)
+
+            with sync_playwright() as playwright:
+                browser = playwright.chromium.launch(channel="msedge", headless=True)
+                context = browser.new_context(viewport={"width": 1440, "height": 900})
+                context.add_cookies([seller_cookie])
+                page = context.new_page()
+                page.goto(
+                    self.live_server_url
+                    + reverse("accounts:farmer_shop_center")
+                    + "?section=store&mode=settings"
+                )
+                page.locator("[data-store-cover-slides-input]").set_input_files({
+                    "name": "saved-slide.png",
+                    "mimeType": "image/png",
+                    "buffer": base64.b64decode(
+                        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL9YQAAAABJRU5ErkJggg=="
+                    ),
+                })
+                page.locator("[data-store-cover-crop-save]").click()
+                expect(page.locator("[data-store-cover-slides-preview]")).to_be_visible()
+                page.locator('[data-store-settings-form] button[type="submit"]').click()
+                expect(page).to_have_url(re.compile(r"section=store&mode=settings"))
+                expect(page.locator("text=สไลด์ 1")).to_be_visible()
+                browser.close()
+
         def test_store_cover_arrows_are_outside_the_image_and_text(self):
             profile = self.seller.farmer_profile
             StoreCoverSlide.objects.create(

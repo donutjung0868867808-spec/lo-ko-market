@@ -245,6 +245,8 @@
     const save = document.querySelector("[data-store-cover-crop-save]");
     const slidesDetails = document.querySelector("[data-store-cover-slides-details]");
     const slidesPreview = document.querySelector("[data-store-cover-slides-preview]");
+    const storeSettingsForm = document.querySelector("[data-store-settings-form]");
+    const storeSettingsSave = storeSettingsForm?.querySelector('button[type="submit"]');
     if (!input || !preview || !previewImage || !details || !clear || !cropper || !canvas || !cropDetails || !cancel || !save) return;
 
     const context = canvas.getContext("2d");
@@ -475,6 +477,45 @@
         cropNextSlide();
       });
     }
+
+    storeSettingsForm?.addEventListener("submit", async (event) => {
+      if (!acceptedFile && !acceptedSlideFiles.length) return;
+
+      // Some browsers do not submit files assigned to input.files by JavaScript.
+      // Attach the cropped Files directly so cover and slide uploads remain reliable.
+      event.preventDefault();
+      if (storeSettingsSave?.disabled) return;
+      if (storeSettingsSave) storeSettingsSave.disabled = true;
+      const formData = new FormData(storeSettingsForm);
+      if (acceptedFile) {
+        formData.delete("store_cover");
+        formData.append("store_cover", acceptedFile);
+      }
+      if (acceptedSlideFiles.length) {
+        formData.delete("store_cover_slides");
+        acceptedSlideFiles.forEach((file) => formData.append("store_cover_slides", file));
+      }
+
+      try {
+        const response = await fetch(storeSettingsForm.action || window.location.href, {
+          method: "POST",
+          body: formData,
+          credentials: "same-origin",
+        });
+        if (response.redirected) {
+          window.location.assign(response.url);
+          return;
+        }
+        document.open();
+        document.write(await response.text());
+        document.close();
+      } catch (error) {
+        if (storeSettingsSave) storeSettingsSave.disabled = false;
+        if (slidesDetails && acceptedSlideFiles.length) {
+          slidesDetails.textContent = "ไม่สามารถบันทึกรูปสไลด์ได้ กรุณาลองใหม่อีกครั้ง";
+        }
+      }
+    });
 
     canvas.addEventListener("wheel", (event) => {
       if (!image) return;
