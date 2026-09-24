@@ -3,12 +3,14 @@ import hashlib
 import hmac
 import json
 import uuid
+from unittest.mock import MagicMock, patch
 
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from accounts.models import Community, Notification, User
 from .models import Order, Shipment, ShipmentEvent
+from .tracking import register_aftership_tracking, register_pending_aftership_trackings
 
 
 @override_settings(AFTERSHIP_WEBHOOK_SECRET="test-only-tracking-secret")
@@ -72,3 +74,42 @@ class TrackingWebhookTests(TestCase):
         self.assertEqual(self.post(corrected).status_code, 200)
         self.assertEqual(Shipment.objects.get().tracking_number, "TH999")
         self.assertEqual(Shipment.objects.get().status, "Delivered")
+
+    @override_settings(AFTERSHIP_API_KEY="aftership-test-key")
+    @patch("orders.tracking.urlopen")
+    def test_registers_tracking_with_aftership_without_buyer_data(self, urlopen):
+        response = MagicMock()
+        response.read.return_value = json.dumps({
+            "data": {"tracking": {"id": "aftership-123", "slug": "thailand-post", "tag": "Pending"}}
+        }).encode()
+        urlopen.return_value.__enter__.return_value = response
+
+        register_aftership_tracking(self.order.pk)
+
+        shipment = Shipment.objects.get(order=self.order)
+        self.assertEqual(shipment.provider_id, "aftership-123")
+        self.assertEqual(shipment.carrier_slug, "thailand-post")
+        request = urlopen.call_args.args[0]
+        self.assertEqual(request.full_url, "https://api.aftership.com/tracking/2026-07/trackings")
+        self.assertEqual(request.headers["As-api-key"], "aftership-test-key")
+        self.assertEqual(
+            json.loads(request.data),
+            {
+                "tracking_number": "TH123",
+                "title": self.order.reference,
+                "order_id": self.order.reference,
+                "order_number": self.order.reference,
+                "shipment_direction": "forward",
+            },
+        )
+
+    @override_settings(AFTERSHIP_API_KEY="aftership-test-key")
+    @patch("orders.tracking.urlopen")
+    def test_retries_unregistered_tracking_in_maintenance(self, urlopen):
+        response = MagicMock()
+        response.read.return_value = json.dumps({"data": {"tracking": {"id": "aftership-123"}}}).encode()
+        urlopen.return_value.__enter__.return_value = response
+
+        self.assertEqual(register_pending_aftership_trackings(), 1)
+        self.assertEqual(register_pending_aftership_trackings(), 0)
+        self.assertEqual(urlopen.call_count, 1)

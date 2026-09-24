@@ -89,6 +89,9 @@ LOGIN_LOCKOUT_MINUTES = int(os.environ.get("LOGIN_LOCKOUT_MINUTES", "15"))
 TRUST_X_FORWARDED_FOR = env_bool("TRUST_X_FORWARDED_FOR", default=not DEBUG and not IS_TESTING)
 ORDER_RESERVATION_MINUTES = int(os.environ.get("ORDER_RESERVATION_MINUTES", "30"))
 REFUND_REQUEST_DAYS = int(os.environ.get("REFUND_REQUEST_DAYS", "7"))
+PAYMENT_MODE = os.environ.get("PAYMENT_MODE", "test").strip().lower()
+if PAYMENT_MODE not in {"test", "live"}:
+    raise ValueError("PAYMENT_MODE must be either 'test' or 'live'.")
 FLAT_SHIPPING_FEE = os.environ.get("FLAT_SHIPPING_FEE", "50.00")
 FREE_SHIPPING_THRESHOLD = os.environ.get("FREE_SHIPPING_THRESHOLD", "500.00")
 MAX_UPLOAD_SIZE = int(os.environ.get("MAX_UPLOAD_SIZE", str(5 * 1024 * 1024)))
@@ -160,6 +163,7 @@ TEMPLATES = [
                 "django.contrib.messages.context_processors.messages",
                 "accounts.context_processors.notification_summary",
                 "catalog.context_processors.search_provinces",
+                "payments.context_processors.payment_mode",
             ],
         },
     },
@@ -168,6 +172,8 @@ TEMPLATES = [
 WSGI_APPLICATION = "agri_market.wsgi.application"
 ASGI_APPLICATION = "agri_market.asgi.application"
 REDIS_URL = os.environ.get("REDIS_URL", "")
+AFTERSHIP_API_KEY = os.environ.get("AFTERSHIP_API_KEY", "")
+AFTERSHIP_REQUEST_TIMEOUT_SECONDS = int(os.environ.get("AFTERSHIP_REQUEST_TIMEOUT_SECONDS", "10"))
 CHANNEL_LAYERS = {"default": (
     {"BACKEND": "channels_redis.core.RedisChannelLayer", "CONFIG": {"hosts": [REDIS_URL]}}
     if REDIS_URL and not IS_TESTING else {"BACKEND": "channels.layers.InMemoryChannelLayer"}

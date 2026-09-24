@@ -3,7 +3,7 @@ from decimal import Decimal
 from django.test import TestCase
 from django.urls import reverse
 
-from accounts.models import Community, Report, User
+from accounts.models import Community, FarmerProfile, Report, User
 from catalog.models import Product
 
 from .models import Coupon, Order, OrderItem, OrderStatusHistory, ShippingRate
@@ -204,6 +204,38 @@ class CartWorkflowTests(TestCase):
 
         detail_response = self.client.get(order.get_absolute_url())
         self.assertContains(detail_response, self.product.image.url)
+
+    def test_buyer_order_history_shows_linked_store_profile(self):
+        self.seller.avatar = "avatars/order-history-store.jpg"
+        self.seller.save(update_fields=["avatar"])
+        FarmerProfile.objects.create(
+            user=self.seller,
+            community=self.community,
+            farm_name="สวนข้าวโพดทดสอบ",
+        )
+        order = Order.objects.create(
+            buyer=self.buyer,
+            seller=self.seller,
+            community=self.community,
+            shipping_name="Buyer",
+            shipping_phone="0800000000",
+            shipping_address="Buyer address",
+        )
+        OrderItem.objects.create(
+            order=order,
+            product=self.product,
+            product_name=self.product.name,
+            unit=self.product.unit,
+            quantity=Decimal("1.00"),
+            unit_price=self.product.price,
+        )
+        self.client.force_login(self.buyer)
+
+        response = self.client.get(reverse("orders:order_list"))
+
+        self.assertContains(response, "สวนข้าวโพดทดสอบ")
+        self.assertContains(response, self.seller.avatar.url)
+        self.assertContains(response, reverse("catalog:seller_store", args=[self.seller.pk]))
 
     def test_buyer_order_history_can_expand_additional_products(self):
         additional_product = Product.objects.create(

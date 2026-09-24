@@ -58,7 +58,7 @@
       {% endif %}
       <form method="post" action="{{ switch_mode_url }}" class="border-b border-r border-emerald-900/15 sm:border-r-0 lg:border-r-0">
         {% csrf_token %}
-        <button type="submit" class="flex min-h-12 w-full items-center gap-3 px-4 py-3 text-left text-sm font-medium text-leaf hover:bg-emerald-50">
+        <button type="submit" class="flex min-h-12 w-full items-center gap-3 px-4 py-3 text-left text-sm font-medium text-slate-700 hover:bg-emerald-50 hover:text-leaf">
           {% if active_market_mode == "buyer" %}
             <i data-lucide="store" class="h-5 w-5 shrink-0" aria-hidden="true"></i>
             สลับเป็นผู้ขาย
@@ -86,7 +86,7 @@
       การสั่งซื้อของฉัน
     </a>
     {% if request.user.is_farmer and active_market_mode != "buyer" %}
-      <a href="{% url 'accounts:farmer_shop_center' %}" class="flex min-h-12 items-center gap-3 border-b border-emerald-900/15 px-4 py-3 text-sm font-medium text-leaf hover:bg-emerald-50">
+      <a href="{% url 'accounts:farmer_shop_center' %}" class="flex min-h-12 items-center gap-3 border-b border-emerald-900/15 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-emerald-50 hover:text-leaf">
         <i data-lucide="store" class="h-5 w-5 shrink-0" aria-hidden="true"></i>
         จัดการร้านค้าของฉัน
       </a>

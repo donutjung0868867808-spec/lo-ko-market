@@ -442,6 +442,12 @@ def farmer_shop_center(request):
     else:
         order_status = "all"
 
+    order_menu = request.GET.get("order_menu", order_status)
+    if order_menu not in {"all", "batch", "preparing", "cancelled"}:
+        order_menu = order_status
+    if order_status == "all":
+        order_menu = "all"
+
     order_query = request.GET.get("q", "").strip()
     order_search_by = request.GET.get("search_by", "reference")
     if order_query:
@@ -496,6 +502,7 @@ def farmer_shop_center(request):
         "shop_orders": filtered_sales,
         "shop_order_count": filtered_sales.count(),
         "order_status": order_status,
+        "order_menu": order_menu,
         "order_query": order_query,
         "order_search_by": order_search_by,
         "order_payment": order_payment,

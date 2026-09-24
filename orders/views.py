@@ -496,7 +496,7 @@ def order_list(request):
         orders = Order.objects.filter(buyer=request.user).select_related("buyer", "seller", "community")
     else:
         orders = scoped_orders(request.user)
-    orders = orders.prefetch_related("items__product")
+    orders = orders.select_related("seller__farmer_profile").prefetch_related("items__product")
     status_filter = request.GET.get("status", "all")
     status_groups = {
         "pending_payment": [Order.Status.PENDING_PAYMENT],

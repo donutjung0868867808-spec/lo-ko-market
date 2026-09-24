@@ -84,6 +84,23 @@ class PaymentWorkflowTests(TestCase):
         self.assertEqual(payment.status, Payment.Status.FAILED)
         self.assertEqual(self.product.stock_quantity, Decimal("10.00"))
 
+    @override_settings(
+        DEBUG=False,
+        PAYMENT_MODE="test",
+        STRIPE_SECRET_KEY="sk_live_should_not_be_used",
+        SECURE_SSL_REDIRECT=False,
+    )
+    def test_test_mode_blocks_a_live_stripe_key(self):
+        self.client.force_login(self.buyer)
+
+        response = self.client.get(reverse("payments:create_checkout", args=[self.order.pk]))
+
+        self.assertRedirects(response, self.order.get_absolute_url(), fetch_redirect_response=False)
+        self.order.refresh_from_db()
+        payment = Payment.objects.get(order=self.order)
+        self.assertEqual(self.order.payment_status, Order.PaymentStatus.FAILED)
+        self.assertEqual(payment.status, Payment.Status.FAILED)
+
     @override_settings(DEBUG=False, STRIPE_SECRET_KEY="", STRIPE_WEBHOOK_SECRET="whsec_test", SECURE_SSL_REDIRECT=False)
     def test_webhook_rejects_unsigned_payload_in_production(self):
         payload = {

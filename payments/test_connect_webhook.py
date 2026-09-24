@@ -51,7 +51,7 @@ class ConnectWebhookTests(TestCase):
         self.assertEqual(self.post_event().status_code, 400)
         self.assertFalse(StripeEvent.objects.exists())
 
-    @override_settings(STRIPE_SECRET_KEY="sk_live_fixture")
+    @override_settings(STRIPE_SECRET_KEY="sk_live_fixture", PAYMENT_MODE="live")
     def test_test_events_cannot_change_live_account_readiness(self):
         self.payload["livemode"] = False
         response = self.post_event()

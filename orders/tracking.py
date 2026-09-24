@@ -4,10 +4,14 @@ import base64
 import hashlib
 import hmac
 import json
+import logging
 import uuid
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
 from django.conf import settings
 from django.db import transaction
+from django.db.models import Q
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
@@ -16,6 +20,88 @@ from django.views.decorators.http import require_POST
 
 from accounts.services import notify_user
 from .models import Order, Shipment, ShipmentEvent
+
+
+logger = logging.getLogger(__name__)
+AFTERSHIP_TRACKINGS_URL = "https://api.aftership.com/tracking/2026-07/trackings"
+
+
+def register_aftership_tracking(order_id):
+    """Register a shipped order when automatic AfterShip tracking is configured."""
+    if not settings.AFTERSHIP_API_KEY:
+        return
+
+    order = Order.objects.filter(
+        pk=order_id,
+        status__in=[Order.Status.SHIPPED, Order.Status.COMPLETED],
+    ).first()
+    if not order or not order.tracking_number:
+        return
+
+    shipment = Shipment.objects.filter(order=order).first()
+    if shipment and shipment.tracking_number == order.tracking_number and shipment.provider_id:
+        return
+
+    payload = json.dumps(
+        {
+            "tracking_number": order.tracking_number,
+            "title": order.reference,
+            "order_id": order.reference,
+            "order_number": order.reference,
+            "shipment_direction": "forward",
+        }
+    ).encode("utf-8")
+    request = Request(
+        AFTERSHIP_TRACKINGS_URL,
+        data=payload,
+        headers={
+            "Content-Type": "application/json",
+            "as-api-key": settings.AFTERSHIP_API_KEY,
+        },
+        method="POST",
+    )
+    try:
+        with urlopen(request, timeout=settings.AFTERSHIP_REQUEST_TIMEOUT_SECONDS) as response:
+            response_data = json.loads(response.read().decode("utf-8"))
+    except (HTTPError, URLError, OSError, ValueError) as exc:
+        logger.warning("Unable to register AfterShip tracking for order %s: %s", order.pk, exc)
+        return
+
+    tracking = response_data.get("data", {}).get("tracking") or response_data.get("tracking") or response_data.get("data", {})
+    provider_id = str(tracking.get("id") or "")[:128] if isinstance(tracking, dict) else ""
+    carrier_slug = str(tracking.get("slug") or "")[:120] if isinstance(tracking, dict) else ""
+    if not provider_id:
+        logger.warning("AfterShip did not return a tracking id for order %s", order.pk)
+        return
+
+    shipment, _ = Shipment.objects.get_or_create(
+        order=order,
+        defaults={"tracking_number": order.tracking_number},
+    )
+    shipment.tracking_number = order.tracking_number
+    shipment.provider_id = provider_id
+    shipment.carrier_slug = carrier_slug
+    shipment.status = str(tracking.get("tag") or "Pending")[:40]
+    shipment.save(update_fields=["tracking_number", "provider_id", "carrier_slug", "status", "updated_at"])
+
+
+def register_pending_aftership_trackings(batch_size=100):
+    """Retry shipped orders that do not yet have an AfterShip tracking id."""
+    if not settings.AFTERSHIP_API_KEY:
+        return 0
+
+    order_ids = Order.objects.filter(
+        status__in=[Order.Status.SHIPPED, Order.Status.COMPLETED],
+    ).exclude(tracking_number="").filter(
+        Q(shipment__isnull=True) | Q(shipment__provider_id="")
+    ).values_list("pk", flat=True)[:batch_size]
+    registered = 0
+    for order_id in order_ids:
+        before = Shipment.objects.filter(order_id=order_id).values_list("provider_id", flat=True).first() or ""
+        register_aftership_tracking(order_id)
+        after = Shipment.objects.filter(order_id=order_id).values_list("provider_id", flat=True).first() or ""
+        registered += int(not before and bool(after))
+    return registered
 
 
 @transaction.atomic

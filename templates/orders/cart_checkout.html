@@ -15,6 +15,13 @@
     </div>
   </div>
 
+  {% if payment_is_test_mode %}
+    <div class="flex items-start gap-3 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950" role="status">
+      <i data-lucide="flask-conical" class="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true"></i>
+      <p><span class="font-semibold">โหมดชำระเงินทดลอง</span> ใช้หน้าชำระเงิน Stripe เหมือนการใช้งานจริง แต่จะไม่มีการตัดเงิน</p>
+    </div>
+  {% endif %}
+
   <form method="post" class="grid gap-5 lg:grid-cols-[1fr_380px]">
     {% csrf_token %}
     <input type="hidden" name="cart_selection" value="1">

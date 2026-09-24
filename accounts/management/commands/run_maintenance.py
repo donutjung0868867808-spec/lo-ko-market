@@ -8,6 +8,7 @@ from accounts.models import EmailDelivery, LoginAttempt
 from accounts.services import deliver_email
 from catalog.services import notify_low_stock_for_all
 from orders.services import expire_stale_orders
+from orders.tracking import register_pending_aftership_trackings
 from payments.models import SellerSettlement, StripeEvent
 from payments.services import retry_due_settlements, sync_settlement_for_payment
 
@@ -18,6 +19,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         expired = expire_stale_orders()
         low_stock = notify_low_stock_for_all()
+        trackings_registered = register_pending_aftership_trackings()
 
         sent = 0
         pending_email_ids = list(
@@ -59,6 +61,6 @@ class Command(BaseCommand):
 
         self.stdout.write(
             self.style.SUCCESS(
-                f"Expired {expired}, low stock {low_stock}, emails {sent}, settlements {transferred}"
+                f"Expired {expired}, low stock {low_stock}, tracking {trackings_registered}, emails {sent}, settlements {transferred}"
             )
         )

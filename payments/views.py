@@ -71,13 +71,17 @@ def mock_payment_redirect(order, request):
 
 
 def stripe_client():
-    if not settings.STRIPE_SECRET_KEY:
+    secret_key = settings.STRIPE_SECRET_KEY
+    if not secret_key:
+        return None
+    if settings.PAYMENT_MODE == "test" and secret_key.startswith("sk_live_"):
+        logger.error("Blocked a live Stripe key because PAYMENT_MODE is test.")
         return None
     try:
         import stripe
     except ImportError:
         return None
-    stripe.api_key = settings.STRIPE_SECRET_KEY
+    stripe.api_key = secret_key
     return stripe
 
 

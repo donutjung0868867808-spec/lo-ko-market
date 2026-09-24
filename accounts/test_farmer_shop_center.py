@@ -89,6 +89,39 @@ class FarmerShopCenterTests(TestCase):
 
         self.assertContains(response, "seller-shop-open-menu-groups")
 
+    def test_order_submenu_uses_the_selected_order_menu(self):
+        response = self.client.get(
+            f"{reverse('accounts:farmer_shop_center')}?section=orders&status=cancelled&order_menu=cancelled"
+        )
+
+        self.assertEqual(response.context["order_menu"], "cancelled")
+        self.assertContains(
+            response,
+            'href="?section=orders&status=cancelled&order_menu=cancelled" class="block px-6 py-2 bg-emerald-50 font-semibold text-leaf"',
+        )
+        self.assertContains(
+            response,
+            'href="?section=orders" class="block px-6 py-2 text-slate-700 hover:bg-emerald-50 hover:text-leaf"',
+        )
+
+    def test_product_submenu_uses_the_selected_mode(self):
+        response = self.client.get(
+            f"{reverse('accounts:farmer_shop_center')}?section=products&mode=status"
+        )
+
+        self.assertContains(
+            response,
+            'href="?section=products&mode=status" class="block px-6 py-2 bg-emerald-50 font-semibold text-leaf"',
+        )
+        self.assertContains(
+            response,
+            'href="?section=products" class="block px-6 py-2 text-slate-700 hover:bg-emerald-50 hover:text-leaf"',
+        )
+        self.assertContains(
+            response,
+            'href="?section=orders" class="block px-6 py-2 text-slate-700 hover:bg-emerald-50 hover:text-leaf"',
+        )
+
     def test_product_list_shows_product_thumbnail(self):
         self.product.image = "products/seller-center-product.jpg"
         self.product.save(update_fields=["image"])

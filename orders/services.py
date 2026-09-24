@@ -341,4 +341,8 @@ def change_order_status(order, new_status, changed_by, note="", carrier="", trac
             notification_link,
         )
     )
+    if new_status == Order.Status.SHIPPED:
+        from .tracking import register_aftership_tracking
+
+        transaction.on_commit(lambda order_id=order.pk: register_aftership_tracking(order_id))
     return order

@@ -41,6 +41,8 @@ services:
         value: "2"
       - key: STRIPE_CONNECT_TRANSFERS_ENABLED
         value: "False"
+      - key: PAYMENT_MODE
+        value: "test"
       - key: SETTLEMENT_MAX_ATTEMPTS
         value: "5"
       - key: TERMS_VERSION
@@ -73,6 +75,8 @@ services:
           name: agri-market-realtime
           property: connectionString
       - key: AFTERSHIP_WEBHOOK_SECRET
+        sync: false
+      - key: AFTERSHIP_API_KEY
         sync: false
       - key: STRIPE_SECRET_KEY
         sync: false
@@ -140,6 +144,11 @@ services:
           type: keyvalue
           name: agri-market-realtime
           property: connectionString
+      - key: AFTERSHIP_API_KEY
+        fromService:
+          type: web
+          name: agri-market
+          envVarKey: AFTERSHIP_API_KEY
       - key: SECRET_KEY
         fromService:
           type: web
@@ -155,6 +164,11 @@ services:
           type: web
           name: agri-market
           envVarKey: STRIPE_SECRET_KEY
+      - key: PAYMENT_MODE
+        fromService:
+          type: web
+          name: agri-market
+          envVarKey: PAYMENT_MODE
       - key: STRIPE_CONNECT_TRANSFERS_ENABLED
         fromService:
           type: web

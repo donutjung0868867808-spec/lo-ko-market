@@ -72,6 +72,8 @@ class Command(BaseCommand):
             errors.append("ต้องกำหนด STRIPE_CONNECT_WEBHOOK_SECRET ก่อนเปิดการโอนอัตโนมัติ")
         if not settings.AFTERSHIP_WEBHOOK_SECRET:
             warnings.append("ยังไม่ได้เชื่อม webhook ติดตามพัสดุ")
+        elif not settings.AFTERSHIP_API_KEY:
+            warnings.append("ยังไม่ได้ตั้ง AFTERSHIP_API_KEY จึงต้องลงทะเบียนเลขพัสดุใน AfterShip เอง")
         if settings.STRIPE_SECRET_KEY.startswith("sk_test_"):
             warnings.append("Stripe ยังอยู่ใน Test mode ไม่รับหรือโอนเงินจริง")
         if not settings.TERMS_VERSION or not settings.PRIVACY_VERSION:
