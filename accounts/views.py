@@ -417,8 +417,10 @@ def farmer_shop_center(request):
                     image=image,
                     sort_order=next_sort_order,
                 )
-            messages.success(request, "บันทึกข้อมูลหน้าร้านแล้ว")
+            messages.success(request, f"บันทึกข้อมูลหน้าร้านแล้ว ชื่อร้าน: {store_profile.farm_name}")
             return redirect(f"{reverse('accounts:farmer_shop_center')}?section=store&mode=settings")
+        if store_form:
+            messages.error(request, "บันทึกข้อมูลร้านค้าไม่สำเร็จ กรุณาตรวจสอบข้อมูลที่ทำเครื่องหมายไว้")
     sales = Order.objects.filter(seller=request.user).select_related("buyer").prefetch_related("items").order_by("-created_at")
     paid_sales = sales.filter(payment_status=Order.PaymentStatus.PAID)
     gross_sales = paid_sales.aggregate(total=Sum("total_amount"))["total"] or 0

@@ -206,6 +206,7 @@ class FarmerShopCenterTests(TestCase):
         self.assertRedirects(response, f"{reverse('accounts:farmer_shop_center')}?section=store&mode=settings")
         public_store = self.client.get(reverse("catalog:seller_store", args=[self.seller.pk]))
         self.assertContains(public_store, "ชื่อร้านใหม่")
+        self.assertIn("no-store", public_store.headers["Cache-Control"])
         settings_page = self.client.get(f"{reverse('accounts:farmer_shop_center')}?section=store&mode=settings")
         self.assertContains(settings_page, f'form="store-cover-slide-delete-{slide.pk}"')
 
@@ -225,7 +226,9 @@ class FarmerShopCenterTests(TestCase):
         self.assertNotContains(response, 'type="checkbox" name="store_cover-clear"')
         self.assertContains(response, 'z-[70] hidden place-items-center')
         self.assertContains(response, "1600 x 500")
-        self.assertContains(response, "ขนาดไฟล์ไม่เกิน 5 MB")
+        self.assertContains(response, "ไฟล์ต้นฉบับไม่เกิน 20 MB")
+        self.assertContains(response, "ภาพแบนเนอร์ขนาดไม่เกิน 5 MB")
+        self.assertContains(response, "MAX_SOURCE_IMAGE_SIZE")
 
     def test_store_design_displays_the_saved_cover_image(self):
         self.profile.store_cover = "store-covers/design-preview.jpg"

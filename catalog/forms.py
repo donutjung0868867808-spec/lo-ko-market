@@ -121,8 +121,8 @@ class ProductForm(StyledFormMixin, forms.ModelForm):
         }
         widgets = {
             "description": forms.Textarea(attrs={"rows": 4}),
-            "harvest_date": forms.DateInput(attrs={"type": "date"}),
-            "expiry_date": forms.DateInput(attrs={"type": "date"}),
+            "harvest_date": forms.DateInput(format="%Y-%m-%d", attrs={"type": "date"}),
+            "expiry_date": forms.DateInput(format="%Y-%m-%d", attrs={"type": "date"}),
         }
 
     def clean_image(self):

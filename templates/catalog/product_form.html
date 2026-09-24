@@ -20,6 +20,14 @@
         {% for field in form %}
           <div class="{% if field.name == 'description' or field.name == 'detail_images' or field.name == 'image' %}sm:col-span-2{% endif %}">
             <label class="text-sm font-semibold text-slate-700" for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {% if product and field.name == 'image' %}
+              {% if product.image or product.images.all %}
+                <div class="mt-2 flex flex-wrap gap-2" aria-label="รูปสินค้าปัจจุบัน">
+                  {% if product.image %}<span class="h-16 w-16 overflow-hidden rounded-md border border-stone-200 bg-stone-50"><img src="{{ product.image.url }}" alt="รูปหลักปัจจุบัน" class="h-full w-full object-cover"></span>{% endif %}
+                  {% for current_image in product.images.all %}<span class="h-16 w-16 overflow-hidden rounded-md border border-stone-200 bg-stone-50"><img src="{{ current_image.image.url }}" alt="รูปสินค้าปัจจุบัน {{ forloop.counter }}" class="h-full w-full object-cover"></span>{% endfor %}
+                </div>
+              {% endif %}
+            {% endif %}
             <div class="mt-2">{{ field }}</div>
             {% if field.help_text %}
               <p class="mt-1 text-xs text-slate-500">{{ field.help_text }}</p>

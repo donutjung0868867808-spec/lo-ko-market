@@ -6,6 +6,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
+from django.utils.dateparse import parse_datetime
 
 from accounts.decorators import user_community
 from accounts.forms import ReportForm
@@ -13,7 +14,7 @@ from accounts.models import Report
 from catalog.models import Product
 
 from .forms import CancelOrderForm, CartCheckoutForm, CheckoutForm, OrderStatusForm
-from .models import Order, OrderItem
+from .models import Order, OrderItem, Shipment
 from .services import (
     apply_coupon,
     cancel_unpaid_order,
@@ -99,6 +100,35 @@ def can_view_order(user, order):
     if user.is_cooperative_staff and user_community(user) == order.community:
         return True
     return order.buyer_id == user.id
+
+
+def tracking_events(order):
+    """Normalize carrier checkpoints for a readable, newest-first delivery timeline."""
+    try:
+        shipment = order.shipment
+    except Shipment.DoesNotExist:
+        return []
+
+    events = []
+    for point in reversed(shipment.checkpoints):
+        events.append(
+            {
+                "message": point.get("message") or "กำลังอัปเดตสถานะพัสดุ",
+                "location": point.get("location", ""),
+                "occurred_at": parse_datetime(point.get("time", "")),
+                "time_label": point.get("time", ""),
+            }
+        )
+    if not events:
+        events.append(
+            {
+                "message": shipment.status_label,
+                "location": "",
+                "occurred_at": shipment.provider_updated_at,
+                "time_label": "",
+            }
+        )
+    return events
 
 
 def can_manage_order(user, order):
@@ -496,7 +526,7 @@ def order_list(request):
         orders = Order.objects.filter(buyer=request.user).select_related("buyer", "seller", "community")
     else:
         orders = scoped_orders(request.user)
-    orders = orders.select_related("seller__farmer_profile").prefetch_related("items__product")
+    orders = orders.select_related("seller__farmer_profile", "shipment").prefetch_related("items__product")
     status_filter = request.GET.get("status", "all")
     status_groups = {
         "pending_payment": [Order.Status.PENDING_PAYMENT],
@@ -562,6 +592,24 @@ def order_detail(request, pk):
         messages.error(request, "คุณไม่มีสิทธิ์ดูคำสั่งซื้อนี้")
         return redirect("orders:order_list")
     return render(request, "orders/order_detail.html", {"order": order})
+
+
+@login_required
+def order_tracking(request, pk):
+    order = get_object_or_404(
+        Order.objects.select_related("buyer", "seller", "seller__farmer_profile", "community", "shipment").prefetch_related(
+            "items__product", "status_history__changed_by"
+        ),
+        pk=pk,
+    )
+    if not can_view_order(request.user, order):
+        messages.error(request, "คุณไม่มีสิทธิ์ดูข้อมูลการติดตามพัสดุนี้")
+        return redirect("orders:order_list")
+    return render(
+        request,
+        "orders/order_tracking.html",
+        {"order": order, "tracking_events": tracking_events(order)},
+    )
 
 
 @login_required

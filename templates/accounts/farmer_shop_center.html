@@ -94,7 +94,7 @@
                         </div>
                       </figure>
                       <p class="mt-3 text-sm font-medium text-slate-700">แนะนำ 1600 x 500 พิกเซล (สัดส่วน 16:5)</p>
-                      <p class="mt-1 text-xs leading-5 text-slate-500">รองรับ JPG, JPEG, PNG, WEBP ขนาดไฟล์ไม่เกิน 5 MB ภาพจะถูกครอบให้พอดีกับแบนเนอร์หน้าร้าน</p>
+                      <p class="mt-1 text-xs leading-5 text-slate-500">รองรับ JPG, JPEG, PNG, WEBP ไฟล์ต้นฉบับไม่เกิน 20 MB ระบบจะครอบและย่อเป็นภาพแบนเนอร์ขนาดไม่เกิน 5 MB</p>
                       <div class="mt-3">{{ field }}</div>
                       {% if farmer_profile.store_cover %}
                         <input type="hidden" name="remove_store_cover" value="0" data-store-cover-remove-input>
@@ -425,14 +425,15 @@
           details.textContent = "ไม่สามารถเปิดไฟล์รูปภาพนี้ได้";
           restorePreviousSelection();
         }
+        closeCropper();
       };
       image.src = sourceUrl;
     };
 
+    const MAX_SOURCE_IMAGE_SIZE = 20 * 1024 * 1024;
     const isSupportedImage = (file) => {
       const supportedName = /\.(jpe?g|png|webp)$/i.test(file.name);
-      const supportedType = !file.type || ["image/jpeg", "image/png", "image/webp"].includes(file.type);
-      return supportedName && supportedType && file.size <= 5 * 1024 * 1024;
+      return supportedName && file.size <= MAX_SOURCE_IMAGE_SIZE;
     };
 
     input.addEventListener("change", () => {
@@ -440,7 +441,7 @@
       if (!file) return;
       if (!isSupportedImage(file)) {
         restorePreviousSelection();
-        details.textContent = "กรุณาเลือก JPG, JPEG, PNG หรือ WEBP ขนาดไม่เกิน 5 MB";
+        details.textContent = "กรุณาเลือก JPG, JPEG, PNG หรือ WEBP ไฟล์ต้นฉบับไม่เกิน 20 MB";
         return;
       }
       openCropper(file, input);
@@ -472,7 +473,7 @@
         const invalidFile = files.find((file) => !isSupportedImage(file));
         if (invalidFile) {
           setInputFiles(slidesInput, []);
-          if (slidesDetails) slidesDetails.textContent = "กรุณาเลือก JPG, JPEG, PNG หรือ WEBP ขนาดไม่เกิน 5 MB";
+          if (slidesDetails) slidesDetails.textContent = "กรุณาเลือก JPG, JPEG, PNG หรือ WEBP ไฟล์ต้นฉบับไม่เกิน 20 MB";
           return;
         }
         pendingSlideFiles = files;

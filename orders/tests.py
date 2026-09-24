@@ -6,7 +6,7 @@ from django.urls import reverse
 from accounts.models import Community, FarmerProfile, Report, User
 from catalog.models import Product
 
-from .models import Coupon, Order, OrderItem, OrderStatusHistory, ShippingRate
+from .models import Coupon, Order, OrderItem, OrderStatusHistory, Shipment, ShippingRate
 
 
 class OrderModelTests(TestCase):
@@ -236,6 +236,53 @@ class CartWorkflowTests(TestCase):
         self.assertContains(response, "สวนข้าวโพดทดสอบ")
         self.assertContains(response, self.seller.avatar.url)
         self.assertContains(response, reverse("catalog:seller_store", args=[self.seller.pk]))
+
+    def test_buyer_can_open_shopee_style_tracking_timeline(self):
+        order = Order.objects.create(
+            buyer=self.buyer,
+            seller=self.seller,
+            community=self.community,
+            status=Order.Status.SHIPPED,
+            payment_status=Order.PaymentStatus.PAID,
+            shipping_carrier="Thailand Post",
+            tracking_number="TH123456789",
+            shipping_name="Buyer",
+            shipping_phone="0800000000",
+            shipping_address="Buyer address",
+        )
+        Shipment.objects.create(
+            order=order,
+            tracking_number=order.tracking_number,
+            status="InTransit",
+            checkpoints=[{"message": "พัสดุกำลังเดินทาง", "location": "นครปฐม", "time": "2026-09-24T14:00:00Z"}],
+        )
+        self.client.force_login(self.buyer)
+
+        list_response = self.client.get(reverse("orders:order_list"))
+        response = self.client.get(reverse("orders:order_tracking", args=[order.pk]))
+
+        self.assertContains(list_response, reverse("orders:order_tracking", args=[order.pk]))
+        self.assertContains(response, "รายละเอียดการจัดส่ง")
+        self.assertContains(response, "อยู่ระหว่างขนส่ง")
+        self.assertContains(response, "พัสดุกำลังเดินทาง")
+
+    def test_paid_order_shows_shipping_status_before_seller_adds_tracking_number(self):
+        order = Order.objects.create(
+            buyer=self.buyer,
+            seller=self.seller,
+            community=self.community,
+            status=Order.Status.PAID,
+            payment_status=Order.PaymentStatus.PAID,
+            shipping_name="Buyer",
+            shipping_phone="0800000000",
+            shipping_address="Buyer address",
+        )
+        self.client.force_login(self.buyer)
+
+        response = self.client.get(reverse("orders:order_list"))
+
+        self.assertContains(response, "ผู้ขายกำลังเตรียมจัดส่ง")
+        self.assertContains(response, reverse("orders:order_tracking", args=[order.pk]))
 
     def test_buyer_order_history_can_expand_additional_products(self):
         additional_product = Product.objects.create(

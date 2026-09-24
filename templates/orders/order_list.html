@@ -101,6 +101,12 @@
         {% empty %}
           <div class="mt-5 grid h-28 place-items-center rounded-md bg-stone-50 text-leaf"><i data-lucide="package" class="h-8 w-8" aria-hidden="true"></i><span class="sr-only">ไม่มีรายการสินค้า</span></div>
         {% endfor %}
+        {% if order.payment_status == 'paid' and order.status != 'cancelled' and order.status != 'refunded' %}
+          <a href="{% url 'orders:order_tracking' order.pk %}" class="mt-5 flex items-center justify-between gap-3 rounded-md border border-emerald-200 bg-emerald-50/50 px-4 py-3 text-left hover:bg-emerald-50">
+            <span class="flex min-w-0 items-center gap-3"><i data-lucide="truck" class="h-5 w-5 shrink-0 text-leaf" aria-hidden="true"></i><span class="min-w-0"><span class="block font-semibold text-leaf">{% if order.shipment %}{{ order.shipment.status_label }}{% elif order.tracking_number %}ผู้ขายจัดส่งแล้ว{% else %}ผู้ขายกำลังเตรียมจัดส่ง{% endif %}</span><span class="block truncate text-sm text-slate-600">{% if order.tracking_number %}{{ order.shipping_carrier }} · {{ order.tracking_number }}{% else %}จะแสดงเลขพัสดุเมื่อผู้ขายส่งสินค้า{% endif %}</span></span></span>
+            <span class="inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-leaf">ติดตามสถานะ<i data-lucide="chevron-right" class="h-4 w-4" aria-hidden="true"></i></span>
+          </a>
+        {% endif %}
         <footer class="mt-5 flex flex-wrap items-center justify-end gap-3 text-base text-slate-700"><span>สินค้ารวม {{ order.items.all|length }} รายการ:</span><span class="font-semibold text-slate-950">฿{{ order.total_amount|floatformat:2 }}</span><form method="post" action="{% url 'orders:order_reorder' order.pk %}">{% csrf_token %}<button type="submit" class="rounded-md border border-leaf px-4 py-2 font-semibold text-leaf hover:bg-emerald-50">ซื้ออีกครั้ง</button></form></footer>
       </article>
     {% empty %}

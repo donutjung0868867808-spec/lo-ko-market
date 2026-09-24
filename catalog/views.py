@@ -5,6 +5,7 @@ from django.core.management import call_command
 from django.db import transaction
 from django.db.models import Avg, Count, Max, Prefetch, Q, Sum
 from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.cache import never_cache
 
 from accounts.decorators import role_required, user_community
 from accounts.models import AuditEvent, Community, Notification, Report, User
@@ -52,6 +53,20 @@ def use_first_gallery_image_as_cover(product, images):
     if not product.image and images:
         product.image = images.pop(0)
     return images
+
+
+def can_review_product(user, product):
+    """Only customers with a successful, active purchase can review a product."""
+    if not user.is_authenticated or product.seller_id == user.id:
+        return False
+
+    return Order.objects.filter(
+        buyer=user,
+        items__product=product,
+        payment_status=Order.PaymentStatus.PAID,
+    ).exclude(
+        status__in=[Order.Status.CANCELLED, Order.Status.REFUNDED]
+    ).exists()
 
 
 def filtered_products(request):
@@ -198,6 +213,7 @@ def product_detail(request, pk):
             "recommended_products": recommended_products,
             "is_product_favorite": is_product_favorite,
             "is_seller_favorite": is_seller_favorite,
+            "can_review_product": can_review_product(request.user, product),
             "image_form": ProductImageForm(),
             "can_manage_product": can_manage_product(request.user, product),
             "can_moderate_product": can_manage_product(request.user, product)
@@ -213,13 +229,8 @@ def submit_review(request, pk):
         messages.error(request, "กรุณาเข้าสู่ระบบก่อนเขียนรีวิว")
         return redirect(product)
 
-    has_purchase = Order.objects.filter(
-        buyer=request.user,
-        items__product=product,
-        payment_status=Order.PaymentStatus.PAID,
-    ).exists()
-    if not has_purchase:
-        messages.error(request, "รีวิวได้เฉพาะผู้ซื้อที่เคยสั่งซื้อสินค้านี้และชำระเงินแล้ว")
+    if not can_review_product(request.user, product):
+        messages.error(request, "รีวิวได้เฉพาะผู้ที่ซื้อสินค้านี้และชำระเงินเรียบร้อยแล้ว")
         return redirect(product)
 
     if request.method == "POST":
@@ -295,7 +306,7 @@ def product_create(request):
 @login_required
 def product_update(request, pk):
     product = get_object_or_404(
-        Product.objects.select_related("community", "seller"),
+        Product.objects.select_related("community", "seller").prefetch_related("images", "detail_images"),
         pk=pk,
     )
     if not can_manage_product(request.user, product):
@@ -310,6 +321,8 @@ def product_update(request, pk):
     }
     old_stock = product.stock_quantity
     old_image_name = product.image.name if product.image else ""
+    old_harvest_date = product.harvest_date
+    old_expiry_date = product.expiry_date
     form = ProductForm(request.POST or None, request.FILES or None, instance=product)
     if request.method == "POST" and form.is_valid():
         remove_image = request.POST.get("remove_image") == "1" and not request.FILES.get("image")
@@ -317,8 +330,16 @@ def product_update(request, pk):
         detail_images = form.cleaned_data["detail_images"]
         with transaction.atomic():
             product = form.save(commit=False)
+            # A browser date input can submit an empty value when it cannot render
+            # a localized date. Keep existing dates unless an actual replacement was sent.
+            if not request.POST.get("harvest_date") and old_harvest_date:
+                product.harvest_date = old_harvest_date
+            if not request.POST.get("expiry_date") and old_expiry_date:
+                product.expiry_date = old_expiry_date
             if remove_image:
                 product.image = ""
+            elif not product.image and old_image_name:
+                product.image = old_image_name
             gallery_images = use_first_gallery_image_as_cover(product, gallery_images)
             if request.user.is_farmer:
                 product.status = Product.Status.PENDING
@@ -554,6 +575,7 @@ def product_moderation_action(request, pk, action):
     return redirect(product)
 
 
+@never_cache
 def seller_store(request, seller_id):
     seller = get_object_or_404(User, pk=seller_id, role=User.Roles.FARMER, is_active=True)
     active_products = (

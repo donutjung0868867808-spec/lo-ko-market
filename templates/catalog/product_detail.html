@@ -238,17 +238,23 @@
         <p class="py-6 text-sm text-slate-600">ยังไม่มีรีวิวสำหรับสินค้านี้</p>
       {% endfor %}
     </div>
-    {% if user.is_authenticated and user != product.seller %}
-      <form method="post" enctype="multipart/form-data" action="{% url 'catalog:submit_review' product.id %}" class="mt-6 grid gap-3 sm:grid-cols-[140px_minmax(0,1fr)_auto]">
+    {% if can_review_product %}
+      <form method="post" enctype="multipart/form-data" action="{% url 'catalog:submit_review' product.id %}" class="mt-6 rounded-md border border-emerald-200 bg-emerald-50/50 p-4 sm:p-5">
         {% csrf_token %}
-        <label class="sr-only" for="review-rating">คะแนน</label>
-        <select id="review-rating" name="rating" class="rounded-md border border-slate-300 bg-white px-3 py-2.5 text-sm"><option value="5">5 ดาว</option><option value="4">4 ดาว</option><option value="3">3 ดาว</option><option value="2">2 ดาว</option><option value="1">1 ดาว</option></select>
-        <label class="sr-only" for="review-comment">ความคิดเห็น</label>
-        <input id="review-comment" name="comment" class="rounded-md border border-slate-300 px-3 py-2.5 text-sm" placeholder="เขียนความคิดเห็นเกี่ยวกับสินค้า">
-        <button class="rounded-md bg-ink px-5 py-2.5 text-sm font-semibold text-white" type="submit">ส่งรีวิว</button>
-        <label class="inline-flex min-h-11 items-center gap-2 text-sm text-slate-600 sm:col-span-2" for="review-media"><i data-lucide="image-plus" class="h-5 w-5 text-leaf" aria-hidden="true"></i>เพิ่มรูปหรือวิดีโอ <span class="text-xs text-slate-500">(สูงสุด 5 ไฟล์)</span></label>
-        <input id="review-media" name="media" type="file" multiple accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime" class="min-h-11 text-sm text-slate-600 sm:col-span-2">
+        <div class="flex items-center gap-2"><i data-lucide="badge-check" class="h-5 w-5 text-leaf" aria-hidden="true"></i><p class="font-semibold text-slate-950">เขียนรีวิวสินค้าที่คุณซื้อแล้ว</p></div>
+        <div class="mt-4 grid gap-3 sm:grid-cols-[140px_minmax(0,1fr)]">
+          <div><label class="mb-1.5 block text-sm font-medium text-slate-700" for="review-rating">คะแนน</label><select id="review-rating" name="rating" class="min-h-11 w-full rounded-md border border-slate-300 bg-white px-3 text-sm"><option value="5">5 ดาว</option><option value="4">4 ดาว</option><option value="3">3 ดาว</option><option value="2">2 ดาว</option><option value="1">1 ดาว</option></select></div>
+          <div><label class="mb-1.5 block text-sm font-medium text-slate-700" for="review-comment">ความคิดเห็น</label><input id="review-comment" name="comment" class="min-h-11 w-full rounded-md border border-slate-300 bg-white px-3 text-sm" placeholder="แบ่งปันประสบการณ์เกี่ยวกับสินค้า"></div>
+        </div>
+        <div class="mt-4">
+          <input id="review-media" name="media" type="file" multiple accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime" class="sr-only" data-review-media-input>
+          <label for="review-media" class="flex min-h-20 cursor-pointer items-center justify-center gap-3 rounded-md border border-dashed border-emerald-300 bg-white px-4 py-3 text-center text-sm text-slate-700 hover:border-leaf hover:bg-emerald-50"><i data-lucide="image-plus" class="h-6 w-6 shrink-0 text-leaf" aria-hidden="true"></i><span><span class="block font-semibold">เพิ่มรูปหรือวิดีโอ</span><span class="mt-0.5 block text-xs text-slate-500">JPG, PNG, WEBP, MP4, MOV หรือ WEBM สูงสุด 5 ไฟล์</span></span></label>
+          <ul class="mt-3 hidden divide-y divide-stone-100 rounded-md border border-stone-200 bg-white text-sm" data-review-media-preview aria-live="polite"></ul>
+        </div>
+        <div class="mt-4 flex justify-end"><button class="inline-flex min-h-11 items-center gap-2 rounded-md bg-ink px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-800" type="submit"><i data-lucide="send" class="h-4 w-4" aria-hidden="true"></i>ส่งรีวิว</button></div>
       </form>
+    {% elif user.is_authenticated and user != product.seller %}
+      <div class="mt-6 flex items-start gap-3 rounded-md border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-slate-600"><i data-lucide="shopping-bag" class="mt-0.5 h-5 w-5 shrink-0 text-leaf" aria-hidden="true"></i><p>ซื้อสินค้านี้และชำระเงินเรียบร้อยแล้ว คุณจึงจะเขียนรีวิวและแนบรูปหรือวิดีโอได้</p></div>
     {% endif %}
   </section>
 
@@ -334,6 +340,35 @@
       quantity.addEventListener("change", function () { updateQuantity(quantity.value); });
       updateQuantity(quantity.value);
     }
+  });
+</script>
+{% endblock %}
+
+{% block extra_head %}
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const input = document.querySelector("[data-review-media-input]");
+    const preview = document.querySelector("[data-review-media-preview]");
+    if (!input || !preview) return;
+
+    input.addEventListener("change", function () {
+      const files = Array.from(input.files).slice(0, 5);
+      preview.replaceChildren();
+      files.forEach(function (file) {
+        const item = document.createElement("li");
+        const name = document.createElement("span");
+        const typeLabel = document.createElement("span");
+        item.className = "flex items-center justify-between gap-3 px-3 py-2";
+        const type = file.type.startsWith("video/") ? "วิดีโอ" : "รูปภาพ";
+        name.className = "min-w-0 truncate text-slate-700";
+        name.textContent = file.name;
+        typeLabel.className = "shrink-0 text-xs text-slate-500";
+        typeLabel.textContent = type;
+        item.append(name, typeLabel);
+        preview.appendChild(item);
+      });
+      preview.classList.toggle("hidden", files.length === 0);
+    });
   });
 </script>
 {% endblock %}
