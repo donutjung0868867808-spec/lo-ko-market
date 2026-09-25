@@ -6,6 +6,8 @@ from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from django.db import connection
 
+from agri_market.settings import cloudinary_storage_config
+
 
 class Command(BaseCommand):
     help = "ตรวจสอบค่าที่จำเป็นก่อนเปิดระบบจริง"
@@ -32,6 +34,13 @@ class Command(BaseCommand):
         for name in required_env:
             if not os.environ.get(name):
                 errors.append(f"ยังไม่ได้กำหนด {name}")
+        _, cloudinary_config = cloudinary_storage_config(
+            os.environ.get("CLOUDINARY_URL")
+        )
+        if not cloudinary_config:
+            errors.append(
+                "CLOUDINARY_URL ต้องอยู่ในรูปแบบ cloudinary://API_KEY:API_SECRET@CLOUD_NAME"
+            )
 
         if settings.DEBUG:
             errors.append("DEBUG ต้องเป็น False")

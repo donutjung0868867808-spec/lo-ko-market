@@ -2,7 +2,7 @@ import importlib.util
 import os
 import sys
 from pathlib import Path
-from urllib.parse import parse_qsl, urlparse
+from urllib.parse import parse_qsl, unquote, urlparse
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -61,6 +61,27 @@ def database_from_url(url):
     }
 
 
+def cloudinary_storage_config(value):
+    """Return a normalized Cloudinary URL and Django storage settings."""
+    url = (value or "").strip()
+    if url.startswith("CLOUDINARY_URL="):
+        url = url.split("=", 1)[1].strip()
+    parsed = urlparse(url)
+    if not (
+        parsed.scheme == "cloudinary"
+        and parsed.hostname
+        and parsed.username
+        and parsed.password
+    ):
+        return url, {}
+    return url, {
+        "CLOUD_NAME": parsed.hostname,
+        "API_KEY": unquote(parsed.username),
+        "API_SECRET": unquote(parsed.password),
+        "SECURE": True,
+    }
+
+
 def package_exists(package_name):
     return importlib.util.find_spec(package_name) is not None
 
@@ -71,6 +92,11 @@ SECRET_KEY = os.environ.get(
 )
 DEBUG = env_bool("DEBUG", default=True)
 IS_TESTING = "test" in sys.argv
+CLOUDINARY_URL, CLOUDINARY_STORAGE = cloudinary_storage_config(
+    os.environ.get("CLOUDINARY_URL")
+)
+if CLOUDINARY_URL:
+    os.environ["CLOUDINARY_URL"] = CLOUDINARY_URL
 ALLOWED_HOSTS = env_list(
     "ALLOWED_HOSTS",
     default=["127.0.0.1", "localhost", "172.29.71.169", ".onrender.com"],
@@ -130,7 +156,7 @@ INSTALLED_APPS = [
     "api",
 ]
 
-if package_exists("cloudinary_storage") and os.environ.get("CLOUDINARY_URL"):
+if package_exists("cloudinary_storage") and CLOUDINARY_STORAGE:
     INSTALLED_APPS.insert(0, "cloudinary_storage")
     INSTALLED_APPS.insert(1, "cloudinary")
 
@@ -221,7 +247,7 @@ static_backend = "django.contrib.staticfiles.storage.StaticFilesStorage"
 # collectstatic command. Django 6 uses STORAGES above for actual resolution.
 STATICFILES_STORAGE = static_backend
 
-if package_exists("cloudinary_storage") and os.environ.get("CLOUDINARY_URL"):
+if package_exists("cloudinary_storage") and CLOUDINARY_STORAGE:
     default_storage = "cloudinary_storage.storage.MediaCloudinaryStorage"
     private_storage_backend = "agri_market.storage_backends.PrivateCloudinaryStorage"
     private_storage_options = {}

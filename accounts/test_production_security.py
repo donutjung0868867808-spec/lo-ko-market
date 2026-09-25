@@ -140,7 +140,7 @@ class ProductionReadinessCommandTests(SimpleTestCase):
         os.environ,
         {
             "DATABASE_URL": "postgresql://example",
-            "CLOUDINARY_URL": "cloudinary://example",
+            "CLOUDINARY_URL": "cloudinary://123456:example-secret@example-cloud",
             "STRIPE_SECRET_KEY": "sk_test_example",
             "STRIPE_PUBLISHABLE_KEY": "pk_test_example",
             "STRIPE_WEBHOOK_SECRET": "whsec_example",
