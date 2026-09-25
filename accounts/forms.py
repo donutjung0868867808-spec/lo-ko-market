@@ -7,7 +7,7 @@ from django.core.validators import FileExtensionValidator
 from django.utils import timezone
 from django.template.loader import render_to_string
 
-from .models import AVATAR_MAX_SIZE, Community, DeliveryAddress, DirectMessage, FarmerProfile, NewsPost, Report, ReportMessage, SupportMessage, SupportTicket, User
+from .models import AVATAR_MAX_SIZE, Community, DeliveryAddress, DirectMessage, FarmerProfile, NewsPost, Report, ReportMessage, SupportMessage, SupportTicket, User, validate_store_image_size
 
 
 def split_display_name(display_name):
@@ -261,7 +261,7 @@ class SellerStoreProfileForm(SellerStoreDetailsForm):
         required=False,
         validators=[
             FileExtensionValidator(["jpg", "jpeg", "png", "webp"]),
-            validate_upload,
+            validate_store_image_size,
         ],
         widget=MultipleFileInput(
             attrs={

@@ -12,9 +12,17 @@ from agri_market.storage import private_storage
 from .validators import validate_private_document
 
 
+STORE_IMAGE_MAX_SIZE = 5 * 1024 * 1024
+
+
 def validate_file_size(upload):
     if upload and upload.size > settings.MAX_UPLOAD_SIZE:
         raise ValidationError("ไฟล์มีขนาดใหญ่เกินกำหนด")
+
+
+def validate_store_image_size(upload):
+    if upload and upload.size > STORE_IMAGE_MAX_SIZE:
+        raise ValidationError("รูปปกและรูปสไลด์ต้องมีขนาดไม่เกิน 5 MB")
 
 
 AVATAR_MAX_SIZE = 1024 * 1024
@@ -204,7 +212,7 @@ class FarmerProfile(models.Model):
         blank=True,
         validators=[
             FileExtensionValidator(["jpg", "jpeg", "png", "webp"]),
-            validate_file_size,
+            validate_store_image_size,
         ],
     )
     document_type = models.CharField(
@@ -273,7 +281,7 @@ class StoreCoverSlide(models.Model):
         upload_to="store-cover-slides/%Y/%m/",
         validators=[
             FileExtensionValidator(["jpg", "jpeg", "png", "webp"]),
-            validate_file_size,
+            validate_store_image_size,
         ],
     )
     sort_order = models.PositiveSmallIntegerField("ลำดับ", default=0)

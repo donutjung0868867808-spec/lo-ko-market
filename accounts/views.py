@@ -433,9 +433,13 @@ def farmer_shop_center(request):
                 messages.success(request, f"บันทึกข้อมูลหน้าร้านแล้ว ชื่อร้าน: {store_profile.farm_name}")
                 return redirect(f"{reverse('accounts:farmer_shop_center')}?section=store&mode=settings")
             store_profile.save()
+            media_errors = []
+            for field_name in ("store_cover", "store_cover_slides"):
+                media_errors.extend(store_form.errors.get(field_name, []))
+            detail = f" สาเหตุ: {' '.join(media_errors)}" if media_errors else ""
             messages.warning(
                 request,
-                "บันทึกชื่อและข้อมูลร้านแล้ว แต่รูปปกหรือรูปสไลด์ไม่ผ่านการตรวจสอบ",
+                f"บันทึกชื่อและข้อมูลร้านแล้ว แต่รูปปกหรือรูปสไลด์ไม่ผ่านการตรวจสอบ{detail}",
             )
         elif store_form:
             messages.error(request, "บันทึกข้อมูลร้านค้าไม่สำเร็จ กรุณาตรวจสอบข้อมูลที่ทำเครื่องหมายไว้")
