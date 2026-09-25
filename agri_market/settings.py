@@ -248,7 +248,7 @@ static_backend = "django.contrib.staticfiles.storage.StaticFilesStorage"
 STATICFILES_STORAGE = static_backend
 
 if package_exists("cloudinary_storage") and CLOUDINARY_STORAGE:
-    default_storage = "cloudinary_storage.storage.MediaCloudinaryStorage"
+    default_storage = "agri_market.storage_backends.PublicCloudinaryStorage"
     private_storage_backend = "agri_market.storage_backends.PrivateCloudinaryStorage"
     private_storage_options = {}
 else:

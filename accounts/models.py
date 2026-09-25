@@ -1,8 +1,10 @@
+from pathlib import Path
+
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
-from django.core.validators import FileExtensionValidator
 from django.db import models
+from django.db.models.fields.files import FieldFile
 from django.db.models.functions import Lower
 from django.utils import timezone
 from PIL import Image, UnidentifiedImageError
@@ -16,12 +18,35 @@ STORE_IMAGE_MAX_SIZE = 5 * 1024 * 1024
 
 
 def validate_file_size(upload):
-    if upload and upload.size > settings.MAX_UPLOAD_SIZE:
+    if upload and not isinstance(upload, FieldFile) and upload.size > settings.MAX_UPLOAD_SIZE:
         raise ValidationError("ไฟล์มีขนาดใหญ่เกินกำหนด")
 
 
+def validate_extension(upload, allowed_extensions):
+    if not upload:
+        return
+    extension = Path(upload.name).suffix.lower().lstrip(".")
+    if not extension and isinstance(upload, FieldFile):
+        return
+    if extension not in allowed_extensions:
+        allowed = ", ".join(item.upper() for item in allowed_extensions)
+        raise ValidationError(f"รองรับเฉพาะไฟล์: {allowed}")
+
+
+def validate_avatar_extension(upload):
+    validate_extension(upload, ("jpg", "jpeg", "png"))
+
+
+def validate_store_image_extension(upload):
+    validate_extension(upload, ("jpg", "jpeg", "png", "webp"))
+
+
+def validate_document_extension(upload):
+    validate_extension(upload, ("pdf", "jpg", "jpeg", "png", "webp"))
+
+
 def validate_store_image_size(upload):
-    if upload and upload.size > STORE_IMAGE_MAX_SIZE:
+    if upload and not isinstance(upload, FieldFile) and upload.size > STORE_IMAGE_MAX_SIZE:
         raise ValidationError("รูปปกและรูปสไลด์ต้องมีขนาดไม่เกิน 5 MB")
 
 
@@ -66,7 +91,7 @@ def validate_chat_media_file(upload):
 
 
 def validate_avatar_size(upload):
-    if upload and upload.size > AVATAR_MAX_SIZE:
+    if upload and not isinstance(upload, FieldFile) and upload.size > AVATAR_MAX_SIZE:
         raise ValidationError("รูปโปรไฟล์ต้องมีขนาดไม่เกิน 5 MB")
 
 
@@ -87,7 +112,7 @@ class User(AbstractUser):
         upload_to="avatars/%Y/%m/",
         blank=True,
         validators=[
-            FileExtensionValidator(["jpg", "jpeg", "png"]),
+            validate_avatar_extension,
             validate_avatar_size,
         ],
     )
@@ -211,7 +236,7 @@ class FarmerProfile(models.Model):
         upload_to="store-covers/%Y/%m/",
         blank=True,
         validators=[
-            FileExtensionValidator(["jpg", "jpeg", "png", "webp"]),
+            validate_store_image_extension,
             validate_store_image_size,
         ],
     )
@@ -225,7 +250,7 @@ class FarmerProfile(models.Model):
         storage=private_storage,
         blank=True,
         validators=[
-            FileExtensionValidator(["pdf", "jpg", "jpeg", "png", "webp"]),
+            validate_document_extension,
             validate_file_size,
             validate_private_document,
         ],
@@ -280,7 +305,7 @@ class StoreCoverSlide(models.Model):
         "รูปสไลด์หน้าร้าน",
         upload_to="store-cover-slides/%Y/%m/",
         validators=[
-            FileExtensionValidator(["jpg", "jpeg", "png", "webp"]),
+            validate_store_image_extension,
             validate_store_image_size,
         ],
     )
@@ -521,7 +546,7 @@ class Report(models.Model):
         storage=private_storage,
         blank=True,
         validators=[
-            FileExtensionValidator(["pdf", "jpg", "jpeg", "png", "webp"]),
+            validate_document_extension,
             validate_file_size,
             validate_private_document,
         ],
@@ -596,7 +621,7 @@ class ReportMessage(models.Model):
         storage=private_storage,
         blank=True,
         validators=[
-            FileExtensionValidator(["pdf", "jpg", "jpeg", "png", "webp"]),
+            validate_document_extension,
             validate_file_size,
             validate_private_document,
         ],

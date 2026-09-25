@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from django.core.exceptions import ValidationError
+from django.db.models.fields.files import FieldFile
 from PIL import Image, UnidentifiedImageError
 
 
@@ -14,7 +15,7 @@ IMAGE_FORMATS = {
 
 def validate_private_document(upload):
     """Reject files whose bytes do not match the allowed extension."""
-    if not upload:
+    if not upload or isinstance(upload, FieldFile):
         return
 
     extension = Path(upload.name).suffix.lower()

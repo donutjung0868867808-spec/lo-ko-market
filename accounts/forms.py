@@ -4,6 +4,7 @@ from urllib.parse import urlsplit
 from django.conf import settings
 from django.contrib.auth.forms import PasswordResetForm, UserCreationForm
 from django.core.validators import FileExtensionValidator
+from django.core.files.uploadedfile import UploadedFile
 from django.utils import timezone
 from django.template.loader import render_to_string
 
@@ -225,7 +226,8 @@ class FarmerProfileForm(StyledFormMixin, forms.ModelForm):
         }
 
     def clean_verification_document(self):
-        return validate_upload(self.cleaned_data.get("verification_document"))
+        document = self.cleaned_data.get("verification_document")
+        return validate_upload(document) if isinstance(document, UploadedFile) else document
 
     def clean(self):
         cleaned_data = super().clean()
