@@ -5,6 +5,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views.decorators.http import require_POST
 from django.utils.dateparse import parse_datetime
 
@@ -13,14 +14,14 @@ from accounts.forms import ReportForm
 from accounts.models import Report
 from catalog.models import Product
 
-from .forms import CancelOrderForm, CartCheckoutForm, CheckoutForm, OrderStatusForm
+from .forms import CancelOrderForm, CartCheckoutForm, CheckoutForm, OrderStatusForm, SellerShipmentForm
 from .models import Order, OrderItem, Shipment
 from .services import (
-    apply_coupon,
     cancel_unpaid_order,
     change_order_status,
     expire_stale_orders,
     reserve_order_stock,
+    ship_order,
     shipping_fee_for,
 )
 
@@ -161,12 +162,11 @@ def buyer_initial(user):
     return initial
 
 
-def finalize_order(order, coupon_code=""):
+def finalize_order(order):
     order.refresh_total()
     order.shipping_fee = shipping_fee_for(order)
     order.save(update_fields=["shipping_fee", "updated_at"])
     order.refresh_total()
-    apply_coupon(order, coupon_code)
     return reserve_order_stock(order)
 
 
@@ -404,7 +404,7 @@ def cart_checkout(request):
                     ),
                     reverse=True,
                 )
-                for group_index, grouped_items in enumerate(grouped_orders):
+                for grouped_items in grouped_orders:
                     first_product = grouped_items[0]["product"]
                     order = Order.objects.create(
                         buyer=request.user,
@@ -428,8 +428,7 @@ def cart_checkout(request):
                             unit_price=product.price,
                         )
                     try:
-                        coupon_code = form.cleaned_data["coupon_code"] if group_index == 0 else ""
-                        finalize_order(order, coupon_code)
+                        finalize_order(order)
                     except ValidationError as exc:
                         errors.append(exc.message)
                         transaction.set_rollback(True)
@@ -509,9 +508,9 @@ def checkout(request, product_id):
                     unit_price=product.price,
                 )
                 try:
-                    finalize_order(order, form.cleaned_data["coupon_code"])
+                    finalize_order(order)
                 except ValidationError as exc:
-                    form.add_error("coupon_code", exc.message)
+                    form.add_error(None, exc.message)
                     transaction.set_rollback(True)
                 else:
                     return redirect("payments:create_checkout", order_id=order.pk)
@@ -634,6 +633,28 @@ def order_update_status(request, pk):
         messages.error(request, "คุณไม่มีสิทธิ์ปรับสถานะคำสั่งซื้อนี้")
         return redirect(order)
 
+    seller_quick_ship = request.user == order.seller and order.can_seller_mark_shipped
+    if seller_quick_ship:
+        form = SellerShipmentForm(request.POST or None)
+        if request.method == "POST" and form.is_valid():
+            try:
+                ship_order(
+                    order,
+                    request.user,
+                    carrier=form.cleaned_data["shipping_carrier"],
+                    tracking_number=form.cleaned_data["tracking_number"],
+                )
+            except ValidationError as exc:
+                form.add_error(None, exc.message)
+            else:
+                messages.success(request, f"แจ้งจัดส่ง {order.reference} แล้ว ผู้ซื้อจะได้รับเลขพัสดุทันที")
+                return redirect(order)
+        return render(
+            request,
+            "orders/order_status_form.html",
+            {"form": form, "order": order, "seller_quick_ship": True},
+        )
+
     form = OrderStatusForm(request.POST or None, instance=order)
     if request.method == "POST" and form.is_valid():
         order.refresh_from_db()
@@ -653,6 +674,32 @@ def order_update_status(request, pk):
             return redirect(order)
 
     return render(request, "orders/order_status_form.html", {"form": form, "order": order})
+
+
+@login_required
+@require_POST
+def seller_ship_order(request, pk):
+    order = get_object_or_404(Order, pk=pk, seller=request.user)
+    if not request.user.is_farmer:
+        messages.error(request, "เฉพาะผู้ขายเท่านั้นที่สามารถแจ้งจัดส่งพัสดุได้")
+        return redirect(order)
+
+    form = SellerShipmentForm(request.POST)
+    if form.is_valid():
+        try:
+            ship_order(
+                order,
+                request.user,
+                carrier=form.cleaned_data["shipping_carrier"],
+                tracking_number=form.cleaned_data["tracking_number"],
+            )
+        except ValidationError as exc:
+            messages.error(request, exc.message)
+        else:
+            messages.success(request, f"แจ้งจัดส่ง {order.reference} แล้ว ผู้ซื้อจะได้รับเลขพัสดุทันที")
+    else:
+        messages.error(request, "กรุณาระบุบริษัทขนส่งและเลขติดตามพัสดุ")
+    return redirect(f"{reverse('accounts:farmer_shop_center')}?section=orders&status=preparing")
 
 
 @login_required

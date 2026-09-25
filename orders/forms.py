@@ -9,7 +9,6 @@ from .models import Order
 
 
 class CheckoutForm(StyledFormMixin, forms.Form):
-    coupon_code = forms.CharField(label="รหัสส่วนลด", required=False, max_length=40)
     def __init__(self, *args, product=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.product = product
@@ -57,7 +56,6 @@ class CheckoutForm(StyledFormMixin, forms.Form):
 
 
 class CartCheckoutForm(StyledFormMixin, forms.Form):
-    coupon_code = forms.CharField(label="รหัสส่วนลด", required=False, max_length=40)
     shipping_name = forms.CharField(label="ชื่อผู้รับ", max_length=180)
     shipping_phone = forms.CharField(label="เบอร์โทรศัพท์", max_length=30)
     shipping_address = forms.CharField(
@@ -122,3 +120,24 @@ class OrderStatusForm(StyledFormMixin, forms.ModelForm):
             if not cleaned.get("tracking_number"):
                 self.add_error("tracking_number", "กรุณาระบุเลขติดตามพัสดุ")
         return cleaned
+
+
+class SellerShipmentForm(StyledFormMixin, forms.Form):
+    """Minimal seller-facing form for handing a paid order to a carrier."""
+
+    shipping_carrier = forms.CharField(
+        label="บริษัทขนส่ง",
+        max_length=120,
+        widget=forms.TextInput(attrs={"list": "shipping-carrier-options", "placeholder": "เลือกหรือพิมพ์บริษัทขนส่ง"}),
+    )
+    tracking_number = forms.CharField(
+        label="เลขติดตามพัสดุ",
+        max_length=120,
+        widget=forms.TextInput(attrs={"placeholder": "กรอกเลขพัสดุ 1 ครั้ง"}),
+    )
+
+    def clean_shipping_carrier(self):
+        return self.cleaned_data["shipping_carrier"].strip()
+
+    def clean_tracking_number(self):
+        return self.cleaned_data["tracking_number"].strip().upper()

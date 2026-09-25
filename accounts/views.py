@@ -227,7 +227,9 @@ def farmer_signup_create(request):
         if form.is_valid():
             request.session["farmer_signup_account"] = {
                 "username": form.cleaned_data["username"],
-                "display_name": form.cleaned_data["display_name"],
+                "first_name": form.cleaned_data["first_name"],
+                "last_name": form.cleaned_data["last_name"],
+                "birth_date": form.cleaned_data["birth_date"].isoformat(),
                 "email": form.cleaned_data["email"],
                 "phone": form.cleaned_data["phone"],
                 "password_hash": make_password(form.cleaned_data["password1"]),
@@ -274,12 +276,17 @@ def farmer_signup_profile(request):
                     user.save(update_fields=["role"])
                 else:
                     accepted_at = timezone.now()
-                    first_name, last_name = split_display_name(account_data["display_name"])
+                    first_name = account_data.get("first_name", "")
+                    last_name = account_data.get("last_name", "")
+                    if not first_name and not last_name:
+                        first_name, last_name = split_display_name(account_data.get("display_name", ""))
+                    display_name = " ".join(part for part in [first_name, last_name] if part)
                     user = User(
                         username=account_data["username"],
-                        display_name=account_data["username"],
+                        display_name=display_name or account_data["username"],
                         first_name=first_name,
                         last_name=last_name,
+                        birth_date=account_data.get("birth_date") or None,
                         email=account_data["email"],
                         phone=account_data["phone"],
                         password=account_data["password_hash"],

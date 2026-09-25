@@ -10,7 +10,7 @@ from accounts.services import notify_user
 from catalog.models import Product, StockMovement
 from catalog.services import notify_low_stock
 
-from .models import Coupon, CouponRedemption, Order, OrderStatusHistory, ShippingRate
+from .models import CouponRedemption, Order, OrderStatusHistory, ShippingRate
 
 
 ALLOWED_STATUS_TRANSITIONS = {
@@ -49,39 +49,6 @@ def shipping_fee_for(order):
     )
     weight_kg = weight_grams / Decimal("1000")
     return (rule.base_fee + (rule.fee_per_kg * weight_kg)).quantize(Decimal("0.01"))
-
-@transaction.atomic
-def apply_coupon(order, code):
-    code = (code or "").strip()
-    if not code:
-        return order
-
-    coupon = Coupon.objects.select_for_update().filter(code__iexact=code, is_active=True).first()
-    now = timezone.now()
-    if not coupon:
-        raise ValidationError("ไม่พบรหัสส่วนลดนี้")
-    if coupon.starts_at and coupon.starts_at > now:
-        raise ValidationError("รหัสส่วนลดยังไม่เริ่มใช้งาน")
-    if coupon.expires_at and coupon.expires_at <= now:
-        raise ValidationError("รหัสส่วนลดหมดอายุแล้ว")
-    if order.subtotal < coupon.minimum_spend:
-        raise ValidationError(f"ต้องมียอดสินค้าอย่างน้อย {coupon.minimum_spend} บาท")
-    if coupon.max_uses is not None and coupon.redemptions.filter(active=True).count() >= coupon.max_uses:
-        raise ValidationError("รหัสส่วนลดถูกใช้ครบแล้ว")
-
-    discount = coupon.discount_for(order.subtotal)
-    order.coupon = coupon
-    order.coupon_code = coupon.code
-    order.discount_amount = discount
-    order.save(update_fields=["coupon", "coupon_code", "discount_amount", "updated_at"])
-    order.refresh_total()
-    CouponRedemption.objects.create(
-        coupon=coupon,
-        order=order,
-        discount_amount=discount,
-    )
-    return order
-
 
 @transaction.atomic
 def release_coupon(order):
@@ -346,3 +313,26 @@ def change_order_status(order, new_status, changed_by, note="", carrier="", trac
 
         transaction.on_commit(lambda order_id=order.pk: register_aftership_tracking(order_id))
     return order
+
+
+@transaction.atomic
+def ship_order(order, changed_by, carrier, tracking_number):
+    """Advance a paid order to shipped in one seller action, retaining its audit trail."""
+
+    order.refresh_from_db()
+    automatic_steps = {
+        Order.Status.PAID: (Order.Status.CONFIRMED, "ผู้ขายยืนยันคำสั่งซื้อเพื่อจัดส่ง"),
+        Order.Status.CONFIRMED: (Order.Status.PREPARING, "ผู้ขายเตรียมสินค้าเพื่อจัดส่ง"),
+    }
+    while order.status in automatic_steps:
+        next_status, note = automatic_steps[order.status]
+        order = change_order_status(order, next_status, changed_by, note=note)
+
+    return change_order_status(
+        order,
+        Order.Status.SHIPPED,
+        changed_by,
+        note="ผู้ขายนำส่งพัสดุแล้ว",
+        carrier=carrier,
+        tracking_number=tracking_number,
+    )

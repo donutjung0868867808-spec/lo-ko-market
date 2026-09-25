@@ -34,7 +34,8 @@ class StyledFormMixin:
         super().__init__(*args, **kwargs)
         placeholders = {
             "username": "ตัวอย่าง: farmer123",
-            "display_name": "กรอกชื่อและนามสกุล",
+            "first_name": "กรอกชื่อ",
+            "last_name": "กรอกนามสกุล",
             "email": "example@email.com",
             "phone": "0812345678",
             "password1": "รหัสผ่านอย่างน้อย 8 ตัว",
@@ -54,7 +55,7 @@ class StyledFormMixin:
                 field.widget.attrs["placeholder"] = placeholders[name]
             if name in help_texts:
                 field.help_text = help_texts[name]
-            if name in {"display_name", "email", "phone"}:
+            if name in {"first_name", "last_name", "birth_date", "email", "phone"}:
                 field.required = True
 
 
@@ -112,18 +113,25 @@ class BaseSignupForm(StyledFormMixin, UserCreationForm):
     class Meta:
         model = User
         fields = [
+            "first_name",
+            "last_name",
+            "birth_date",
             "username",
-            "display_name",
             "email",
             "phone",
             "password1",
             "password2",
         ]
         labels = {
+            "first_name": "ชื่อ",
+            "last_name": "นามสกุล",
+            "birth_date": "วันเกิด",
             "username": "ชื่อผู้ใช้",
-            "display_name": "ชื่อที่แสดง",
             "email": "อีเมล",
             "phone": "เบอร์โทรศัพท์",
+        }
+        widgets = {
+            "birth_date": forms.DateInput(attrs={"type": "date"}),
         }
 
     def clean_gender(self):
@@ -139,11 +147,18 @@ class BaseSignupForm(StyledFormMixin, UserCreationForm):
             raise forms.ValidationError("อีเมลนี้ถูกใช้งานแล้ว โปรดลองใช้อีเมลอื่น")
         return email
 
+    def clean_birth_date(self):
+        birth_date = self.cleaned_data["birth_date"]
+        if birth_date > timezone.localdate():
+            raise forms.ValidationError("วันเกิดต้องไม่เป็นวันในอนาคต")
+        return birth_date
+
     def save(self, commit=True):
         user = super().save(commit=False)
-        full_name = self.cleaned_data["display_name"].strip()
-        user.display_name = full_name
-        user.first_name, user.last_name = split_display_name(full_name)
+        user.first_name = self.cleaned_data["first_name"].strip()
+        user.last_name = self.cleaned_data["last_name"].strip()
+        user.birth_date = self.cleaned_data["birth_date"]
+        user.display_name = " ".join(part for part in [user.first_name, user.last_name] if part)
         accepted_at = timezone.now()
         user.terms_accepted_at = accepted_at
         user.privacy_accepted_at = accepted_at

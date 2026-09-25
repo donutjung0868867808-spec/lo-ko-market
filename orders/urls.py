@@ -19,6 +19,7 @@ urlpatterns = [
     path("<int:pk>/tracking/", views.order_tracking, name="order_tracking"),
     path("<int:pk>/", views.order_detail, name="order_detail"),
     path("<int:pk>/status/", views.order_update_status, name="order_update_status"),
+    path("<int:pk>/ship/", views.seller_ship_order, name="seller_ship_order"),
     path("<int:pk>/cancel/", views.cancel_order, name="cancel_order"),
     path("<int:pk>/confirm-received/", views.confirm_received, name="confirm_received"),
     path("<int:pk>/report-buyer/", views.report_buyer, name="report_buyer"),

@@ -255,6 +255,13 @@ class Order(models.Model):
     def get_absolute_url(self):
         return reverse("orders:order_detail", args=[self.pk])
 
+    @property
+    def can_seller_mark_shipped(self):
+        return (
+            self.payment_status == self.PaymentStatus.PAID
+            and self.status in {self.Status.PAID, self.Status.CONFIRMED, self.Status.PREPARING}
+        )
+
     def refresh_total(self):
         subtotal = sum((item.line_total for item in self.items.all()), Decimal("0.00"))
         self.subtotal = subtotal

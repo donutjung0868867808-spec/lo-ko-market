@@ -6,28 +6,28 @@ from django.urls import reverse
 from accounts.models import Community, User
 from catalog.models import Product
 
-from .models import Coupon, CouponRedemption, Order
+from .models import Order
 
 
-class MultiSellerCouponTests(TestCase):
-    def test_coupon_is_redeemed_only_once_for_multi_seller_cart(self):
+class MultiSellerCheckoutTests(TestCase):
+    def test_multi_seller_checkout_does_not_apply_legacy_discount_codes(self):
         community = Community.objects.create(
-            name="Coupon community",
-            slug="coupon-community",
+            name="Multi-seller community",
+            slug="multi-seller-community",
             province="Nan",
         )
         buyer = User.objects.create_user(
-            username="coupon-buyer",
+            username="multi-seller-buyer",
             password="pass12345",
             role=User.Roles.CONSUMER,
         )
         seller_one = User.objects.create_user(
-            username="coupon-seller-one",
+            username="multi-seller-seller-one",
             password="pass12345",
             role=User.Roles.FARMER,
         )
         seller_two = User.objects.create_user(
-            username="coupon-seller-two",
+            username="multi-seller-seller-two",
             password="pass12345",
             role=User.Roles.FARMER,
         )
@@ -49,11 +49,6 @@ class MultiSellerCouponTests(TestCase):
             stock_quantity=Decimal("5.00"),
             status=Product.Status.ACTIVE,
         )
-        Coupon.objects.create(
-            code="ONCE50",
-            discount_type=Coupon.DiscountType.FIXED,
-            value=Decimal("50.00"),
-        )
         self.client.force_login(buyer)
         self.client.post(reverse("orders:cart_add", args=[product_one.pk]), {"quantity": "1"})
         self.client.post(reverse("orders:cart_add", args=[product_two.pk]), {"quantity": "1"})
@@ -67,7 +62,6 @@ class MultiSellerCouponTests(TestCase):
                 "shipping_province": "น่าน",
                 "shipping_postal_code": "55000",
                 "note": "",
-                "coupon_code": "ONCE50",
             },
         )
 
@@ -80,8 +74,5 @@ class MultiSellerCouponTests(TestCase):
         self.assertEqual(orders.count(), 2)
         self.assertEqual(
             sum((order.discount_amount for order in orders), Decimal("0.00")),
-            Decimal("50.00"),
+            Decimal("0.00"),
         )
-        self.assertEqual(CouponRedemption.objects.filter(active=True).count(), 1)
-        discounted = orders.get(discount_amount=Decimal("50.00"))
-        self.assertEqual(discounted.seller, seller_one)

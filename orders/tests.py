@@ -6,7 +6,7 @@ from django.urls import reverse
 from accounts.models import Community, FarmerProfile, Report, User
 from catalog.models import Product
 
-from .models import Coupon, Order, OrderItem, OrderStatusHistory, Shipment, ShippingRate
+from .models import Order, OrderItem, OrderStatusHistory, Shipment, ShippingRate
 
 
 class OrderModelTests(TestCase):
@@ -51,6 +51,72 @@ class OrderModelTests(TestCase):
         order.refresh_total()
 
         self.assertEqual(order.total_amount, Decimal("240.00"))
+
+
+class SellerShipmentWorkflowTests(TestCase):
+    def setUp(self):
+        self.community = Community.objects.create(name="Shipment community", slug="shipment-community", province="Nan")
+        self.buyer = User.objects.create_user(username="shipment-buyer", password="pass")
+        self.seller = User.objects.create_user(username="shipment-seller", password="pass", role=User.Roles.FARMER)
+        self.order = Order.objects.create(
+            buyer=self.buyer,
+            seller=self.seller,
+            community=self.community,
+            status=Order.Status.PAID,
+            payment_status=Order.PaymentStatus.PAID,
+            shipping_name="Buyer",
+            shipping_phone="0800000000",
+            shipping_address="Buyer address",
+        )
+
+    def test_seller_can_ship_a_paid_order_in_one_step(self):
+        self.client.force_login(self.seller)
+
+        response = self.client.post(
+            reverse("orders:seller_ship_order", args=[self.order.pk]),
+            {"shipping_carrier": "SPX Express", "tracking_number": "th123456789"},
+        )
+
+        self.assertRedirects(response, f"{reverse('accounts:farmer_shop_center')}?section=orders&status=preparing")
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.status, Order.Status.SHIPPED)
+        self.assertEqual(self.order.shipping_carrier, "SPX Express")
+        self.assertEqual(self.order.tracking_number, "TH123456789")
+        self.assertEqual(
+            list(OrderStatusHistory.objects.filter(order=self.order).values_list("status", flat=True)),
+            [Order.Status.CONFIRMED, Order.Status.PREPARING, Order.Status.SHIPPED],
+        )
+
+    def test_shop_center_shows_quick_shipment_form_for_paid_order(self):
+        FarmerProfile.objects.create(
+            user=self.seller,
+            community=self.community,
+            farm_name="Shipment farm",
+        )
+        self.client.force_login(self.seller)
+
+        response = self.client.get(
+            f"{reverse('accounts:farmer_shop_center')}?section=orders&status=preparing"
+        )
+
+        self.assertContains(response, reverse("orders:seller_ship_order", args=[self.order.pk]))
+        self.assertContains(response, "แจ้งจัดส่งพัสดุ")
+
+    def test_seller_status_page_uses_the_same_quick_shipment_form(self):
+        self.client.force_login(self.seller)
+
+        response = self.client.get(reverse("orders:order_update_status", args=[self.order.pk]))
+        self.assertContains(response, "กรอกเลขพัสดุ 1 ครั้ง")
+        self.assertNotContains(response, "หมายเหตุ")
+
+        response = self.client.post(
+            reverse("orders:order_update_status", args=[self.order.pk]),
+            {"shipping_carrier": "Flash Express", "tracking_number": "fl123456"},
+        )
+
+        self.assertRedirects(response, self.order.get_absolute_url())
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.status, Order.Status.SHIPPED)
 
 
 class CartWorkflowTests(TestCase):
@@ -646,13 +712,7 @@ class InventoryReservationTests(TestCase):
         ).latest("created_at")
         self.assertIn("เปลี่ยนแผนการสั่งซื้อ", history.note)
 
-    def test_coupon_reduces_total_and_is_released_on_cancel(self):
-        Coupon.objects.create(
-            code="FARM50",
-            discount_type=Coupon.DiscountType.FIXED,
-            value=Decimal("50.00"),
-            minimum_spend=Decimal("100.00"),
-        )
+    def test_checkout_uses_full_total_without_discount(self):
         self.client.force_login(self.buyer)
         self.client.post(reverse("orders:cart_add", args=[self.product.pk]), {"quantity": "2"})
         self.client.post(
@@ -664,17 +724,11 @@ class InventoryReservationTests(TestCase):
                 "shipping_province": "น่าน",
                 "shipping_postal_code": "55000",
                 "note": "",
-                "coupon_code": "FARM50",
             },
         )
         order = Order.objects.get(buyer=self.buyer)
         self.assertEqual(order.subtotal, Decimal("200.00"))
         self.assertEqual(order.shipping_fee, Decimal("50.00"))
-        self.assertEqual(order.discount_amount, Decimal("50.00"))
-        self.assertEqual(order.total_amount, Decimal("200.00"))
-        self.assertTrue(order.coupon_redemption.active)
-
-        self.client.post(reverse("orders:cancel_order", args=[order.pk]), {"reason": "เปลี่ยนแผนการสั่งซื้อ"})
-
-        order.coupon_redemption.refresh_from_db()
-        self.assertFalse(order.coupon_redemption.active)
+        self.assertEqual(order.discount_amount, Decimal("0.00"))
+        self.assertEqual(order.total_amount, Decimal("250.00"))
+        self.assertIsNone(order.coupon_id)

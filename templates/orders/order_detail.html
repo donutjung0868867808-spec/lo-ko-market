@@ -12,8 +12,10 @@
       {% if order.payment_status == 'paid' %}
         <a class="inline-flex items-center gap-2 rounded-md border border-leaf bg-white px-4 py-2 text-sm font-semibold text-leaf hover:bg-emerald-50" href="{% url 'orders:order_receipt' order.id %}"><i data-lucide="receipt-text" class="h-4 w-4" aria-hidden="true"></i>ใบเสร็จและใบจัดส่ง</a>
       {% endif %}
-      {% if user.is_owner or user == order.seller or user.is_cooperative_staff %}
-        <a class="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold" href="{% url 'orders:order_update_status' order.id %}">ปรับสถานะ</a>
+      {% if user == order.seller and order.can_seller_mark_shipped %}
+        <a class="inline-flex items-center gap-2 rounded-md bg-leaf px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800" href="{% url 'orders:order_update_status' order.id %}"><i data-lucide="truck" class="h-4 w-4" aria-hidden="true"></i>แจ้งจัดส่งพัสดุ</a>
+      {% elif user.is_owner or user == order.seller or user.is_cooperative_staff %}
+        <a class="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold" href="{% url 'orders:order_update_status' order.id %}"><i data-lucide="settings-2" class="h-4 w-4" aria-hidden="true"></i>จัดการคำสั่งซื้อ</a>
       {% endif %}
       {% if user == order.buyer or user == order.seller %}
         <form method="post" action="{% url 'accounts:conversation_start_order' order.id %}">{% csrf_token %}<button class="inline-flex items-center gap-2 rounded-md border border-leaf bg-white px-4 py-2 text-sm font-semibold text-leaf hover:bg-emerald-50" type="submit"><i data-lucide="messages-square" class="h-4 w-4" aria-hidden="true"></i>แชทเรื่องคำสั่งซื้อ</button></form>

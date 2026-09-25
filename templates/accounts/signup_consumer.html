@@ -51,11 +51,9 @@
     {% endif %}
 
     <div class="mt-4 grid gap-x-4 gap-y-2.5 sm:grid-cols-2">
-      <div class="signup-field sm:col-span-2">
-        <label class="text-sm text-stone-600" for="{{ form.display_name.id_for_label }}">ชื่อ-สกุล</label>
-        <div class="mt-1">{{ form.display_name }}</div>
-        {% for error in form.display_name.errors %}<p class="mt-1 text-xs text-red-700">{{ error }}</p>{% endfor %}
-      </div>
+      <div class="signup-field sm:col-span-2"><label class="text-sm text-stone-600" for="{{ form.first_name.id_for_label }}">ชื่อ</label><div class="mt-1">{{ form.first_name }}</div>{% for error in form.first_name.errors %}<p class="mt-1 text-xs text-red-700">{{ error }}</p>{% endfor %}</div>
+      <div class="signup-field sm:col-span-2"><label class="text-sm text-stone-600" for="{{ form.last_name.id_for_label }}">นามสกุล</label><div class="mt-1">{{ form.last_name }}</div>{% for error in form.last_name.errors %}<p class="mt-1 text-xs text-red-700">{{ error }}</p>{% endfor %}</div>
+      <div class="signup-field sm:col-span-2"><label class="text-sm text-stone-600" for="{{ form.birth_date.id_for_label }}">วันเกิด</label><div class="mt-1">{{ form.birth_date }}</div>{% for error in form.birth_date.errors %}<p class="mt-1 text-xs text-red-700">{{ error }}</p>{% endfor %}</div>
       <div class="signup-field sm:col-span-2">
         <label class="text-sm text-stone-600" for="{{ form.username.id_for_label }}">ชื่อผู้ใช้</label>
         <div class="mt-1">{{ form.username }}</div>
