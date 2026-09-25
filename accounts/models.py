@@ -25,7 +25,7 @@ def validate_store_image_size(upload):
         raise ValidationError("รูปปกและรูปสไลด์ต้องมีขนาดไม่เกิน 5 MB")
 
 
-AVATAR_MAX_SIZE = 1024 * 1024
+AVATAR_MAX_SIZE = 5 * 1024 * 1024
 CHAT_VIDEO_MAX_SIZE = 25 * 1024 * 1024
 CHAT_VIDEO_EXTENSIONS = (".mp4", ".mov", ".webm")
 
@@ -67,7 +67,7 @@ def validate_chat_media_file(upload):
 
 def validate_avatar_size(upload):
     if upload and upload.size > AVATAR_MAX_SIZE:
-        raise ValidationError("รูปโปรไฟล์ต้องมีขนาดไม่เกิน 1 MB")
+        raise ValidationError("รูปโปรไฟล์ต้องมีขนาดไม่เกิน 5 MB")
 
 
 class User(AbstractUser):

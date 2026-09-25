@@ -177,15 +177,15 @@ class AccountCenterTests(TestCase):
         self.assertEqual(self.user.gender, User.Gender.FEMALE)
         self.assertEqual(self.user.birth_date.isoformat(), "1995-04-12")
 
-    def test_avatar_picker_is_rendered_and_rejects_files_over_one_mb(self):
+    def test_avatar_picker_is_rendered_and_rejects_files_over_five_mb(self):
         page = self.client.get(reverse("accounts:account_history"))
         self.assertContains(page, "data-avatar-trigger")
         self.assertContains(page, "เลือก รูป".replace(" ", ""))
-        self.assertContains(page, "สูงสุด 1 MB")
+        self.assertContains(page, "สูงสุด 5 MB")
 
         oversized_avatar = SimpleUploadedFile(
             "avatar.jpg",
-            b"x" * (1024 * 1024 + 1),
+            b"x" * (5 * 1024 * 1024 + 1),
             content_type="image/jpeg",
         )
         response = self.client.post(
@@ -203,9 +203,35 @@ class AccountCenterTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "รูปโปรไฟล์ต้องมีขนาดไม่เกิน 1 MB")
+        self.assertContains(response, "รูปโปรไฟล์ต้องมีขนาดไม่เกิน 5 MB")
         self.user.refresh_from_db()
         self.assertFalse(self.user.avatar)
+
+    def test_avatar_under_five_mb_is_saved(self):
+        avatar = SimpleUploadedFile(
+            "avatar.jpg",
+            b"avatar image",
+            content_type="image/jpeg",
+        )
+
+        response = self.client.post(
+            reverse("accounts:account_history"),
+            {
+                "avatar": avatar,
+                "display_name": self.user.display_name,
+                "email": self.user.email,
+                "phone": self.user.phone,
+                "first_name": "",
+                "last_name": "",
+                "gender": User.Gender.UNSPECIFIED,
+                "birth_date": "",
+            },
+        )
+
+        self.assertRedirects(response, reverse("accounts:account_history"))
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.avatar)
+        self.user.avatar.delete(save=False)
     def test_address_crud_keeps_one_default_and_prefills_checkout(self):
         first_response = self.client.post(
             reverse("accounts:address_create"),

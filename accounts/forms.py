@@ -324,12 +324,13 @@ class UserProfileForm(StyledFormMixin, forms.ModelForm):
         super().__init__(*args, **kwargs)
         for name in ["email", "phone"]:
             self.fields[name].required = True
-        self.fields["gender"].required = False
+        for name in ["first_name", "last_name", "gender", "birth_date"]:
+            self.fields[name].required = False
 
     def clean_avatar(self):
         avatar = self.cleaned_data.get("avatar")
         if avatar and avatar.size > AVATAR_MAX_SIZE:
-            raise forms.ValidationError("รูปโปรไฟล์ต้องมีขนาดไม่เกิน 1 MB")
+            raise forms.ValidationError("รูปโปรไฟล์ต้องมีขนาดไม่เกิน 5 MB")
         return avatar
     def clean_gender(self):
         return self.cleaned_data.get("gender") or getattr(

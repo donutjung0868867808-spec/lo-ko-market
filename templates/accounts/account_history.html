@@ -51,7 +51,7 @@
           <label for="{{ user_form.avatar.id_for_label }}" class="mt-5 inline-flex h-11 cursor-pointer items-center rounded-md border border-stone-300 bg-white px-5 text-sm font-semibold text-slate-800 hover:border-leaf hover:text-leaf">
             เลือกรูป
           </label>
-          <p class="mt-4 text-sm leading-6 text-slate-500">ขนาดไฟล์: สูงสุด 1 MB<br>ไฟล์ที่รองรับ: .JPG, .JPEG, .PNG</p>
+          <p class="mt-4 text-sm leading-6 text-slate-500">ขนาดไฟล์: สูงสุด 5 MB<br>ไฟล์ที่รองรับ: .JPG, .JPEG, .PNG</p>
         </div>
         <div class="sr-only">{{ user_form.avatar }}</div>
         <p id="avatar-client-error" class="hidden text-sm text-red-700 md:col-span-2" role="alert"></p>
@@ -146,6 +146,7 @@
     const save = document.querySelector("[data-avatar-crop-save]");
     if (!input || !cropper || !canvas || !cancel || !save) return;
 
+    const maxAvatarSize = 5 * 1024 * 1024;
     const context = canvas.getContext("2d");
     const canvasSize = canvas.width;
     let image = null;
@@ -257,9 +258,9 @@
         error.classList.remove("hidden");
         return;
       }
-      if (file.size > 1024 * 1024) {
+      if (file.size > maxAvatarSize) {
         input.value = "";
-        error.textContent = "รูปโปรไฟล์ต้องมีขนาดไม่เกิน 1 MB";
+        error.textContent = "รูปโปรไฟล์ต้องมีขนาดไม่เกิน 5 MB";
         error.classList.remove("hidden");
         return;
       }
@@ -340,9 +341,9 @@
           sourceFile.name.replace(/\.[^.]+$/, "") + ".jpg",
           { type: "image/jpeg" },
         );
-        if (croppedFile.size > 1024 * 1024) {
+        if (croppedFile.size > maxAvatarSize) {
           input.value = "";
-          error.textContent = "รูปที่จัดแล้วมีขนาดเกิน 1 MB กรุณาเลือกภาพอื่น";
+          error.textContent = "รูปที่จัดแล้วมีขนาดเกิน 5 MB กรุณาเลือกภาพอื่น";
           error.classList.remove("hidden");
           closeCropper();
           return;
