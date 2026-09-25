@@ -317,7 +317,7 @@ class UserProfileForm(StyledFormMixin, forms.ModelForm):
             "birth_date": "วันเกิด",
         }
         widgets = {
-            "birth_date": forms.DateInput(attrs={"type": "date"}),
+            "birth_date": forms.HiddenInput(),
             "gender": forms.RadioSelect(),
             "avatar": forms.FileInput(attrs={"accept": ".jpg,.jpeg,.png,image/jpeg,image/png"}),
         }
@@ -340,6 +340,12 @@ class UserProfileForm(StyledFormMixin, forms.ModelForm):
             "gender",
             User.Gender.UNSPECIFIED,
         ) or User.Gender.UNSPECIFIED
+
+    def clean_birth_date(self):
+        birth_date = self.cleaned_data.get("birth_date")
+        if birth_date and birth_date > timezone.localdate():
+            raise forms.ValidationError("วันเกิดต้องไม่เป็นวันในอนาคต")
+        return birth_date
 
     def clean_email(self):
         email = self.cleaned_data.get("email")

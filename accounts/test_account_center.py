@@ -177,6 +177,26 @@ class AccountCenterTests(TestCase):
         self.assertEqual(self.user.gender, User.Gender.FEMALE)
         self.assertEqual(self.user.birth_date.isoformat(), "1995-04-12")
 
+    def test_profile_uses_selectable_birth_date_and_rejects_future_dates(self):
+        page = self.client.get(reverse("accounts:account_history"))
+        self.assertContains(page, "data-birth-calendar-picker")
+
+        response = self.client.post(
+            reverse("accounts:account_history"),
+            {
+                "display_name": self.user.display_name,
+                "email": self.user.email,
+                "phone": self.user.phone,
+                "first_name": "",
+                "last_name": "",
+                "gender": User.Gender.UNSPECIFIED,
+                "birth_date": "2099-01-01",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "วันเกิดต้องไม่เป็นวันในอนาคต")
+
     def test_avatar_picker_is_rendered_and_rejects_files_over_five_mb(self):
         page = self.client.get(reverse("accounts:account_history"))
         self.assertContains(page, "data-avatar-trigger")
