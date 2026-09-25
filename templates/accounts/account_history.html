@@ -338,7 +338,7 @@
         if (!blob || !sourceFile) return;
         const croppedFile = new File(
           [blob],
-          sourceFile.name.replace(/\.[^.]+$/, "") + ".jpg",
+          `avatar-${Date.now()}.jpg`,
           { type: "image/jpeg" },
         );
         if (croppedFile.size > maxAvatarSize) {
