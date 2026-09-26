@@ -458,6 +458,11 @@ class StaffPortalSeparationTests(TestCase):
         self.assertContains(response, self.product.name)
         self.assertNotContains(response, self.other_product.name)
 
+        response = self.client.get(
+            reverse("accounts:staff_seller_edit", args=[self.farmer.pk])
+        )
+        self.assertContains(response, 'name="farm-verification_document"')
+
         response = self.client.post(
             reverse("accounts:staff_seller_edit", args=[self.farmer.pk]),
             {
@@ -488,6 +493,19 @@ class StaffPortalSeparationTests(TestCase):
         profile.refresh_from_db()
         self.assertEqual(self.farmer.display_name, "ผู้ขายที่แก้ไขแล้ว")
         self.assertEqual(profile.farm_name, "สวนที่แก้ไขแล้ว")
+        self.assertEqual(
+            profile.verification_status,
+            FarmerProfile.VerificationStatus.PENDING,
+        )
+        response = self.client.post(
+            reverse("accounts:farmer_verification", args=[profile.pk, "approve"])
+        )
+        self.assertRedirects(
+            response,
+            reverse("accounts:staff_dashboard"),
+            fetch_redirect_response=False,
+        )
+        profile.refresh_from_db()
         self.assertEqual(
             profile.verification_status,
             FarmerProfile.VerificationStatus.VERIFIED,
@@ -628,6 +646,127 @@ class StaffPortalSeparationTests(TestCase):
         )
         other_order.refresh_from_db()
         self.assertEqual(other_order.status, Order.Status.PAID)
+
+    def test_staff_cannot_move_order_to_shipping_or_completion(self):
+        buyer = User.objects.create_user(
+            username="shipping-buyer",
+            password=self.password,
+            role=User.Roles.CONSUMER,
+        )
+        order = Order.objects.create(
+            buyer=buyer,
+            seller=self.farmer,
+            community=self.community,
+            status=Order.Status.PREPARING,
+            payment_status=Order.PaymentStatus.PAID,
+            shipping_name="Buyer",
+            shipping_phone="0811111111",
+            shipping_address="Chiang Mai",
+        )
+        self.client.force_login(self.staff)
+
+        response = self.client.post(
+            reverse("orders:order_update_status", args=[order.pk]),
+            {
+                "status": Order.Status.SHIPPED,
+                "shipping_carrier": "kerry-express",
+                "tracking_number": "TH1234567890",
+                "status_note": "Attempt shipment",
+            },
+        )
+
+        self.assertRedirects(response, order.get_absolute_url(), fetch_redirect_response=False)
+        order.refresh_from_db()
+        self.assertEqual(order.status, Order.Status.PREPARING)
+
+    def test_staff_cannot_bypass_product_review_or_reopen_rejected_product(self):
+        self.client.force_login(self.staff)
+
+        response = self.client.post(
+            reverse(
+                "catalog:product_moderation_action",
+                args=[self.product.pk, "unblock"],
+            )
+        )
+        self.assertRedirects(response, self.product.get_absolute_url(), fetch_redirect_response=False)
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.status, Product.Status.PENDING)
+
+        self.product.status = Product.Status.REJECTED
+        self.product.save(update_fields=["status"])
+        response = self.client.post(
+            reverse("catalog:product_review"),
+            {"product_id": self.product.pk, "decision": "approve"},
+        )
+        self.assertEqual(response.status_code, 404)
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.status, Product.Status.REJECTED)
+
+    def test_staff_cannot_reverify_completed_farmer_review(self):
+        profile = self.farmer.farmer_profile
+        profile.verification_status = FarmerProfile.VerificationStatus.VERIFIED
+        profile.verified_by = self.staff
+        profile.save(update_fields=["verification_status", "verified_by"])
+        self.client.force_login(self.staff)
+
+        response = self.client.post(
+            reverse("accounts:farmer_verification", args=[profile.pk, "reject"]),
+            {"rejection_reason": "New document required"},
+        )
+
+        self.assertRedirects(
+            response,
+            reverse("accounts:staff_dashboard"),
+            fetch_redirect_response=False,
+        )
+        profile.refresh_from_db()
+        self.assertEqual(
+            profile.verification_status,
+            FarmerProfile.VerificationStatus.VERIFIED,
+        )
+
+    def test_staff_document_replacement_requires_fresh_verification(self):
+        profile = self.farmer.farmer_profile
+        profile.verification_status = FarmerProfile.VerificationStatus.VERIFIED
+        profile.verified_by = self.staff
+        profile.save(update_fields=["verification_status", "verified_by"])
+        image_bytes = BytesIO()
+        Image.new("RGB", (2, 2), "green").save(image_bytes, format="PNG")
+        document = SimpleUploadedFile(
+            "farmer-document.png",
+            image_bytes.getvalue(),
+            content_type="image/png",
+        )
+        self.client.force_login(self.staff)
+
+        response = self.client.post(
+            reverse("accounts:staff_seller_edit", args=[self.farmer.pk]),
+            {
+                "account-display_name": "Farmer One",
+                "account-email": "farmer-one@example.com",
+                "account-phone": "0811111111",
+                "farm-farm_name": profile.farm_name,
+                "farm-province": "Chiang Mai",
+                "farm-district": "Mueang",
+                "farm-address": "Farm address",
+                "farm-bio": "Farm profile",
+                "farm-document_type": FarmerProfile.DocumentType.FARM_REGISTRATION,
+                "farm-verification_document": document,
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            reverse("accounts:staff_seller_detail", args=[self.farmer.pk]),
+            fetch_redirect_response=False,
+        )
+        profile.refresh_from_db()
+        self.assertTrue(profile.verification_document)
+        self.assertEqual(
+            profile.verification_status,
+            FarmerProfile.VerificationStatus.PENDING,
+        )
+
 
 class BuyerSellerConversationTests(TestCase):
     def setUp(self):

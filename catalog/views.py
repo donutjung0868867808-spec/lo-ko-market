@@ -470,7 +470,7 @@ def product_review(request):
         products = products.none()
 
     if request.method == "POST":
-        product = get_object_or_404(Product, pk=request.POST.get("product_id"))
+        product = get_object_or_404(products, pk=request.POST.get("product_id"))
         if not request.user.is_owner and not community:
             messages.error(request, "บัญชีเจ้าหน้าที่ยังไม่ได้ผูกกับชุมชน")
             return redirect("catalog:product_review")
@@ -573,6 +573,14 @@ def product_moderation_action(request, pk, action):
     if not request.user.is_owner and (not community or product.community_id != community.id):
         messages.error(request, "จัดการได้เฉพาะสินค้าในชุมชนของคุณ")
         return redirect("accounts:dashboard")
+    is_community_staff = request.user.is_cooperative_staff and not request.user.is_owner
+    if is_community_staff and (
+        (action == "block" and product.status != Product.Status.ACTIVE)
+        or (action == "unblock" and product.status != Product.Status.BLOCKED)
+        or action not in {"block", "unblock"}
+    ):
+        messages.error(request, "สถานะสินค้านี้ไม่สามารถจัดการด้วยคำสั่งที่เลือกได้")
+        return redirect(product)
     if request.method == "POST":
         before_status = product.status
         if action == "block":

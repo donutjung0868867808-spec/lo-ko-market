@@ -1136,24 +1136,6 @@ def staff_dashboard(request):
     active_reports = reports.filter(
         status__in=[Report.Status.OPEN, Report.Status.REVIEWING]
     )
-    reviews = ProductReview.objects.filter(product__seller=request.user).select_related("product", "user")
-    settlements = SellerSettlement.objects.filter(seller=request.user).select_related("payment__order")
-    settlement_totals = settlements.aggregate(
-        pending=Sum(
-            "net_amount",
-            filter=Q(
-                status__in=[
-                    SellerSettlement.Status.PENDING,
-                    SellerSettlement.Status.READY,
-                    SellerSettlement.Status.PROCESSING,
-                    SellerSettlement.Status.HELD,
-                ]
-            ),
-        ),
-        transferred=Sum("net_amount", filter=Q(status=SellerSettlement.Status.TRANSFERRED)),
-    )
-    review_summary = reviews.aggregate(average=Avg("rating"), total=Count("id"))
-
     context = {
         "community": community,
         "farmer_count": farmers.count(),
@@ -1274,6 +1256,13 @@ def farmer_verification(request, profile_id, action):
         return redirect("accounts:staff_dashboard")
     if not request.user.is_owner and community and profile.community_id != community.id:
         messages.error(request, "ตรวจสอบได้เฉพาะเกษตรกรในชุมชนของคุณ")
+        return redirect("accounts:staff_dashboard")
+
+    if (
+        request.user.is_cooperative_staff
+        and profile.verification_status != FarmerProfile.VerificationStatus.PENDING
+    ):
+        messages.error(request, "ตรวจสอบได้เฉพาะบัญชีที่รอการตรวจสอบ")
         return redirect("accounts:staff_dashboard")
 
     if request.method == "POST":
@@ -1505,23 +1494,6 @@ def staff_seller_detail(request, user_id):
         seller=seller,
         community=profile.community,
     )
-    reviews = ProductReview.objects.filter(product__seller=request.user).select_related("product", "user")
-    settlements = SellerSettlement.objects.filter(seller=request.user).select_related("payment__order")
-    settlement_totals = settlements.aggregate(
-        pending=Sum(
-            "net_amount",
-            filter=Q(
-                status__in=[
-                    SellerSettlement.Status.PENDING,
-                    SellerSettlement.Status.READY,
-                    SellerSettlement.Status.PROCESSING,
-                    SellerSettlement.Status.HELD,
-                ]
-            ),
-        ),
-        transferred=Sum("net_amount", filter=Q(status=SellerSettlement.Status.TRANSFERRED)),
-    )
-    review_summary = reviews.aggregate(average=Avg("rating"), total=Count("id"))
 
     context = {
         "seller": seller,
@@ -1572,15 +1544,11 @@ def staff_seller_edit(request, user_id):
             seller.save()
 
             profile = profile_form.save(commit=False)
-            if "verification_status" in profile_form.changed_data:
-                profile.verified_by = request.user
-                profile.verified_at = timezone.now()
-                if profile.verification_status == FarmerProfile.VerificationStatus.VERIFIED:
-                    profile.rejection_reason = ""
-                elif profile.verification_status == FarmerProfile.VerificationStatus.PENDING:
-                    profile.verified_by = None
-                    profile.verified_at = None
-                    profile.rejection_reason = ""
+            if "verification_document" in profile_form.changed_data:
+                profile.verification_status = FarmerProfile.VerificationStatus.PENDING
+                profile.verified_by = None
+                profile.verified_at = None
+                profile.rejection_reason = ""
             profile.save()
             record_audit(
                 request,
@@ -1616,6 +1584,12 @@ def staff_seller_edit(request, user_id):
             "profile": profile,
             "account_form": account_form,
             "profile_form": profile_form,
+            "document_is_image": bool(
+                profile.verification_document
+                and profile.verification_document.name.lower().endswith(
+                    (".jpg", ".jpeg", ".png", ".webp")
+                )
+            ),
         },
     )
 
@@ -1720,7 +1694,10 @@ def farmer_document_download(request, profile_id):
     if not allowed:
         raise Http404
     record_audit(request, AuditEvent.Action.DOWNLOAD, profile, description="ดาวน์โหลดเอกสารยืนยันเกษตรกร", community=profile.community)
-    return _private_file_response(profile.verification_document)
+    return _private_file_response(
+        profile.verification_document,
+        as_attachment=request.GET.get("inline") != "1",
+    )
 
 
 @login_required

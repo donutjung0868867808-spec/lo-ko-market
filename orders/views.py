@@ -632,6 +632,16 @@ def order_update_status(request, pk):
     if not can_manage_order(request.user, order):
         messages.error(request, "คุณไม่มีสิทธิ์ปรับสถานะคำสั่งซื้อนี้")
         return redirect(order)
+    is_community_staff = request.user.is_cooperative_staff and not request.user.is_owner
+    if is_community_staff and order.status not in {
+        Order.Status.PAID,
+        Order.Status.CONFIRMED,
+    }:
+        messages.error(
+            request,
+            "เจ้าหน้าที่ชุมชนปรับได้เฉพาะขั้นตอนยืนยันและเตรียมสินค้า",
+        )
+        return redirect(order)
 
     seller_quick_ship = request.user == order.seller and order.can_seller_mark_shipped
     if seller_quick_ship:
@@ -656,6 +666,13 @@ def order_update_status(request, pk):
         )
 
     form = OrderStatusForm(request.POST or None, instance=order)
+    if is_community_staff:
+        allowed_statuses = {Order.Status.CONFIRMED, Order.Status.PREPARING}
+        form.fields["status"].choices = [
+            choice
+            for choice in form.fields["status"].choices
+            if choice[0] in allowed_statuses
+        ]
     if request.method == "POST" and form.is_valid():
         order.refresh_from_db()
         try:

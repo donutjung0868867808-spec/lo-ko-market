@@ -367,6 +367,9 @@ class StaffSellerAccountForm(UserProfileForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["gender"].widget.attrs["class"] = (
+            "h-4 w-4 border-slate-300 text-emerald-700 focus:ring-emerald-200"
+        )
         self.fields["is_active"].widget.attrs["class"] = (
             "h-5 w-5 rounded border-slate-300 text-emerald-700 "
             "focus:ring-emerald-200"
@@ -383,8 +386,7 @@ class StaffFarmerProfileForm(StyledFormMixin, forms.ModelForm):
             "address",
             "bio",
             "document_type",
-            "verification_status",
-            "rejection_reason",
+            "verification_document",
         ]
         labels = {
             "farm_name": "ชื่อสวน/ฟาร์ม",
@@ -400,6 +402,9 @@ class StaffFarmerProfileForm(StyledFormMixin, forms.ModelForm):
             "address": forms.Textarea(attrs={"rows": 3}),
             "bio": forms.Textarea(attrs={"rows": 3}),
             "rejection_reason": forms.Textarea(attrs={"rows": 3}),
+            "verification_document": forms.FileInput(
+                attrs={"accept": ".pdf,.jpg,.jpeg,.png,.webp"}
+            ),
         }
 
     def clean(self):
