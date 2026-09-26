@@ -23,7 +23,7 @@ from django.utils.http import url_has_allowed_host_and_scheme, urlsafe_base64_de
 from django.views.decorators.http import require_POST
 
 from catalog.forms import ProductForm
-from catalog.models import Product, ProductDetailImage, ProductFavorite, ProductImage, ProductReview, SellerFavorite
+from catalog.models import Product, ProductClick, ProductDetailImage, ProductFavorite, ProductImage, ProductReview, SellerFavorite, SellerStoreVisit
 from orders.models import Order
 from payments.models import CustomerPaymentProfile, Refund, SavedPaymentMethod, SellerPaymentAccount, SellerSettlement
 
@@ -598,10 +598,6 @@ def farmer_shop_center(request):
     balance_transaction_total = balance_transactions.aggregate(total=Sum("net_amount"))["total"] or 0
 
     review_summary = reviews.aggregate(average=Avg("rating"), total=Count("id"))
-    ready_to_ship_total = sales.filter(
-        status__in=[Order.Status.PAID, Order.Status.CONFIRMED]
-    ).count()
-    packing_total = sales.filter(status=Order.Status.PREPARING).count()
     refund_or_cancel_total = (
         sales.filter(status__in=[Order.Status.CANCELLED, Order.Status.REFUNDED]).count()
         + Refund.objects.filter(
@@ -612,10 +608,60 @@ def farmer_shop_center(request):
     policy_issue_total = products.filter(
         status__in=[Product.Status.REJECTED, Product.Status.BLOCKED]
     ).count()
-    paid_order_total = paid_sales.count()
-    total_order_count = sales.count()
-    payment_success_rate = (
-        paid_order_total * 100 / total_order_count if total_order_count else 0
+    today_sales = paid_sales.filter(created_at__date=today)
+    yesterday = today - timedelta(days=1)
+    yesterday_sales = paid_sales.filter(created_at__date=yesterday)
+    today_sales_total = today_sales.aggregate(total=Sum("total_amount"))["total"] or 0
+    yesterday_sales_total = yesterday_sales.aggregate(total=Sum("total_amount"))["total"] or 0
+    today_product_sales_total = today_sales.aggregate(
+        total=Sum(F("total_amount") - F("shipping_fee"))
+    )["total"] or 0
+    today_order_total = today_sales.count()
+    yesterday_order_total = yesterday_sales.count()
+    today_total_orders = sales.filter(created_at__date=today).count()
+    today_payment_success_rate = (
+        today_order_total * 100 / today_total_orders if today_total_orders else 0
+    )
+    today_store_visitor_total = SellerStoreVisit.objects.filter(
+        seller=request.user,
+        visited_on=today,
+    ).count()
+    today_product_click_total = ProductClick.objects.filter(
+        seller=request.user,
+        created_at__date=today,
+    ).count()
+
+    def percent_change(current_value, previous_value):
+        if not previous_value:
+            return 0
+        return (current_value - previous_value) * 100 / previous_value
+
+    trend_start = today - timedelta(days=6)
+    trend_totals = {
+        row["created_at__date"]: row["total"]
+        for row in paid_sales.filter(created_at__date__gte=trend_start)
+        .values("created_at__date")
+        .annotate(total=Sum("total_amount"))
+    }
+    daily_sales_trend = [
+        {
+            "label": (trend_start + timedelta(days=offset)).strftime("%d/%m"),
+            "total": trend_totals.get(trend_start + timedelta(days=offset), 0),
+        }
+        for offset in range(7)
+    ]
+    trend_maximum = max((point["total"] for point in daily_sales_trend), default=0)
+    for index, point in enumerate(daily_sales_trend):
+        point["height"] = (
+            max(8, round(point["total"] * 100 / trend_maximum))
+            if trend_maximum
+            else 0
+        )
+        point["chart_x"] = round(40 + index * (620 / 6), 2)
+        point["chart_y"] = round(156 - point["height"] * 1.36, 2)
+    weekly_sales_total = sum(point["total"] for point in daily_sales_trend)
+    daily_sales_chart_points = " ".join(
+        f'{point["chart_x"]},{point["chart_y"]}' for point in daily_sales_trend
     )
 
     context = {
@@ -644,13 +690,20 @@ def farmer_shop_center(request):
         ).count(),
         "shipped_total": sales.filter(status=Order.Status.SHIPPED).count(),
         "gross_sales": gross_sales,
-        "ready_to_ship_total": ready_to_ship_total,
-        "packing_total": packing_total,
         "refund_or_cancel_total": refund_or_cancel_total,
         "policy_issue_total": policy_issue_total,
-        "paid_order_total": paid_order_total,
-        "payment_success_rate": payment_success_rate,
-        "shop_insights_updated_at": timezone.localtime(),
+        "today_sales_total": today_sales_total,
+        "today_store_visitor_total": today_store_visitor_total,
+        "today_product_click_total": today_product_click_total,
+        "today_product_sales_total": today_product_sales_total,
+        "today_order_total": today_order_total,
+        "today_payment_success_rate": today_payment_success_rate,
+        "today_sales_change": percent_change(today_sales_total, yesterday_sales_total),
+        "today_order_change": percent_change(today_order_total, yesterday_order_total),
+        "daily_sales_trend": daily_sales_trend,
+        "daily_sales_trend_has_data": bool(trend_maximum),
+        "daily_sales_chart_points": daily_sales_chart_points,
+        "weekly_sales_total": weekly_sales_total,
         "support_open_count": SupportTicket.objects.filter(seller=request.user, status__in=[SupportTicket.Status.OPEN, SupportTicket.Status.IN_PROGRESS]).count(),
         "shop_reviews": reviews,
         "review_average": review_summary["average"] or 0,

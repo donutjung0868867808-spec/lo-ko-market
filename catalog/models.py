@@ -433,3 +433,50 @@ class SellerFavorite(models.Model):
 
     def __str__(self):
         return f"{self.user} ถูกใจร้าน {self.seller}"
+
+
+class SellerStoreVisit(models.Model):
+    seller = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="store_visits",
+    )
+    session_key = models.CharField(max_length=40)
+    visited_on = models.DateField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "สถิติผู้เยี่ยมชมร้าน"
+        verbose_name_plural = "สถิติผู้เยี่ยมชมร้าน"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["seller", "session_key", "visited_on"],
+                name="unique_daily_seller_store_visit",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["seller", "visited_on"]),
+        ]
+
+
+class ProductClick(models.Model):
+    seller = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="product_clicks",
+    )
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name="clicks",
+    )
+    session_key = models.CharField(max_length=40)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "สถิติการเปิดดูสินค้า"
+        verbose_name_plural = "สถิติการเปิดดูสินค้า"
+        indexes = [
+            models.Index(fields=["seller", "created_at"]),
+            models.Index(fields=["product", "created_at"]),
+        ]

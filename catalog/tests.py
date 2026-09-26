@@ -16,7 +16,7 @@ from accounts.models import Community, FarmerProfile, Notification, StoreCoverSl
 from orders.models import Order, OrderItem
 
 from .forms import ProductForm
-from .models import Category, HomeSlide, Product, ProductDetailImage, ProductReview, ProductReviewMedia
+from .models import Category, HomeSlide, Product, ProductClick, ProductDetailImage, ProductReview, ProductReviewMedia, SellerStoreVisit
 
 
 def test_image_bytes():
@@ -563,6 +563,14 @@ class ProductDetailInteractionTests(TestCase):
         self.assertContains(response, reverse("catalog:report_product", args=[self.product.pk]))
         self.assertContains(response, reverse("catalog:seller_store", args=[self.farmer.pk]))
         self.assertContains(response, reverse("accounts:conversation_start", args=[self.product.pk]))
+
+    def test_store_visits_are_unique_per_day_and_product_clicks_are_recorded(self):
+        self.client.get(reverse("catalog:seller_store", args=[self.farmer.pk]))
+        self.client.get(reverse("catalog:seller_store", args=[self.farmer.pk]))
+        self.client.get(reverse("catalog:product_detail", args=[self.product.pk]))
+
+        self.assertEqual(SellerStoreVisit.objects.filter(seller=self.farmer).count(), 1)
+        self.assertEqual(ProductClick.objects.filter(product=self.product).count(), 1)
 
     def test_product_detail_displays_the_seller_avatar(self):
         self.farmer.avatar = "avatars/detail-seller.jpg"

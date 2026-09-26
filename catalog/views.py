@@ -5,6 +5,7 @@ from django.core.management import call_command
 from django.db import transaction
 from django.db.models import Avg, Count, Max, Prefetch, Q, Sum
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.views.decorators.cache import never_cache
 
 from accounts.decorators import role_required, user_community
@@ -19,12 +20,14 @@ from .models import (
     Category,
     HomeSlide,
     Product,
+    ProductClick,
     ProductDetailImage,
     ProductFavorite,
     ProductImage,
     ProductReview,
     ProductReviewMedia,
     SellerFavorite,
+    SellerStoreVisit,
     StockMovement,
     review_media_type_for_upload,
 )
@@ -34,6 +37,32 @@ def ensure_demo_catalog_data():
     if not settings.ENABLE_DEMO_DATA or Product.objects.exists():
         return
     call_command("seed_demo_data", verbosity=0)
+
+
+def analytics_session_key(request):
+    if not request.session.session_key:
+        request.session.create()
+    return request.session.session_key
+
+
+def track_store_visit(request, seller):
+    if request.user.is_authenticated and request.user.pk == seller.pk:
+        return
+    SellerStoreVisit.objects.get_or_create(
+        seller=seller,
+        session_key=analytics_session_key(request),
+        visited_on=timezone.localdate(),
+    )
+
+
+def track_product_click(request, product):
+    if request.user.is_authenticated and request.user.pk == product.seller_id:
+        return
+    ProductClick.objects.create(
+        seller=product.seller,
+        product=product,
+        session_key=analytics_session_key(request),
+    )
 
 
 def save_product_gallery_images(product, images):
@@ -162,6 +191,8 @@ def product_detail(request, pk):
         if not allowed:
             messages.error(request, "สินค้านี้ยังไม่เปิดขาย")
             return redirect("catalog:product_list")
+    if product.status == Product.Status.ACTIVE:
+        track_product_click(request, product)
     is_product_favorite = False
     is_seller_favorite = False
     if request.user.is_authenticated:
@@ -578,6 +609,7 @@ def product_moderation_action(request, pk, action):
 @never_cache
 def seller_store(request, seller_id):
     seller = get_object_or_404(User, pk=seller_id, role=User.Roles.FARMER, is_active=True)
+    track_store_visit(request, seller)
     active_products = (
         Product.objects.select_related("community", "category")
         .prefetch_related("images")

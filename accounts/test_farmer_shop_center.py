@@ -81,14 +81,21 @@ class FarmerShopCenterTests(TestCase):
         self.assertContains(marketing, "การประชาสัมพันธ์ร้าน")
         self.assertContains(marketing, reverse("catalog:seller_store", args=[self.seller.pk]))
 
-    def test_seller_dashboard_shows_work_queue_and_business_insights(self):
+    def test_seller_dashboard_shows_key_metrics_without_duplicate_work_queue(self):
         response = self.client.get(reverse("accounts:farmer_shop_center"))
 
-        self.assertContains(response, "ภาพรวมผลการขาย")
+        self.assertContains(response, "ตัวชี้วัดหลัก")
+        self.assertContains(response, "ยอดขายไม่รวมค่าจัดส่ง")
+        self.assertContains(response, "จำนวนผู้เยี่ยมชม")
+        self.assertContains(response, "จำนวนการคลิกสินค้า")
+        self.assertContains(response, "แนวโน้มยอดขาย 7 วันล่าสุด")
+        self.assertContains(response, "ยังไม่มียอดขายที่ชำระสำเร็จในช่วง 7 วันที่ผ่านมา")
         self.assertContains(response, "ที่ต้องจัดส่ง")
         self.assertContains(response, "คำขอคืนเงิน / คืนสินค้า / ยกเลิก")
-        self.assertContains(response, "อัตราชำระสำเร็จ")
+        self.assertContains(response, "สินค้าที่ละเมิดนโยบาย")
         self.assertEqual(response.context["policy_issue_total"], 0)
+        self.assertEqual(len(response.context["daily_sales_trend"]), 7)
+        self.assertFalse(response.context["daily_sales_trend_has_data"])
 
     def test_finance_income_tabs_and_transferred_period_totals(self):
         buyer = User.objects.create_user(
