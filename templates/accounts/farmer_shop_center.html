@@ -9,6 +9,42 @@
     display: grid;
   }
 
+  .balance-period-picker {
+    position: relative;
+  }
+
+  .balance-period-picker summary {
+    list-style: none;
+  }
+
+  .balance-period-picker summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .balance-period-panel {
+    position: absolute;
+    top: calc(100% + 0.5rem);
+    left: 0;
+    z-index: 20;
+    width: min(38rem, calc(100vw - 3rem));
+  }
+
+  .balance-period-presets {
+    display: grid;
+    gap: 0.25rem;
+  }
+
+  @media (min-width: 640px) {
+    .balance-period-panel-content {
+      display: grid;
+      grid-template-columns: 10rem minmax(0, 1fr);
+    }
+
+    .balance-period-presets {
+      border-right: 1px solid rgb(231 229 228);
+    }
+  }
+
   @media (min-width: 640px) {
     .income-overview-summary {
       grid-template-columns: minmax(0, .8fr) minmax(0, 1.7fr);
@@ -115,24 +151,51 @@
               <section class="overflow-hidden rounded-lg border border-stone-200 bg-white">
                 <div class="border-b border-stone-200 px-5 py-5">
                   <h2 class="text-xl font-semibold text-slate-950">ธุรกรรมที่ผ่านมา</h2>
-                  <form method="get" class="mt-5 flex flex-wrap items-center gap-3">
-                    <input type="hidden" name="section" value="finance">
-                    <input type="hidden" name="mode" value="balance">
-                    <label class="inline-flex h-10 items-center gap-2 rounded-md border border-stone-300 bg-white px-3 text-sm font-semibold text-slate-700">
+                  <div class="mt-5 flex flex-wrap items-center gap-3">
+                    <details class="balance-period-picker">
+                      <summary class="inline-flex h-10 cursor-pointer items-center gap-2 rounded-md border border-stone-300 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-stone-50">
                       <i data-lucide="calendar-days" class="h-4 w-4 text-leaf" aria-hidden="true"></i>
-                      <span class="sr-only">ช่วงเวลาธุรกรรม</span>
-                      <select name="balance_period" onchange="this.form.submit()" class="border-0 bg-transparent pr-7 text-sm font-semibold outline-none">
-                        <option value="week" {% if balance_period == "week" %}selected{% endif %}>สัปดาห์นี้</option>
-                        <option value="month" {% if balance_period == "month" %}selected{% endif %}>เดือนนี้</option>
-                        <option value="all" {% if balance_period == "all" %}selected{% endif %}>ทั้งหมด</option>
-                      </select>
-                    </label>
+                        <span>{{ balance_period_label }}{% if balance_period == "custom" %}: {{ balance_start|date:"d/m/Y" }} - {{ balance_end|date:"d/m/Y" }}{% endif %}</span>
+                        <i data-lucide="chevron-down" class="h-4 w-4" aria-hidden="true"></i>
+                      </summary>
+                      <div class="balance-period-panel overflow-hidden rounded-lg border border-stone-200 bg-white shadow-lg">
+                        <div class="balance-period-panel-content">
+                          <nav class="balance-period-presets bg-stone-50 p-3 text-sm font-semibold" aria-label="ช่วงเวลาที่เลือกได้">
+                            <a href="?section=finance&mode=balance&balance_period=week&balance_activity={{ balance_activity_type }}" class="rounded-md px-3 py-2 {% if balance_period == "week" %}bg-amber-100 text-amber-900{% else %}text-slate-700 hover:bg-stone-200{% endif %}">สัปดาห์นี้</a>
+                            <a href="?section=finance&mode=balance&balance_period=month&balance_activity={{ balance_activity_type }}" class="rounded-md px-3 py-2 {% if balance_period == "month" %}bg-amber-100 text-amber-900{% else %}text-slate-700 hover:bg-stone-200{% endif %}">เดือนนี้</a>
+                            <a href="?section=finance&mode=balance&balance_period=quarter&balance_activity={{ balance_activity_type }}" class="rounded-md px-3 py-2 {% if balance_period == "quarter" %}bg-amber-100 text-amber-900{% else %}text-slate-700 hover:bg-stone-200{% endif %}">3 เดือนล่าสุด</a>
+                            <a href="?section=finance&mode=balance&balance_period=all&balance_activity={{ balance_activity_type }}" class="rounded-md px-3 py-2 {% if balance_period == "all" %}bg-amber-100 text-amber-900{% else %}text-slate-700 hover:bg-stone-200{% endif %}">ทั้งหมด</a>
+                          </nav>
+                          <form method="get" class="space-y-4 p-4">
+                            <input type="hidden" name="section" value="finance">
+                            <input type="hidden" name="mode" value="balance">
+                            <input type="hidden" name="balance_period" value="custom">
+                            <input type="hidden" name="balance_activity" value="{{ balance_activity_type }}">
+                            <div>
+                              <p class="text-sm font-semibold text-slate-950">เลือกช่วงวันที่</p>
+                              <p class="mt-1 text-sm text-slate-500">เลือกวันเริ่มต้นและวันสิ้นสุดของธุรกรรม</p>
+                            </div>
+                            <div class="grid gap-3 sm:grid-cols-2">
+                              <label class="grid gap-1.5 text-sm font-medium text-slate-700">ตั้งแต่วันที่
+                                <input type="date" name="balance_start" value="{{ balance_start|date:"Y-m-d" }}" required class="h-10 rounded-md border border-stone-300 px-3 text-slate-800">
+                              </label>
+                              <label class="grid gap-1.5 text-sm font-medium text-slate-700">ถึงวันที่
+                                <input type="date" name="balance_end" value="{{ balance_end|date:"Y-m-d" }}" required class="h-10 rounded-md border border-stone-300 px-3 text-slate-800">
+                              </label>
+                            </div>
+                            <div class="flex justify-end">
+                              <button type="submit" class="inline-flex h-10 items-center rounded-md bg-leaf px-4 text-sm font-semibold text-white hover:bg-emerald-800">ยืนยันช่วงวันที่</button>
+                            </div>
+                          </form>
+                        </div>
+                      </div>
+                    </details>
                     <nav class="flex overflow-hidden rounded-md border border-amber-300 text-sm font-semibold" aria-label="ประเภทธุรกรรม">
-                      <a href="?section=finance&mode=balance&balance_period={{ balance_period }}&balance_activity=all" class="px-4 py-2 {% if balance_activity_type == "all" %}bg-amber-700 text-white{% else %}bg-white text-amber-800 hover:bg-amber-50{% endif %}">ทั้งหมด</a>
-                      <a href="?section=finance&mode=balance&balance_period={{ balance_period }}&balance_activity=incoming" class="border-l border-amber-300 px-4 py-2 {% if balance_activity_type == "incoming" %}bg-amber-700 text-white{% else %}bg-white text-amber-800 hover:bg-amber-50{% endif %}">เงินเข้า</a>
-                      <a href="?section=finance&mode=balance&balance_period={{ balance_period }}&balance_activity=transferred" class="border-l border-amber-300 px-4 py-2 {% if balance_activity_type == "transferred" %}bg-amber-700 text-white{% else %}bg-white text-amber-800 hover:bg-amber-50{% endif %}">โอนเงินแล้ว</a>
+                      <a href="?section=finance&mode=balance&balance_period={{ balance_period }}&balance_start={{ balance_start|date:"Y-m-d" }}&balance_end={{ balance_end|date:"Y-m-d" }}&balance_activity=all" class="px-4 py-2 {% if balance_activity_type == "all" %}bg-amber-700 text-white{% else %}bg-white text-amber-800 hover:bg-amber-50{% endif %}">ทั้งหมด</a>
+                      <a href="?section=finance&mode=balance&balance_period={{ balance_period }}&balance_start={{ balance_start|date:"Y-m-d" }}&balance_end={{ balance_end|date:"Y-m-d" }}&balance_activity=incoming" class="border-l border-amber-300 px-4 py-2 {% if balance_activity_type == "incoming" %}bg-amber-700 text-white{% else %}bg-white text-amber-800 hover:bg-amber-50{% endif %}">เงินเข้า</a>
+                      <a href="?section=finance&mode=balance&balance_period={{ balance_period }}&balance_start={{ balance_start|date:"Y-m-d" }}&balance_end={{ balance_end|date:"Y-m-d" }}&balance_activity=transferred" class="border-l border-amber-300 px-4 py-2 {% if balance_activity_type == "transferred" %}bg-amber-700 text-white{% else %}bg-white text-amber-800 hover:bg-amber-50{% endif %}">โอนเงินแล้ว</a>
                     </nav>
-                  </form>
+                  </div>
                 </div>
                 <div class="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 px-5 py-4 text-sm">
                   <p class="font-semibold text-slate-800">รายการธุรกรรม {{ balance_transactions|length }} รายการ <span class="ml-2 font-normal text-slate-500">(จำนวนเงินรวม: ฿{{ balance_transaction_total|floatformat:2 }})</span></p>

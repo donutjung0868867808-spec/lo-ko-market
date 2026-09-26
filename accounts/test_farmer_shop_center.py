@@ -71,6 +71,7 @@ class FarmerShopCenterTests(TestCase):
         self.assertContains(balance, "ภาพรวมยอดเงิน")
         self.assertContains(balance, "ธุรกรรมที่ผ่านมา")
         self.assertContains(balance, "โอนเงินแล้ว")
+        self.assertContains(balance, "เลือกช่วงวันที่")
 
         store = self.client.get(f"{center_url}?section=store")
         self.assertContains(store, "ฟาร์มเดิม")
@@ -134,6 +135,17 @@ class FarmerShopCenterTests(TestCase):
         self.assertContains(response, "ช่องทางการรับเงิน")
         self.assertEqual(response.context["transferred_this_week_total"], Decimal("100.00"))
         self.assertEqual(response.context["transferred_this_month_total"], Decimal("100.00"))
+
+        selected_date = timezone.localdate()
+        custom_balance = self.client.get(
+            f"{reverse('accounts:farmer_shop_center')}?section=finance&mode=balance"
+            f"&balance_period=custom&balance_start={selected_date.isoformat()}"
+            f"&balance_end={selected_date.isoformat()}&balance_activity=transferred"
+        )
+        self.assertEqual(custom_balance.context["balance_period"], "custom")
+        self.assertEqual(custom_balance.context["balance_start"], selected_date)
+        self.assertEqual(custom_balance.context["balance_end"], selected_date)
+        self.assertContains(custom_balance, "เลือกช่วงวันที่")
 
         pending = self.client.get(
             f"{reverse('accounts:farmer_shop_center')}?section=finance&income_status=pending"

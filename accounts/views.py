@@ -1,6 +1,6 @@
 import logging
 import mimetypes
-from datetime import timedelta
+from datetime import date, timedelta
 import uuid
 from pathlib import Path
 
@@ -564,18 +564,37 @@ def farmer_shop_center(request):
         )
 
     balance_period = request.GET.get("balance_period", "week")
-    balance_period_starts = {
-        "week": today - timedelta(days=today.weekday()),
-        "month": today.replace(day=1),
-        "all": None,
+    balance_period_options = {
+        "week": (
+            today - timedelta(days=today.weekday()),
+            today,
+            "สัปดาห์นี้",
+        ),
+        "month": (today.replace(day=1), today, "เดือนนี้"),
+        "quarter": (today - timedelta(days=89), today, "3 เดือนล่าสุด"),
+        "all": (None, None, "ทั้งหมด"),
     }
-    if balance_period not in balance_period_starts:
-        balance_period = "week"
-    balance_period_start = balance_period_starts[balance_period]
-    if balance_period_start:
-        balance_transactions = balance_transactions.filter(
-            created_at__date__gte=balance_period_start
-        )
+    balance_start = None
+    balance_end = None
+    if balance_period == "custom":
+        try:
+            balance_start = date.fromisoformat(request.GET.get("balance_start", ""))
+            balance_end = date.fromisoformat(request.GET.get("balance_end", ""))
+        except ValueError:
+            balance_period = "week"
+        else:
+            if balance_start > balance_end:
+                balance_period = "week"
+    if balance_period == "custom":
+        balance_period_label = "เลือกวัน"
+    else:
+        if balance_period not in balance_period_options:
+            balance_period = "week"
+        balance_start, balance_end, balance_period_label = balance_period_options[balance_period]
+    if balance_start:
+        balance_transactions = balance_transactions.filter(created_at__date__gte=balance_start)
+    if balance_end:
+        balance_transactions = balance_transactions.filter(created_at__date__lte=balance_end)
     balance_transaction_total = balance_transactions.aggregate(total=Sum("net_amount"))["total"] or 0
 
     review_summary = reviews.aggregate(average=Avg("rating"), total=Count("id"))
@@ -648,6 +667,9 @@ def farmer_shop_center(request):
         "transferred_this_month_total": transferred_this_month_total,
         "balance_activity_type": balance_activity_type,
         "balance_period": balance_period,
+        "balance_period_label": balance_period_label,
+        "balance_start": balance_start,
+        "balance_end": balance_end,
         "balance_transactions": balance_transactions,
         "balance_transaction_total": balance_transaction_total,
         "seller_payment_account": SellerPaymentAccount.objects.filter(seller=request.user).first(),
