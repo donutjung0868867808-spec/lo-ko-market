@@ -17,6 +17,7 @@ urlpatterns = [
     path("staff/", views.staff_dashboard, name="staff_dashboard"),
     path("profile/", views.profile, name="profile"),
     path("shop-center/", views.farmer_shop_center, name="farmer_shop_center"),
+    path("shop-center/income-statement/", views.income_statement, name="income_statement"),
     path("shop-center/cover-slides/<int:slide_id>/delete/", views.store_cover_slide_delete, name="store_cover_slide_delete"),
     path("support/chat/", views.support_chat, name="support_chat"),
     path("support/unread/", views.support_chat_unread, name="support_chat_unread"),

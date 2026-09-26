@@ -25,7 +25,7 @@ from django.views.decorators.http import require_POST
 from catalog.forms import ProductForm
 from catalog.models import Product, ProductDetailImage, ProductFavorite, ProductImage, ProductReview, SellerFavorite
 from orders.models import Order
-from payments.models import CustomerPaymentProfile, SavedPaymentMethod, SellerPaymentAccount, SellerSettlement
+from payments.models import CustomerPaymentProfile, Refund, SavedPaymentMethod, SellerPaymentAccount, SellerSettlement
 
 from .decorators import role_required, user_community
 from .forms import (
@@ -498,21 +498,106 @@ def farmer_shop_center(request):
 
     reviews = ProductReview.objects.filter(product__seller=request.user).select_related("product", "user")
     settlements = SellerSettlement.objects.filter(seller=request.user).select_related("payment__order")
+    pending_settlement_statuses = [
+        SellerSettlement.Status.PENDING,
+        SellerSettlement.Status.READY,
+        SellerSettlement.Status.PROCESSING,
+        SellerSettlement.Status.HELD,
+    ]
     settlement_totals = settlements.aggregate(
         pending=Sum(
             "net_amount",
-            filter=Q(
-                status__in=[
-                    SellerSettlement.Status.PENDING,
-                    SellerSettlement.Status.READY,
-                    SellerSettlement.Status.PROCESSING,
-                    SellerSettlement.Status.HELD,
-                ]
-            ),
+            filter=Q(status__in=pending_settlement_statuses),
         ),
         transferred=Sum("net_amount", filter=Q(status=SellerSettlement.Status.TRANSFERRED)),
     )
+    today = timezone.localdate()
+    transferred_settlements = settlements.filter(status=SellerSettlement.Status.TRANSFERRED)
+    transferred_this_week_total = transferred_settlements.filter(
+        transferred_at__date__gte=today - timedelta(days=today.weekday())
+    ).aggregate(total=Sum("net_amount"))["total"] or 0
+    transferred_this_month_total = transferred_settlements.filter(
+        transferred_at__date__gte=today.replace(day=1)
+    ).aggregate(total=Sum("net_amount"))["total"] or 0
+
+    income_status = request.GET.get("income_status", "transferred")
+    if income_status == "transferred":
+        income_settlements = transferred_settlements
+        income_date_field = "transferred_at"
+    else:
+        income_status = "pending"
+        income_settlements = settlements.filter(status__in=pending_settlement_statuses)
+        income_date_field = "created_at"
+
+    income_period = request.GET.get("income_period", "week")
+    income_period_options = {
+        "week": (
+            today - timedelta(days=today.weekday()),
+            "สัปดาห์นี้",
+        ),
+        "month": (today.replace(day=1), "เดือนนี้"),
+        "all": (None, "ทั้งหมด"),
+    }
+    if income_period not in income_period_options:
+        income_period = "week"
+    income_period_start, income_period_label = income_period_options[income_period]
+    if income_period_start:
+        income_settlements = income_settlements.filter(
+            **{f"{income_date_field}__date__gte": income_period_start}
+        )
+
+    income_query = request.GET.get("income_q", "").strip()
+    if income_query:
+        income_settlements = income_settlements.filter(
+            payment__order__reference__icontains=income_query
+        )
+
+    balance_activity_type = request.GET.get("balance_activity", "all")
+    if balance_activity_type not in {"all", "incoming", "transferred"}:
+        balance_activity_type = "all"
+    balance_transactions = settlements
+    if balance_activity_type == "incoming":
+        balance_transactions = balance_transactions.filter(status__in=pending_settlement_statuses)
+    elif balance_activity_type == "transferred":
+        balance_transactions = balance_transactions.filter(
+            status=SellerSettlement.Status.TRANSFERRED
+        )
+
+    balance_period = request.GET.get("balance_period", "week")
+    balance_period_starts = {
+        "week": today - timedelta(days=today.weekday()),
+        "month": today.replace(day=1),
+        "all": None,
+    }
+    if balance_period not in balance_period_starts:
+        balance_period = "week"
+    balance_period_start = balance_period_starts[balance_period]
+    if balance_period_start:
+        balance_transactions = balance_transactions.filter(
+            created_at__date__gte=balance_period_start
+        )
+    balance_transaction_total = balance_transactions.aggregate(total=Sum("net_amount"))["total"] or 0
+
     review_summary = reviews.aggregate(average=Avg("rating"), total=Count("id"))
+    ready_to_ship_total = sales.filter(
+        status__in=[Order.Status.PAID, Order.Status.CONFIRMED]
+    ).count()
+    packing_total = sales.filter(status=Order.Status.PREPARING).count()
+    refund_or_cancel_total = (
+        sales.filter(status__in=[Order.Status.CANCELLED, Order.Status.REFUNDED]).count()
+        + Refund.objects.filter(
+            payment__order__seller=request.user,
+            status__in=[Refund.Status.REQUESTED, Refund.Status.PROCESSING],
+        ).count()
+    )
+    policy_issue_total = products.filter(
+        status__in=[Product.Status.REJECTED, Product.Status.BLOCKED]
+    ).count()
+    paid_order_total = paid_sales.count()
+    total_order_count = sales.count()
+    payment_success_rate = (
+        paid_order_total * 100 / total_order_count if total_order_count else 0
+    )
 
     context = {
         "farmer_profile": farmer_profile,
@@ -540,16 +625,95 @@ def farmer_shop_center(request):
         ).count(),
         "shipped_total": sales.filter(status=Order.Status.SHIPPED).count(),
         "gross_sales": gross_sales,
+        "ready_to_ship_total": ready_to_ship_total,
+        "packing_total": packing_total,
+        "refund_or_cancel_total": refund_or_cancel_total,
+        "policy_issue_total": policy_issue_total,
+        "paid_order_total": paid_order_total,
+        "payment_success_rate": payment_success_rate,
+        "shop_insights_updated_at": timezone.localtime(),
         "support_open_count": SupportTicket.objects.filter(seller=request.user, status__in=[SupportTicket.Status.OPEN, SupportTicket.Status.IN_PROGRESS]).count(),
         "shop_reviews": reviews,
         "review_average": review_summary["average"] or 0,
         "review_total": review_summary["total"] or 0,
         "settlements": settlements,
+        "income_settlements": income_settlements,
+        "income_status": income_status,
+        "income_period": income_period,
+        "income_period_label": income_period_label,
+        "income_query": income_query,
         "pending_settlement_total": settlement_totals["pending"] or 0,
         "transferred_settlement_total": settlement_totals["transferred"] or 0,
+        "transferred_this_week_total": transferred_this_week_total,
+        "transferred_this_month_total": transferred_this_month_total,
+        "balance_activity_type": balance_activity_type,
+        "balance_period": balance_period,
+        "balance_transactions": balance_transactions,
+        "balance_transaction_total": balance_transaction_total,
         "seller_payment_account": SellerPaymentAccount.objects.filter(seller=request.user).first(),
     }
     return render(request, "accounts/farmer_shop_center.html", context)
+
+
+@role_required(User.Roles.FARMER)
+def income_statement(request):
+    today = timezone.localdate()
+    pending_statuses = [
+        SellerSettlement.Status.PENDING,
+        SellerSettlement.Status.READY,
+        SellerSettlement.Status.PROCESSING,
+        SellerSettlement.Status.HELD,
+    ]
+    income_status = request.GET.get("income_status", "transferred")
+    settlements = SellerSettlement.objects.filter(seller=request.user).select_related(
+        "payment__order"
+    )
+    if income_status == "transferred":
+        income_settlements = settlements.filter(status=SellerSettlement.Status.TRANSFERRED)
+        income_date_field = "transferred_at"
+        status_label = "โอนเงินแล้ว"
+    else:
+        income_status = "pending"
+        income_settlements = settlements.filter(status__in=pending_statuses)
+        income_date_field = "created_at"
+        status_label = "รอดำเนินการ"
+
+    income_period = request.GET.get("income_period", "week")
+    periods = {
+        "week": (today - timedelta(days=today.weekday()), "สัปดาห์นี้"),
+        "month": (today.replace(day=1), "เดือนนี้"),
+        "all": (None, "ทั้งหมด"),
+    }
+    if income_period not in periods:
+        income_period = "week"
+    period_start, period_label = periods[income_period]
+    if period_start:
+        income_settlements = income_settlements.filter(
+            **{f"{income_date_field}__date__gte": period_start}
+        )
+
+    income_query = request.GET.get("income_q", "").strip()
+    if income_query:
+        income_settlements = income_settlements.filter(
+            payment__order__reference__icontains=income_query
+        )
+    statement_total = income_settlements.aggregate(total=Sum("net_amount"))["total"] or 0
+
+    return render(
+        request,
+        "accounts/income_statement.html",
+        {
+            "farmer_profile": getattr(request.user, "farmer_profile", None),
+            "income_settlements": income_settlements,
+            "income_status": income_status,
+            "income_query": income_query,
+            "period_label": period_label,
+            "period_start": period_start,
+            "statement_total": statement_total,
+            "statement_date": today,
+            "status_label": status_label,
+        },
+    )
 
 @login_required
 @role_required(User.Roles.FARMER)

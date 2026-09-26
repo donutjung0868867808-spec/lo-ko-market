@@ -1,11 +1,15 @@
 from decimal import Decimal
+from datetime import timedelta
 
 from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from catalog.models import Category, Product, ProductImage, ProductReview
+from orders.models import Order
+from payments.models import Payment, SellerSettlement
 
 from .models import Community, FarmerProfile, StoreCoverSlide, User
 
@@ -63,6 +67,11 @@ class FarmerShopCenterTests(TestCase):
         self.assertContains(finance, "Stripe Connect")
         self.assertContains(finance, reverse("payments:connect_account"))
 
+        balance = self.client.get(f"{center_url}?section=finance&mode=balance")
+        self.assertContains(balance, "ภาพรวมยอดเงิน")
+        self.assertContains(balance, "ธุรกรรมที่ผ่านมา")
+        self.assertContains(balance, "โอนเงินแล้ว")
+
         store = self.client.get(f"{center_url}?section=store")
         self.assertContains(store, "ฟาร์มเดิม")
         self.assertContains(store, reverse("catalog:seller_store", args=[self.seller.pk]))
@@ -70,6 +79,73 @@ class FarmerShopCenterTests(TestCase):
         marketing = self.client.get(f"{center_url}?section=marketing&mode=store")
         self.assertContains(marketing, "การประชาสัมพันธ์ร้าน")
         self.assertContains(marketing, reverse("catalog:seller_store", args=[self.seller.pk]))
+
+    def test_seller_dashboard_shows_work_queue_and_business_insights(self):
+        response = self.client.get(reverse("accounts:farmer_shop_center"))
+
+        self.assertContains(response, "ภาพรวมผลการขาย")
+        self.assertContains(response, "ที่ต้องจัดส่ง")
+        self.assertContains(response, "คำขอคืนเงิน / คืนสินค้า / ยกเลิก")
+        self.assertContains(response, "อัตราชำระสำเร็จ")
+        self.assertEqual(response.context["policy_issue_total"], 0)
+
+    def test_finance_income_tabs_and_transferred_period_totals(self):
+        buyer = User.objects.create_user(
+            username="finance-buyer",
+            password="pass12345",
+            role=User.Roles.CONSUMER,
+        )
+        order = Order.objects.create(
+            buyer=buyer,
+            seller=self.seller,
+            community=self.community,
+            reference="FINANCE-TRANSFERRED",
+            subtotal=Decimal("120.00"),
+            total_amount=Decimal("120.00"),
+            shipping_name="Finance buyer",
+            shipping_phone="0812345678",
+            shipping_address="Bangkok",
+            payment_status=Order.PaymentStatus.PAID,
+            status=Order.Status.COMPLETED,
+        )
+        payment = Payment.objects.create(
+            order=order,
+            amount=Decimal("120.00"),
+            status=Payment.Status.PAID,
+            provider=Payment.Provider.STRIPE,
+        )
+        SellerSettlement.objects.create(
+            payment=payment,
+            seller=self.seller,
+            gross_amount=Decimal("120.00"),
+            net_amount=Decimal("100.00"),
+            status=SellerSettlement.Status.TRANSFERRED,
+            transferred_at=timezone.now() - timedelta(days=1),
+        )
+
+        response = self.client.get(f"{reverse('accounts:farmer_shop_center')}?section=finance")
+
+        self.assertEqual(response.context["income_status"], "transferred")
+        self.assertEqual(response.context["income_period"], "week")
+        self.assertContains(response, "รอดำเนินการ")
+        self.assertContains(response, "สัปดาห์นี้")
+        self.assertContains(response, "เดือนนี้")
+        self.assertContains(response, "FINANCE-TRANSFERRED")
+        self.assertContains(response, "ช่องทางการรับเงิน")
+        self.assertEqual(response.context["transferred_this_week_total"], Decimal("100.00"))
+        self.assertEqual(response.context["transferred_this_month_total"], Decimal("100.00"))
+
+        pending = self.client.get(
+            f"{reverse('accounts:farmer_shop_center')}?section=finance&income_status=pending"
+        )
+        self.assertNotContains(pending, "FINANCE-TRANSFERRED")
+        self.assertContains(pending, "เริ่มดำเนินการเมื่อ")
+
+        statement = self.client.get(
+            f"{reverse('accounts:income_statement')}?income_status=transferred&income_period=week"
+        )
+        self.assertContains(statement, "ใบสรุปรายรับเพื่อประกอบการยื่นภาษี")
+        self.assertContains(statement, "FINANCE-TRANSFERRED")
 
     def test_store_details_displays_the_seller_avatar(self):
         self.seller.avatar = "avatars/store-details.jpg"
