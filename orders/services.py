@@ -1,8 +1,10 @@
+from datetime import timedelta
 from decimal import Decimal
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from accounts.models import AuditEvent
@@ -10,7 +12,7 @@ from accounts.services import notify_user
 from catalog.models import Product, StockMovement
 from catalog.services import notify_low_stock
 
-from .models import CouponRedemption, Order, OrderStatusHistory, ShippingRate
+from .models import CouponRedemption, Order, OrderStatusHistory, Shipment, ShippingRate
 
 
 ALLOWED_STATUS_TRANSITIONS = {
@@ -253,7 +255,7 @@ def change_order_status(order, new_status, changed_by, note="", carrier="", trac
         order.shipping_carrier = carrier
         order.tracking_number = tracking_number
         order.shipped_at = timezone.now()
-    elif new_status == Order.Status.COMPLETED:
+    elif new_status == Order.Status.COMPLETED and not order.delivered_at:
         order.delivered_at = timezone.now()
     elif new_status == Order.Status.CANCELLED:
         if order.payment_status == Order.PaymentStatus.PAID:
@@ -336,3 +338,60 @@ def ship_order(order, changed_by, carrier, tracking_number):
         carrier=carrier,
         tracking_number=tracking_number,
     )
+
+
+def complete_delivered_orders(limit=100):
+    """Complete carrier-delivered orders after the buyer's confirmation window."""
+    from payments.models import Refund
+
+    cutoff = timezone.now() - timedelta(days=settings.DELIVERY_CONFIRMATION_DAYS)
+    refundable_statuses = [
+        Refund.Status.REQUESTED,
+        Refund.Status.PROCESSING,
+        Refund.Status.FAILED,
+    ]
+    order_ids = (
+        Order.objects.filter(
+            status=Order.Status.SHIPPED,
+            shipment__status="Delivered",
+        )
+        .filter(
+            Q(delivered_at__lte=cutoff)
+            | Q(
+                delivered_at__isnull=True,
+                shipment__provider_updated_at__lte=cutoff,
+            )
+        )
+        .exclude(payment__refunds__status__in=refundable_statuses)
+        .order_by("delivered_at", "shipment__provider_updated_at")
+        .values_list("pk", flat=True)[:limit]
+    )
+    completed = 0
+    for order_id in order_ids:
+        with transaction.atomic():
+            order = Order.objects.select_for_update().get(pk=order_id)
+            shipment = Shipment.objects.select_for_update().filter(order=order).first()
+            if (
+                not shipment
+                or order.status != Order.Status.SHIPPED
+                or shipment.status != "Delivered"
+                or Refund.objects.filter(
+                    payment__order=order,
+                    status__in=refundable_statuses,
+                ).exists()
+            ):
+                continue
+            delivered_at = order.delivered_at or shipment.provider_updated_at
+            if not delivered_at or delivered_at > cutoff:
+                continue
+            if not order.delivered_at:
+                order.delivered_at = delivered_at
+                order.save(update_fields=["delivered_at", "updated_at"])
+            change_order_status(
+                order,
+                Order.Status.COMPLETED,
+                changed_by=None,
+                note="ระบบปิดคำสั่งซื้ออัตโนมัติหลังขนส่งนำจ่ายแล้ว",
+            )
+            completed += 1
+    return completed

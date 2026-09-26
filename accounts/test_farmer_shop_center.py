@@ -43,14 +43,18 @@ class FarmerShopCenterTests(TestCase):
             stock_quantity=Decimal("10.00"),
             status=Product.Status.ACTIVE,
         )
-        reviewer = User.objects.create_user(
+        self.reviewer = User.objects.create_user(
             username="shop-reviewer",
             password="pass12345",
             role=User.Roles.CONSUMER,
         )
+        self.reviewer.avatar = "avatars/shop-reviewer.jpg"
+        self.reviewer.save(update_fields=["avatar"])
+        self.product.image = "products/review-product.jpg"
+        self.product.save(update_fields=["image"])
         ProductReview.objects.create(
             product=self.product,
-            user=reviewer,
+            user=self.reviewer,
             rating=5,
             comment="ผักสดมาก",
         )
@@ -62,6 +66,8 @@ class FarmerShopCenterTests(TestCase):
         reviews = self.client.get(f"{center_url}?section=service&mode=reviews")
         self.assertContains(reviews, "ผักสดมาก")
         self.assertContains(reviews, reverse("accounts:conversations"))
+        self.assertContains(reviews, self.reviewer.avatar.url)
+        self.assertContains(reviews, self.product.image.url)
 
         finance = self.client.get(f"{center_url}?section=finance&mode=bank")
         self.assertContains(finance, "Stripe Connect")

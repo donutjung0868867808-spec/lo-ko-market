@@ -6,6 +6,7 @@ import hmac
 import json
 import logging
 import uuid
+from datetime import timedelta
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -24,33 +25,118 @@ from .models import Order, Shipment, ShipmentEvent
 
 logger = logging.getLogger(__name__)
 AFTERSHIP_TRACKINGS_URL = "https://api.aftership.com/tracking/2026-07/trackings"
+AFTERSHIP_CARRIER_SLUGS = {
+    "thailand post": "thailand-post",
+    "ไปรษณีย์ไทย": "thailand-post",
+    "j&t express": "jtexpress",
+    "j and t express": "jtexpress",
+    "kerry express": "kerry-logistics",
+    "spx express": "spx-th",
+    "shopee express": "spx-th",
+}
+
+
+def aftership_carrier_slug(carrier):
+    normalized = " ".join((carrier or "").casefold().split())
+    return AFTERSHIP_CARRIER_SLUGS.get(normalized, "")
+
+
+def _record_registration_failure(shipment_id, error, retryable=True):
+    with transaction.atomic():
+        shipment = Shipment.objects.select_for_update().get(pk=shipment_id)
+        if shipment.provider_id:
+            return
+        shipment.attempts += 1
+        exhausted = not retryable or shipment.attempts >= settings.AFTERSHIP_MAX_ATTEMPTS
+        shipment.status = "Exception" if exhausted else "Pending"
+        shipment.last_error = str(error)[:255]
+        shipment.next_sync_at = (
+            None
+            if exhausted
+            else timezone.now()
+            + timedelta(minutes=min(2 ** shipment.attempts, 360))
+        )
+        shipment.save(
+            update_fields=[
+                "attempts",
+                "status",
+                "last_error",
+                "next_sync_at",
+                "updated_at",
+            ]
+        )
+    logger.warning("Unable to register AfterShip tracking for shipment %s: %s", shipment_id, error)
 
 
 def register_aftership_tracking(order_id):
     """Register a shipped order when automatic AfterShip tracking is configured."""
     if not settings.AFTERSHIP_API_KEY:
-        return
+        return False
 
-    order = Order.objects.filter(
-        pk=order_id,
-        status__in=[Order.Status.SHIPPED, Order.Status.COMPLETED],
-    ).first()
-    if not order or not order.tracking_number:
-        return
+    now = timezone.now()
+    with transaction.atomic():
+        order = (
+            Order.objects.select_for_update()
+            .filter(
+                pk=order_id,
+                status__in=[Order.Status.SHIPPED, Order.Status.COMPLETED],
+            )
+            .first()
+        )
+        if not order or not order.tracking_number:
+            return False
 
-    shipment = Shipment.objects.filter(order=order).first()
-    if shipment and shipment.tracking_number == order.tracking_number and shipment.provider_id:
-        return
+        carrier_slug = aftership_carrier_slug(order.shipping_carrier)
+        shipment, _ = Shipment.objects.select_for_update().get_or_create(
+            order=order,
+            defaults={
+                "tracking_number": order.tracking_number,
+                "carrier_slug": carrier_slug,
+                "next_sync_at": now,
+            },
+        )
+        if shipment.tracking_number != order.tracking_number:
+            shipment.tracking_number = order.tracking_number
+            shipment.carrier_slug = carrier_slug
+            shipment.provider_id = ""
+            shipment.status = "Pending"
+            shipment.checkpoints = []
+            shipment.provider_updated_at = None
+            shipment.attempts = 0
+            shipment.last_error = ""
+        if shipment.provider_id:
+            return True
+        if shipment.next_sync_at and shipment.next_sync_at > now:
+            return False
+        shipment.carrier_slug = carrier_slug
+        # A short lease prevents the cron job and the on-commit callback from
+        # submitting the same tracking number concurrently.
+        shipment.next_sync_at = now + timedelta(minutes=5)
+        shipment.save(
+            update_fields=[
+                "tracking_number",
+                "carrier_slug",
+                "provider_id",
+                "status",
+                "checkpoints",
+                "provider_updated_at",
+                "attempts",
+                "last_error",
+                "next_sync_at",
+                "updated_at",
+            ]
+        )
 
-    payload = json.dumps(
-        {
-            "tracking_number": order.tracking_number,
-            "title": order.reference,
-            "order_id": order.reference,
-            "order_number": order.reference,
-            "shipment_direction": "forward",
-        }
-    ).encode("utf-8")
+    payload_data = {
+        "tracking_number": order.tracking_number,
+        "title": order.reference,
+        "order_id": order.reference,
+        "order_number": order.reference,
+        "shipment_direction": "forward",
+    }
+    if carrier_slug:
+        payload_data["slug"] = carrier_slug
+    payload = json.dumps(payload_data).encode("utf-8")
     request = Request(
         AFTERSHIP_TRACKINGS_URL,
         data=payload,
@@ -64,25 +150,43 @@ def register_aftership_tracking(order_id):
         with urlopen(request, timeout=settings.AFTERSHIP_REQUEST_TIMEOUT_SECONDS) as response:
             response_data = json.loads(response.read().decode("utf-8"))
     except (HTTPError, URLError, OSError, ValueError) as exc:
-        logger.warning("Unable to register AfterShip tracking for order %s: %s", order.pk, exc)
-        return
+        retryable = not isinstance(exc, HTTPError) or exc.code == 429 or exc.code >= 500
+        _record_registration_failure(shipment.pk, exc, retryable=retryable)
+        return False
 
     tracking = response_data.get("data", {}).get("tracking") or response_data.get("tracking") or response_data.get("data", {})
     provider_id = str(tracking.get("id") or "")[:128] if isinstance(tracking, dict) else ""
     carrier_slug = str(tracking.get("slug") or "")[:120] if isinstance(tracking, dict) else ""
     if not provider_id:
-        logger.warning("AfterShip did not return a tracking id for order %s", order.pk)
-        return
+        _record_registration_failure(
+            shipment.pk,
+            "AfterShip did not return a tracking id",
+            retryable=False,
+        )
+        return False
 
-    shipment, _ = Shipment.objects.get_or_create(
-        order=order,
-        defaults={"tracking_number": order.tracking_number},
-    )
-    shipment.tracking_number = order.tracking_number
-    shipment.provider_id = provider_id
-    shipment.carrier_slug = carrier_slug
-    shipment.status = str(tracking.get("tag") or "Pending")[:40]
-    shipment.save(update_fields=["tracking_number", "provider_id", "carrier_slug", "status", "updated_at"])
+    with transaction.atomic():
+        shipment = Shipment.objects.select_for_update().get(pk=shipment.pk)
+        if shipment.tracking_number != order.tracking_number:
+            return False
+        shipment.provider_id = provider_id
+        shipment.carrier_slug = carrier_slug
+        shipment.status = str(tracking.get("tag") or "Pending")[:40]
+        shipment.attempts = 0
+        shipment.last_error = ""
+        shipment.next_sync_at = None
+        shipment.save(
+            update_fields=[
+                "provider_id",
+                "carrier_slug",
+                "status",
+                "attempts",
+                "last_error",
+                "next_sync_at",
+                "updated_at",
+            ]
+        )
+    return True
 
 
 def register_pending_aftership_trackings(batch_size=100):
@@ -90,10 +194,16 @@ def register_pending_aftership_trackings(batch_size=100):
     if not settings.AFTERSHIP_API_KEY:
         return 0
 
+    now = timezone.now()
     order_ids = Order.objects.filter(
         status__in=[Order.Status.SHIPPED, Order.Status.COMPLETED],
     ).exclude(tracking_number="").filter(
-        Q(shipment__isnull=True) | Q(shipment__provider_id="")
+        Q(shipment__isnull=True)
+        | (
+            Q(shipment__provider_id="")
+            & Q(shipment__status="Pending")
+            & (Q(shipment__next_sync_at__isnull=True) | Q(shipment__next_sync_at__lte=now))
+        )
     ).values_list("pk", flat=True)[:batch_size]
     registered = 0
     for order_id in order_ids:
@@ -115,8 +225,6 @@ def apply_tracking_event(event):
     updated = parse_datetime(payload.get("updated_at") or "")
     if not updated or timezone.is_naive(updated):
         raise ValueError("Tracking timestamp must include a timezone")
-    if ShipmentEvent.objects.filter(event_id=event_id).exists():
-        return
     shipments = Shipment.objects.filter(provider_id=provider_id).exclude(provider_id="")
     shipment = shipments.first()
     if shipment:
@@ -138,13 +246,19 @@ def apply_tracking_event(event):
         shipment.provider_updated_at = None
         shipment.status = "Pending"
         shipment.checkpoints = []
+        shipment.attempts = 0
+        shipment.last_error = ""
+        shipment.next_sync_at = timezone.now()
     if order.tracking_number != number or shipment.tracking_number != number:
         raise ValueError("Tracking number does not match")
     if shipment.provider_id and shipment.provider_id != provider_id:
         raise ValueError("Tracking provider ID does not match")
-    if ShipmentEvent.objects.filter(event_id=event_id).exists():
+    _, created = ShipmentEvent.objects.get_or_create(
+        event_id=event_id,
+        defaults={"shipment": shipment},
+    )
+    if not created:
         return
-    ShipmentEvent.objects.create(shipment=shipment, event_id=event_id)
     if shipment.provider_updated_at and updated <= shipment.provider_updated_at:
         return
     points = payload.get("checkpoints") or []
@@ -161,8 +275,10 @@ def apply_tracking_event(event):
     } for point in points[-100:] if isinstance(point, dict)]
     shipment.provider_updated_at = updated
     shipment.save()
+    if shipment.status == "Delivered" and not order.delivered_at:
+        order.delivered_at = updated
+        order.save(update_fields=["delivered_at", "updated_at"])
     if previous != shipment.status:
-        # Delivery by the carrier does not replace buyer acceptance or release funds.
         notify_user(order.buyer, f"พัสดุ {order.reference}", shipment.status_label,
                     order.get_absolute_url(), send_email_message=False)
 

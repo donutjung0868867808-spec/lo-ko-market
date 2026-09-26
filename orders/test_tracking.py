@@ -3,13 +3,17 @@ import hashlib
 import hmac
 import json
 import uuid
+from datetime import timedelta
+from urllib.error import URLError
 from unittest.mock import MagicMock, patch
 
 from django.test import TestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 
 from accounts.models import Community, Notification, User
 from .models import Order, Shipment, ShipmentEvent
+from .services import complete_delivered_orders
 from .tracking import register_aftership_tracking, register_pending_aftership_trackings
 
 
@@ -96,6 +100,7 @@ class TrackingWebhookTests(TestCase):
             json.loads(request.data),
             {
                 "tracking_number": "TH123",
+                "slug": "thailand-post",
                 "title": self.order.reference,
                 "order_id": self.order.reference,
                 "order_number": self.order.reference,
@@ -113,3 +118,27 @@ class TrackingWebhookTests(TestCase):
         self.assertEqual(register_pending_aftership_trackings(), 1)
         self.assertEqual(register_pending_aftership_trackings(), 0)
         self.assertEqual(urlopen.call_count, 1)
+
+    @override_settings(AFTERSHIP_API_KEY="aftership-test-key")
+    @patch("orders.tracking.urlopen", side_effect=URLError("temporarily unavailable"))
+    def test_failed_registration_uses_backoff_before_retrying(self, urlopen):
+        self.assertFalse(register_aftership_tracking(self.order.pk))
+
+        shipment = Shipment.objects.get(order=self.order)
+        self.assertEqual(shipment.attempts, 1)
+        self.assertEqual(shipment.status, "Pending")
+        self.assertTrue(shipment.last_error)
+        self.assertGreater(shipment.next_sync_at, timezone.now())
+        self.assertEqual(register_pending_aftership_trackings(), 0)
+        self.assertEqual(urlopen.call_count, 1)
+
+    @override_settings(DELIVERY_CONFIRMATION_DAYS=7)
+    def test_delivered_order_is_completed_after_confirmation_window(self):
+        delivered_at = timezone.now() - timedelta(days=8)
+        event = self.event("Delivered", delivered_at.isoformat().replace("+00:00", "Z"))
+        self.assertEqual(self.post(event).status_code, 200)
+
+        self.assertEqual(complete_delivered_orders(), 1)
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.status, Order.Status.COMPLETED)
+        self.assertEqual(self.order.delivered_at, delivered_at)

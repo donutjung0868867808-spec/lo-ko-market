@@ -74,6 +74,9 @@ class Shipment(models.Model):
     status = models.CharField(max_length=40, default="Pending")
     checkpoints = models.JSONField(default=list, blank=True)
     provider_updated_at = models.DateTimeField(null=True, blank=True)
+    next_sync_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    attempts = models.PositiveIntegerField(default=0)
+    last_error = models.CharField(max_length=255, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     @property

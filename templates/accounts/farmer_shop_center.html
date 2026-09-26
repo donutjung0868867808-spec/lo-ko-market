@@ -30,6 +30,52 @@
     padding: 1rem;
   }
 
+  .income-pending-metrics .income-summary-tile > p:last-child {
+    position: absolute;
+    top: 50%;
+    right: 1rem;
+    left: 1rem;
+    align-self: center;
+    transform: translateY(-50%);
+    text-align: center;
+  }
+
+  .income-pending-metrics .income-summary-tile {
+    position: relative;
+  }
+
+  .shop-review-entry {
+    display: grid;
+    grid-template-columns: 3rem minmax(0, 1fr) 4.5rem;
+    gap: 1rem;
+  }
+
+  .shop-review-avatar {
+    display: grid;
+    width: 3rem;
+    height: 3rem;
+    place-items: center;
+    overflow: hidden;
+    border: 1px solid rgb(167 243 208);
+    border-radius: 9999px;
+    background: rgb(236 253 245);
+    color: rgb(4 120 87);
+    font-size: 1rem;
+    font-weight: 700;
+  }
+
+  .shop-review-product-image {
+    display: grid;
+    width: 4.5rem;
+    height: 4.5rem;
+    place-items: center;
+    overflow: hidden;
+    border: 1px solid rgb(231 229 228);
+    border-radius: 0.375rem;
+    background: rgb(250 250 249);
+    color: rgb(4 120 87);
+  }
+
   .balance-period-picker {
     position: relative;
   }
@@ -198,7 +244,7 @@
         <section class="space-y-5">
           <header class="flex flex-wrap items-center justify-between gap-4 border-b border-stone-300 pb-4"><div><p class="text-sm font-semibold text-leaf">การบริการลูกค้า</p><h1 class="mt-1 text-2xl font-semibold text-slate-950">รีวิวสินค้า</h1><p class="mt-1 text-sm text-slate-600">ดูความคิดเห็นจากผู้ซื้อเพื่อพัฒนาร้านค้าและสินค้า</p></div><a href="{% url 'accounts:conversations' %}" class="inline-flex h-10 items-center gap-2 rounded-md bg-leaf px-4 text-sm font-semibold text-white hover:bg-emerald-800"><i data-lucide="messages-square" class="h-4 w-4" aria-hidden="true"></i>จัดการแชทลูกค้า</a></header>
           <section class="grid gap-4 sm:grid-cols-2"><div class="rounded-lg border border-stone-200 bg-white p-5"><p class="text-sm text-slate-600">คะแนนเฉลี่ย</p><p class="mt-2 text-3xl font-semibold text-amber-600">{{ review_average|floatformat:1 }} <span class="text-base text-slate-500">/ 5</span></p></div><div class="rounded-lg border border-stone-200 bg-white p-5"><p class="text-sm text-slate-600">รีวิวทั้งหมด</p><p class="mt-2 text-3xl font-semibold">{{ review_total }}</p></div></section>
-          <div class="overflow-hidden rounded-lg border border-stone-200 bg-white"><div class="divide-y divide-stone-100">{% for review in shop_reviews %}<article class="px-5 py-5"><div class="flex flex-wrap items-start justify-between gap-3"><div><p class="font-semibold text-slate-950">{{ review.product.name }}</p><p class="mt-1 text-sm text-slate-600">{{ review.user.display_name|default:review.user.username }} · {{ review.created_at|date:"d/m/Y H:i" }}</p></div><span class="rounded-md bg-amber-50 px-2 py-1 text-sm font-semibold text-amber-700">{{ review.rating }}/5</span></div>{% if review.comment %}<p class="mt-3 text-sm leading-6 text-slate-700">{{ review.comment }}</p>{% else %}<p class="mt-3 text-sm text-slate-400">ผู้ซื้อไม่ได้เขียนความคิดเห็นเพิ่มเติม</p>{% endif %}</article>{% empty %}<div class="px-5 py-14 text-center text-sm text-slate-500">ยังไม่มีรีวิวสินค้า</div>{% endfor %}</div></div>
+          <div class="overflow-hidden rounded-lg border border-stone-200 bg-white"><div class="divide-y divide-stone-100">{% for review in shop_reviews %}<article class="px-5 py-5"><div class="shop-review-entry"><div class="shop-review-avatar" title="{{ review.user.display_name|default:review.user.username }}">{% if review.user.avatar %}<img class="h-full w-full object-cover" src="{{ review.user.avatar.url }}" alt="รูปโปรไฟล์ {{ review.user.display_name|default:review.user.username }}" loading="lazy">{% else %}{{ review.user.display_name|default:review.user.username|first|upper }}{% endif %}</div><div class="min-w-0"><div class="flex flex-wrap items-start justify-between gap-3"><div class="min-w-0"><p class="font-semibold text-slate-950">{{ review.user.display_name|default:review.user.username }}</p><p class="mt-1 text-sm text-slate-500">{{ review.created_at|date:"d/m/Y H:i" }}</p><p class="mt-2 truncate text-sm font-semibold text-slate-700">{{ review.product.name }}</p></div><span class="rounded-md bg-amber-50 px-2 py-1 text-sm font-semibold text-amber-700">{{ review.rating }}/5</span></div>{% if review.comment %}<p class="mt-3 text-sm leading-6 text-slate-700">{{ review.comment }}</p>{% else %}<p class="mt-3 text-sm text-slate-400">ผู้ซื้อไม่ได้เขียนความคิดเห็นเพิ่มเติม</p>{% endif %}</div><a href="{{ review.product.get_absolute_url }}" class="shop-review-product-image shrink-0" title="{{ review.product.name }}">{% if review.product.image %}<img class="h-full w-full object-cover" src="{{ review.product.image.url }}" alt="{{ review.product.name }}" loading="lazy">{% else %}<i data-lucide="package" class="h-6 w-6" aria-hidden="true"></i><span class="sr-only">ยังไม่มีรูปสินค้า</span>{% endif %}</a></div></article>{% empty %}<div class="px-5 py-14 text-center text-sm text-slate-500">ยังไม่มีรีวิวสินค้า</div>{% endfor %}</div></div>
         </section>
       {% elif shop_section == "finance" %}
         <section class="space-y-5">
@@ -312,8 +358,8 @@
                   <section>
                     <h3 class="text-base font-semibold text-slate-950">รอดำเนินการ</h3>
                     <div class="income-pending-metrics mt-4">
-                      <div class="income-summary-tile"><p class="text-sm text-slate-500">ยอดรอรับรวม</p><p class="text-3xl font-semibold text-amber-800">฿{{ pending_settlement_total|floatformat:2 }}</p><p class="text-sm text-slate-500">รอคำสั่งซื้อเข้าเงื่อนไข</p></div>
-                      <div class="income-summary-tile"><p class="text-sm text-slate-500">ยอดขายที่ชำระแล้ว</p><p class="text-3xl font-semibold text-leaf">฿{{ gross_sales|floatformat:2 }}</p><p class="text-sm text-slate-500">ยอดชำระสำเร็จสะสม</p></div>
+                      <div class="income-summary-tile"><p class="text-sm text-slate-500">ยอดขายที่ชำระแล้ว</p><p class="text-3xl font-semibold text-leaf">฿{{ gross_sales|floatformat:2 }}</p></div>
+                      <div class="income-summary-tile"><p class="text-sm text-slate-500">ยอดรอรับรวม</p><p class="text-3xl font-semibold text-amber-800">฿{{ pending_settlement_total|floatformat:2 }}</p></div>
                     </div>
                   </section>
                   <section>

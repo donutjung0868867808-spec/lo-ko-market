@@ -38,13 +38,17 @@ services:
       - key: PLATFORM_FEE_PERCENT
         value: "5.00"
       - key: SETTLEMENT_HOLD_DAYS
-        value: "2"
+        value: "7"
       - key: STRIPE_CONNECT_TRANSFERS_ENABLED
         value: "False"
       - key: PAYMENT_MODE
         value: "test"
       - key: SETTLEMENT_MAX_ATTEMPTS
         value: "5"
+      - key: DELIVERY_CONFIRMATION_DAYS
+        value: "7"
+      - key: AFTERSHIP_MAX_ATTEMPTS
+        value: "8"
       - key: TERMS_VERSION
         value: "2026-07"
       - key: PRIVACY_VERSION
@@ -189,6 +193,16 @@ services:
           type: web
           name: agri-market
           envVarKey: SETTLEMENT_MAX_ATTEMPTS
+      - key: DELIVERY_CONFIRMATION_DAYS
+        fromService:
+          type: web
+          name: agri-market
+          envVarKey: DELIVERY_CONFIRMATION_DAYS
+      - key: AFTERSHIP_MAX_ATTEMPTS
+        fromService:
+          type: web
+          name: agri-market
+          envVarKey: AFTERSHIP_MAX_ATTEMPTS
       - key: ORDER_RESERVATION_MINUTES
         fromService:
           type: web
