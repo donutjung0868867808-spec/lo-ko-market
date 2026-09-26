@@ -3,7 +3,7 @@
 {% block title %}สนทนากับ {{ other_participant }}{% endblock %}
 
 {% block content %}
-<section class="mx-auto flex w-full max-w-4xl flex-col overflow-hidden rounded-md border border-stone-200 bg-white shadow-sm" style="min-height: calc(100vh - 190px);">
+<section class="chat-thread mx-auto flex w-full max-w-4xl flex-col overflow-hidden rounded-md border border-stone-200 bg-white shadow-sm" style="min-height: calc(100vh - 190px);">
   <header class="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 px-4 py-4 sm:px-6">
     <div class="flex min-w-0 items-center gap-3">
       <a class="grid h-10 w-10 shrink-0 place-items-center rounded-md border border-stone-200 text-slate-700" href="{% url 'accounts:conversations' %}" title="กลับไปกล่องข้อความ" aria-label="กลับไปกล่องข้อความ"><i data-lucide="arrow-left" class="h-5 w-5" aria-hidden="true"></i></a>
@@ -28,7 +28,16 @@
       <article class="live-chat-row {% if item.sender_id == user.id %}is-own{% endif %}">
         <span class="live-chat-avatar" title="{{ item.sender.display_name|default:item.sender.username }}">{% if item.sender.avatar %}<img src="{{ item.sender.avatar.url }}" alt="">{% else %}{{ item.sender.display_name|default:item.sender.username|first|upper }}{% endif %}</span>
         <div class="live-chat-bubble {% if item.sender_id == user.id %}bg-leaf text-white{% else %}border border-stone-200 bg-white text-slate-900{% endif %}">
-          <p class="whitespace-pre-wrap break-words text-sm leading-6">{{ item.body }}</p>
+          {% if item.attachment %}
+            <a class="live-chat-media-link" href="{% url 'accounts:conversation_media' item.pk %}" target="_blank" rel="noopener" aria-label="เปิด{{ item.get_media_type_display }}แบบเต็ม">
+              {% if item.media_type == 'video' %}
+                <video class="live-chat-media" controls preload="metadata" src="{% url 'accounts:conversation_media' item.pk %}"></video>
+              {% else %}
+                <img class="live-chat-media" src="{% url 'accounts:conversation_media' item.pk %}" alt="รูปภาพที่ส่งในแชท">
+              {% endif %}
+            </a>
+          {% endif %}
+          {% if item.body %}<p class="whitespace-pre-wrap break-words text-sm leading-6">{{ item.body }}</p>{% endif %}
           <time class="mt-1 block text-right text-[11px] {% if item.sender_id == user.id %}text-emerald-100{% else %}text-slate-400{% endif %}" datetime="{{ item.created_at|date:'c' }}">{{ item.created_at|date:"d/m/Y H:i" }}</time>
         </div>
       </article>
@@ -38,14 +47,31 @@
   </div>
 
   {% if can_send %}
-    <form method="post" class="border-t border-stone-200 bg-white p-4 sm:p-5" id="message-form">
+    <form method="post" enctype="multipart/form-data" class="chat-composer border-t border-stone-200 bg-white p-3 sm:p-4" id="message-form" data-media-upload-url="{% url 'accounts:conversation_media_upload' conversation.pk %}">
       {% csrf_token %}
       <label class="sr-only" for="{{ form.body.id_for_label }}">ข้อความ</label>
-      <div class="flex items-end gap-3">{{ form.body }}<button class="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-leaf text-white hover:bg-emerald-800" type="submit" title="ส่งข้อความ" aria-label="ส่งข้อความ"><i data-lucide="send" class="h-5 w-5" aria-hidden="true"></i></button></div>
+      <div class="chat-composer__preview" data-chat-media-preview hidden></div>
+      <div class="chat-composer__row">
+        <div class="chat-composer__attachment">
+          <button class="chat-composer__icon" type="button" data-chat-menu-toggle title="แนบรูปภาพหรือวิดีโอ" aria-label="แนบรูปภาพหรือวิดีโอ" aria-expanded="false"><i data-lucide="plus" aria-hidden="true"></i></button>
+          <div class="chat-composer__menu" data-chat-menu hidden>
+            <label class="chat-composer__menu-button" title="เลือกรูปภาพ" aria-label="เลือกรูปภาพ"><i data-lucide="image" aria-hidden="true"></i><input class="sr-only" type="file" name="attachment" accept="image/jpeg,image/png,image/webp" multiple data-chat-image-input></label>
+            <label class="chat-composer__menu-button" title="เลือกวิดีโอ" aria-label="เลือกวิดีโอ"><i data-lucide="video" aria-hidden="true"></i><input class="sr-only" type="file" accept="video/mp4,video/quicktime,video/webm" multiple data-chat-video-input></label>
+            <button class="chat-composer__menu-button" type="button" data-chat-camera-open title="เปิดกล้อง" aria-label="เปิดกล้อง"><i data-lucide="camera" aria-hidden="true"></i></button>
+          </div>
+        </div>
+        <div class="chat-composer__input">{{ form.body }}</div>
+        <button class="chat-composer__send" type="submit" title="ส่งข้อความ" aria-label="ส่งข้อความ"><i data-lucide="send" aria-hidden="true"></i></button>
+      </div>
       {% for error in form.body.errors %}<p class="mt-2 text-sm text-red-700">{{ error }}</p>{% endfor %}
+      {% for error in form.attachment.errors %}<p class="mt-2 text-sm text-red-700">{{ error }}</p>{% endfor %}
       {% for error in form.non_field_errors %}<p class="mt-2 text-sm text-red-700">{{ error }}</p>{% endfor %}
-      <p class="mt-2 text-xs text-slate-500">ส่งได้ไม่เกิน 12 ข้อความต่อนาที</p>
     </form>
+    <dialog class="chat-camera-dialog" data-chat-camera-dialog aria-label="กล้อง">
+      <div class="chat-camera-dialog__header"><strong>กล้อง</strong><button type="button" data-chat-camera-close title="ปิดกล้อง" aria-label="ปิดกล้อง"><i data-lucide="x" aria-hidden="true"></i></button></div>
+      <video class="chat-camera-dialog__preview" data-chat-camera-preview autoplay muted playsinline></video>
+      <div class="chat-camera-dialog__actions"><button type="button" data-chat-camera-capture title="ถ่ายรูป" aria-label="ถ่ายรูป"><i data-lucide="camera" aria-hidden="true"></i></button><button type="button" data-chat-camera-record title="เริ่มบันทึกวิดีโอ" aria-label="เริ่มบันทึกวิดีโอ"><i data-lucide="circle" aria-hidden="true"></i></button></div>
+    </dialog>
   {% endif %}
 </section>
 {% include "accounts/_realtime_chat.html" with chat_kind="direct" chat_id=conversation.pk message_list="message-list" form_selector="#message-form" %}

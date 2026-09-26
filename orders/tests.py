@@ -3,10 +3,10 @@ from decimal import Decimal
 from django.test import TestCase
 from django.urls import reverse
 
-from accounts.models import Community, Report, User
+from accounts.models import Community, FarmerProfile, Report, User
 from catalog.models import Product
 
-from .models import Coupon, Order, OrderItem, OrderStatusHistory, ShippingRate
+from .models import Order, OrderItem, OrderStatusHistory, Shipment, ShippingRate
 
 
 class OrderModelTests(TestCase):
@@ -53,6 +53,72 @@ class OrderModelTests(TestCase):
         self.assertEqual(order.total_amount, Decimal("240.00"))
 
 
+class SellerShipmentWorkflowTests(TestCase):
+    def setUp(self):
+        self.community = Community.objects.create(name="Shipment community", slug="shipment-community", province="Nan")
+        self.buyer = User.objects.create_user(username="shipment-buyer", password="pass")
+        self.seller = User.objects.create_user(username="shipment-seller", password="pass", role=User.Roles.FARMER)
+        self.order = Order.objects.create(
+            buyer=self.buyer,
+            seller=self.seller,
+            community=self.community,
+            status=Order.Status.PAID,
+            payment_status=Order.PaymentStatus.PAID,
+            shipping_name="Buyer",
+            shipping_phone="0800000000",
+            shipping_address="Buyer address",
+        )
+
+    def test_seller_can_ship_a_paid_order_in_one_step(self):
+        self.client.force_login(self.seller)
+
+        response = self.client.post(
+            reverse("orders:seller_ship_order", args=[self.order.pk]),
+            {"shipping_carrier": "SPX Express", "tracking_number": "th123456789"},
+        )
+
+        self.assertRedirects(response, f"{reverse('accounts:farmer_shop_center')}?section=orders&status=preparing")
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.status, Order.Status.SHIPPED)
+        self.assertEqual(self.order.shipping_carrier, "SPX Express")
+        self.assertEqual(self.order.tracking_number, "TH123456789")
+        self.assertEqual(
+            list(OrderStatusHistory.objects.filter(order=self.order).values_list("status", flat=True)),
+            [Order.Status.CONFIRMED, Order.Status.PREPARING, Order.Status.SHIPPED],
+        )
+
+    def test_shop_center_shows_quick_shipment_form_for_paid_order(self):
+        FarmerProfile.objects.create(
+            user=self.seller,
+            community=self.community,
+            farm_name="Shipment farm",
+        )
+        self.client.force_login(self.seller)
+
+        response = self.client.get(
+            f"{reverse('accounts:farmer_shop_center')}?section=orders&status=preparing"
+        )
+
+        self.assertContains(response, reverse("orders:seller_ship_order", args=[self.order.pk]))
+        self.assertContains(response, "แจ้งจัดส่งพัสดุ")
+
+    def test_seller_status_page_uses_the_same_quick_shipment_form(self):
+        self.client.force_login(self.seller)
+
+        response = self.client.get(reverse("orders:order_update_status", args=[self.order.pk]))
+        self.assertContains(response, "กรอกเลขพัสดุ 1 ครั้ง")
+        self.assertNotContains(response, "หมายเหตุ")
+
+        response = self.client.post(
+            reverse("orders:order_update_status", args=[self.order.pk]),
+            {"shipping_carrier": "Flash Express", "tracking_number": "fl123456"},
+        )
+
+        self.assertRedirects(response, self.order.get_absolute_url())
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.status, Order.Status.SHIPPED)
+
+
 class CartWorkflowTests(TestCase):
     def setUp(self):
         self.community = Community.objects.create(
@@ -89,6 +155,256 @@ class CartWorkflowTests(TestCase):
             reverse("orders:cart_add", args=[self.product.pk]),
             {"quantity": "2"},
         )
+
+        self.assertRedirects(response, reverse("orders:cart"))
+        self.assertEqual(self.client.session["cart"][str(self.product.pk)], "2.00")
+
+        cart_response = self.client.get(reverse("orders:cart"))
+        self.assertContains(cart_response, 'data-cart-count="1"', html=False)
+
+    def test_seller_can_buy_from_another_store_with_the_same_account(self):
+        seller_buyer = User.objects.create_user(
+            username="seller-who-buys",
+            password="pass",
+            role=User.Roles.FARMER,
+        )
+        self.client.force_login(seller_buyer)
+
+        response = self.client.post(
+            reverse("orders:cart_add", args=[self.product.pk]),
+            {"quantity": "2"},
+        )
+
+        self.assertRedirects(response, reverse("orders:cart"))
+        self.assertEqual(self.client.session["cart"][str(self.product.pk)], "2.00")
+
+    def test_seller_cannot_add_own_product_to_cart(self):
+        self.client.force_login(self.seller)
+
+        response = self.client.post(
+            reverse("orders:cart_add", args=[self.product.pk]),
+            {"quantity": "2"},
+        )
+
+        self.assertRedirects(response, self.product.get_absolute_url())
+        self.assertNotIn(str(self.product.pk), self.client.session.get("cart", {}))
+
+    def test_seller_order_history_shows_purchases_instead_of_store_sales(self):
+        seller_buyer = User.objects.create_user(
+            username="seller-order-history",
+            password="pass",
+            role=User.Roles.FARMER,
+        )
+        purchase = Order.objects.create(
+            reference="PURCHASE-AS-BUYER",
+            buyer=seller_buyer,
+            seller=self.seller,
+            community=self.community,
+            shipping_name="Buyer",
+            shipping_phone="0800000000",
+            shipping_address="Buyer address",
+        )
+        OrderItem.objects.create(
+            order=purchase,
+            product=self.product,
+            product_name=self.product.name,
+            unit=self.product.unit,
+            quantity=Decimal("1.00"),
+            unit_price=self.product.price,
+        )
+        store_sale = Order.objects.create(
+            reference="SALE-AS-SELLER",
+            buyer=self.buyer,
+            seller=seller_buyer,
+            community=self.community,
+            shipping_name="Another buyer",
+            shipping_phone="0800000001",
+            shipping_address="Another address",
+        )
+        OrderItem.objects.create(
+            order=store_sale,
+            product=self.product,
+            product_name="Store product",
+            unit=Product.Unit.KG,
+            quantity=Decimal("1.00"),
+            unit_price=Decimal("20.00"),
+        )
+        self.client.force_login(seller_buyer)
+
+        response = self.client.get(reverse("orders:order_list"))
+
+        self.assertContains(response, "PURCHASE-AS-BUYER")
+        self.assertNotContains(response, "SALE-AS-SELLER")
+        self.assertContains(response, "การซื้อของฉัน")
+
+    def test_buyer_order_history_shows_product_image(self):
+        self.product.image = "products/order-history-image.jpg"
+        self.product.save(update_fields=["image"])
+        order = Order.objects.create(
+            buyer=self.buyer,
+            seller=self.seller,
+            community=self.community,
+            shipping_name="Buyer",
+            shipping_phone="0800000000",
+            shipping_address="Buyer address",
+        )
+        OrderItem.objects.create(
+            order=order,
+            product=self.product,
+            product_name=self.product.name,
+            unit=self.product.unit,
+            quantity=Decimal("1.00"),
+            unit_price=self.product.price,
+        )
+        self.client.force_login(self.buyer)
+
+        response = self.client.get(reverse("orders:order_list"))
+
+        self.assertContains(response, self.product.image.url)
+        self.assertContains(response, self.product.name)
+        self.assertContains(
+            response,
+            self.seller.display_name or self.seller.username,
+        )
+        self.assertContains(response, order.reference)
+
+        detail_response = self.client.get(order.get_absolute_url())
+        self.assertContains(detail_response, self.product.image.url)
+
+    def test_buyer_order_history_shows_linked_store_profile(self):
+        self.seller.avatar = "avatars/order-history-store.jpg"
+        self.seller.save(update_fields=["avatar"])
+        FarmerProfile.objects.create(
+            user=self.seller,
+            community=self.community,
+            farm_name="สวนข้าวโพดทดสอบ",
+        )
+        order = Order.objects.create(
+            buyer=self.buyer,
+            seller=self.seller,
+            community=self.community,
+            shipping_name="Buyer",
+            shipping_phone="0800000000",
+            shipping_address="Buyer address",
+        )
+        OrderItem.objects.create(
+            order=order,
+            product=self.product,
+            product_name=self.product.name,
+            unit=self.product.unit,
+            quantity=Decimal("1.00"),
+            unit_price=self.product.price,
+        )
+        self.client.force_login(self.buyer)
+
+        response = self.client.get(reverse("orders:order_list"))
+
+        self.assertContains(response, "สวนข้าวโพดทดสอบ")
+        self.assertContains(response, self.seller.avatar.url)
+        self.assertContains(response, reverse("catalog:seller_store", args=[self.seller.pk]))
+
+    def test_buyer_can_open_shopee_style_tracking_timeline(self):
+        order = Order.objects.create(
+            buyer=self.buyer,
+            seller=self.seller,
+            community=self.community,
+            status=Order.Status.SHIPPED,
+            payment_status=Order.PaymentStatus.PAID,
+            shipping_carrier="Thailand Post",
+            tracking_number="TH123456789",
+            shipping_name="Buyer",
+            shipping_phone="0800000000",
+            shipping_address="Buyer address",
+        )
+        Shipment.objects.create(
+            order=order,
+            tracking_number=order.tracking_number,
+            status="InTransit",
+            checkpoints=[{"message": "พัสดุกำลังเดินทาง", "location": "นครปฐม", "time": "2026-09-24T14:00:00Z"}],
+        )
+        self.client.force_login(self.buyer)
+
+        list_response = self.client.get(reverse("orders:order_list"))
+        response = self.client.get(reverse("orders:order_tracking", args=[order.pk]))
+
+        self.assertContains(list_response, reverse("orders:order_tracking", args=[order.pk]))
+        self.assertContains(response, "รายละเอียดการจัดส่ง")
+        self.assertContains(response, "อยู่ระหว่างขนส่ง")
+        self.assertContains(response, "พัสดุกำลังเดินทาง")
+
+    def test_paid_order_shows_shipping_status_before_seller_adds_tracking_number(self):
+        order = Order.objects.create(
+            buyer=self.buyer,
+            seller=self.seller,
+            community=self.community,
+            status=Order.Status.PAID,
+            payment_status=Order.PaymentStatus.PAID,
+            shipping_name="Buyer",
+            shipping_phone="0800000000",
+            shipping_address="Buyer address",
+        )
+        self.client.force_login(self.buyer)
+
+        response = self.client.get(reverse("orders:order_list"))
+
+        self.assertContains(response, "ผู้ขายกำลังเตรียมจัดส่ง")
+        self.assertContains(response, reverse("orders:order_tracking", args=[order.pk]))
+
+    def test_buyer_order_history_can_expand_additional_products(self):
+        additional_product = Product.objects.create(
+            seller=self.seller,
+            community=self.community,
+            name="Additional product",
+            description="Second product in an order.",
+            price=Decimal("20.00"),
+            stock_quantity=Decimal("10.00"),
+            status=Product.Status.ACTIVE,
+        )
+        order = Order.objects.create(
+            buyer=self.buyer,
+            seller=self.seller,
+            community=self.community,
+            shipping_name="Buyer",
+            shipping_phone="0800000000",
+            shipping_address="Buyer address",
+        )
+        for product in (self.product, additional_product):
+            OrderItem.objects.create(
+                order=order,
+                product=product,
+                product_name=product.name,
+                unit=product.unit,
+                quantity=Decimal("1.00"),
+                unit_price=product.price,
+            )
+        self.client.force_login(self.buyer)
+
+        response = self.client.get(reverse("orders:order_list"))
+
+        self.assertContains(response, "ดูเพิ่มเติม")
+        self.assertContains(response, "สินค้ารวม 2 รายการ")
+        self.assertContains(response, additional_product.name)
+
+    def test_buyer_can_add_an_order_to_cart_again(self):
+        order = Order.objects.create(
+            buyer=self.buyer,
+            seller=self.seller,
+            community=self.community,
+            shipping_name="Buyer",
+            shipping_phone="0800000000",
+            shipping_address="Buyer address",
+        )
+        OrderItem.objects.create(
+            order=order,
+            product=self.product,
+            product_name=self.product.name,
+            unit=self.product.unit,
+            quantity=Decimal("2.00"),
+            unit_price=self.product.price,
+        )
+        self.client.force_login(self.buyer)
+
+        response = self.client.post(reverse("orders:order_reorder", args=[order.pk]))
 
         self.assertRedirects(response, reverse("orders:cart"))
         self.assertEqual(self.client.session["cart"][str(self.product.pk)], "2.00")
@@ -160,6 +476,113 @@ class CartWorkflowTests(TestCase):
         self.product.refresh_from_db()
         self.assertEqual(self.product.stock_quantity, Decimal("7.00"))
         self.assertEqual(self.client.session.get("cart"), {})
+
+    def test_cart_checkout_only_orders_selected_products(self):
+        other_product = Product.objects.create(
+            seller=self.seller,
+            community=self.community,
+            name="Selected later",
+            description="Kept in cart",
+            price=Decimal("40.00"),
+            stock_quantity=Decimal("10.00"),
+            status=Product.Status.ACTIVE,
+        )
+        self.client.force_login(self.buyer)
+        self.client.post(reverse("orders:cart_add", args=[self.product.pk]), {"quantity": "2"})
+        self.client.post(reverse("orders:cart_add", args=[other_product.pk]), {"quantity": "1"})
+
+        response = self.client.post(
+            reverse("orders:cart_checkout"),
+            {
+                "cart_selection": "1",
+                "selected_items": str(self.product.pk),
+                "shipping_name": "Cart buyer",
+                "shipping_phone": "0899999999",
+                "shipping_address": "9 Market Road",
+                "shipping_province": "Chiang Mai",
+                "shipping_postal_code": "50000",
+                "note": "",
+            },
+        )
+
+        order = Order.objects.get(buyer=self.buyer, seller=self.seller)
+        self.assertRedirects(response, reverse("payments:create_checkout", args=[order.pk]), fetch_redirect_response=False)
+        self.assertEqual(list(order.items.values_list("product_id", flat=True)), [self.product.pk])
+        self.assertEqual(order.subtotal, Decimal("50.00"))
+        self.assertEqual(
+            self.client.session.get("cart"),
+            {str(other_product.pk): "1.00"},
+        )
+
+    def test_cart_checkout_shows_shipping_details_after_selecting_products(self):
+        self.client.force_login(self.buyer)
+        self.client.post(reverse("orders:cart_add", args=[self.product.pk]), {"quantity": "1"})
+
+        cart_response = self.client.get(reverse("orders:cart"))
+        self.assertNotContains(cart_response, "ที่อยู่จัดส่ง")
+
+        response = self.client.get(
+            reverse("orders:cart_checkout"),
+            {"cart_selection": "1", "selected_items": str(self.product.pk)},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "orders/cart_checkout.html")
+        self.assertContains(response, "ที่อยู่จัดส่ง")
+        self.assertContains(response, self.product.name)
+
+    def test_cart_update_recalculates_item_and_cart_total(self):
+        self.client.force_login(self.buyer)
+        self.client.post(reverse("orders:cart_add", args=[self.product.pk]), {"quantity": "1"})
+
+        response = self.client.post(
+            reverse("orders:cart_update", args=[self.product.pk]),
+            {"quantity": "2"},
+        )
+
+        self.assertRedirects(response, reverse("orders:cart"))
+        cart_response = self.client.get(reverse("orders:cart"))
+        self.assertEqual(cart_response.context["items"][0]["line_total"], Decimal("50.00"))
+        self.assertEqual(cart_response.context["total"], Decimal("50.00"))
+        self.assertNotContains(cart_response, ">อัปเดต<")
+
+    def test_cart_checkout_keeps_the_quantity_shown_in_the_cart(self):
+        self.client.force_login(self.buyer)
+        self.client.post(reverse("orders:cart_add", args=[self.product.pk]), {"quantity": "1"})
+
+        response = self.client.get(
+            reverse("orders:cart_checkout"),
+            {
+                "cart_selection": "1",
+                "selected_items": str(self.product.pk),
+                f"cart_quantity_{self.product.pk}": "2",
+            },
+        )
+
+        self.assertEqual(response.context["items"][0]["quantity"], Decimal("2.00"))
+        self.assertEqual(response.context["total"], Decimal("50.00"))
+        self.assertEqual(self.client.session["cart"][str(self.product.pk)], "2.00")
+
+    def test_cart_checkout_requires_a_selected_product(self):
+        self.client.force_login(self.buyer)
+        self.client.post(reverse("orders:cart_add", args=[self.product.pk]), {"quantity": "1"})
+
+        response = self.client.post(
+            reverse("orders:cart_checkout"),
+            {
+                "cart_selection": "1",
+                "shipping_name": "Cart buyer",
+                "shipping_phone": "0899999999",
+                "shipping_address": "9 Market Road",
+                "shipping_province": "Chiang Mai",
+                "shipping_postal_code": "50000",
+                "note": "",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "กรุณาเลือกสินค้าอย่างน้อย 1 รายการ")
+        self.assertFalse(Order.objects.filter(buyer=self.buyer).exists())
 
     def test_shipping_rate_uses_destination_and_product_weight(self):
         self.product.weight_grams = 2000
@@ -289,13 +712,7 @@ class InventoryReservationTests(TestCase):
         ).latest("created_at")
         self.assertIn("เปลี่ยนแผนการสั่งซื้อ", history.note)
 
-    def test_coupon_reduces_total_and_is_released_on_cancel(self):
-        Coupon.objects.create(
-            code="FARM50",
-            discount_type=Coupon.DiscountType.FIXED,
-            value=Decimal("50.00"),
-            minimum_spend=Decimal("100.00"),
-        )
+    def test_checkout_uses_full_total_without_discount(self):
         self.client.force_login(self.buyer)
         self.client.post(reverse("orders:cart_add", args=[self.product.pk]), {"quantity": "2"})
         self.client.post(
@@ -307,17 +724,11 @@ class InventoryReservationTests(TestCase):
                 "shipping_province": "น่าน",
                 "shipping_postal_code": "55000",
                 "note": "",
-                "coupon_code": "FARM50",
             },
         )
         order = Order.objects.get(buyer=self.buyer)
         self.assertEqual(order.subtotal, Decimal("200.00"))
         self.assertEqual(order.shipping_fee, Decimal("50.00"))
-        self.assertEqual(order.discount_amount, Decimal("50.00"))
-        self.assertEqual(order.total_amount, Decimal("200.00"))
-        self.assertTrue(order.coupon_redemption.active)
-
-        self.client.post(reverse("orders:cancel_order", args=[order.pk]), {"reason": "เปลี่ยนแผนการสั่งซื้อ"})
-
-        order.coupon_redemption.refresh_from_db()
-        self.assertFalse(order.coupon_redemption.active)
+        self.assertEqual(order.discount_amount, Decimal("0.00"))
+        self.assertEqual(order.total_amount, Decimal("250.00"))
+        self.assertIsNone(order.coupon_id)

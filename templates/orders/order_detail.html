@@ -12,8 +12,10 @@
       {% if order.payment_status == 'paid' %}
         <a class="inline-flex items-center gap-2 rounded-md border border-leaf bg-white px-4 py-2 text-sm font-semibold text-leaf hover:bg-emerald-50" href="{% url 'orders:order_receipt' order.id %}"><i data-lucide="receipt-text" class="h-4 w-4" aria-hidden="true"></i>ใบเสร็จและใบจัดส่ง</a>
       {% endif %}
-      {% if user.is_owner or user == order.seller or user.is_cooperative_staff %}
-        <a class="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold" href="{% url 'orders:order_update_status' order.id %}">ปรับสถานะ</a>
+      {% if user == order.seller and order.can_seller_mark_shipped %}
+        <a class="inline-flex items-center gap-2 rounded-md bg-leaf px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800" href="{% url 'orders:order_update_status' order.id %}"><i data-lucide="truck" class="h-4 w-4" aria-hidden="true"></i>แจ้งจัดส่งพัสดุ</a>
+      {% elif user.is_owner or user == order.seller or user.is_cooperative_staff %}
+        <a class="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold" href="{% url 'orders:order_update_status' order.id %}"><i data-lucide="settings-2" class="h-4 w-4" aria-hidden="true"></i>จัดการคำสั่งซื้อ</a>
       {% endif %}
       {% if user == order.buyer or user == order.seller %}
         <form method="post" action="{% url 'accounts:conversation_start_order' order.id %}">{% csrf_token %}<button class="inline-flex items-center gap-2 rounded-md border border-leaf bg-white px-4 py-2 text-sm font-semibold text-leaf hover:bg-emerald-50" type="submit"><i data-lucide="messages-square" class="h-4 w-4" aria-hidden="true"></i>แชทเรื่องคำสั่งซื้อ</button></form>
@@ -34,13 +36,21 @@
     </div>
   </header>
 
+  {% if user == order.buyer and order.status == 'pending_payment' and payment_is_test_mode %}
+    <div class="flex items-start gap-3 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950" role="status">
+      <i data-lucide="flask-conical" class="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true"></i>
+      <p><span class="font-semibold">โหมดชำระเงินทดลอง</span> หน้าชำระเงินทำงานเหมือนจริง แต่จะไม่มีการตัดเงิน</p>
+    </div>
+  {% endif %}
+
   <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
     <main class="space-y-5">
       <div class="overflow-hidden rounded-md border border-stone-200 bg-white shadow-sm">
         <div class="border-b border-stone-200 px-5 py-4"><h2 class="font-semibold">รายการสินค้า</h2></div>
         <div class="divide-y divide-stone-100">
           {% for item in order.items.all %}
-            <div class="grid gap-2 px-5 py-4 sm:grid-cols-[1fr_120px_120px]">
+            <div class="grid gap-4 px-5 py-4 sm:grid-cols-[88px_minmax(0,1fr)_120px_120px]">
+              <div class="grid shrink-0 place-items-center overflow-hidden rounded-md border border-emerald-900/15 bg-emerald-50 text-leaf" style="width: 88px; height: 88px;">{% if item.product.image %}<img src="{{ item.product.image.url }}" alt="{{ item.product_name }}" style="width: 100%; height: 100%; object-fit: cover;" loading="lazy">{% else %}<i data-lucide="package" class="h-7 w-7" aria-hidden="true"></i><span class="sr-only">ไม่มีรูปสินค้า</span>{% endif %}</div>
               <div><p class="font-medium">{{ item.product_name }}</p><p class="text-sm text-slate-500">{{ item.quantity|floatformat:'-2' }} {{ item.unit }}</p></div>
               <p>{{ item.unit_price|floatformat:2 }} บาท</p><p class="font-semibold">{{ item.line_total|floatformat:2 }} บาท</p>
             </div>
@@ -54,14 +64,31 @@
         </dl>
       </div>
 
-      <div class="rounded-md border border-stone-200 bg-white p-5 shadow-sm">
-        <h2 class="font-semibold">ประวัติสถานะ</h2>
-        <ol class="mt-4 space-y-4 border-l-2 border-emerald-200 pl-5">
-          {% for item in order.status_history.all %}
-            <li><p class="font-semibold">{{ item.get_status_display }}</p><p class="text-sm text-slate-500">{{ item.created_at|date:"d M Y H:i" }}{% if item.changed_by %} · {{ item.changed_by }}{% endif %}</p>{% if item.note %}<p class="mt-1 text-sm text-slate-700">{{ item.note }}</p>{% endif %}</li>
-          {% empty %}<li class="text-sm text-slate-500">ยังไม่มีประวัติเพิ่มเติม</li>{% endfor %}
+      <section class="overflow-hidden rounded-md border border-stone-200 bg-white shadow-sm" aria-labelledby="status-history-heading">
+        <div class="flex items-center gap-3 border-b border-stone-100 px-5 py-4">
+          <span class="grid h-9 w-9 place-items-center rounded-full bg-emerald-50 text-leaf"><i data-lucide="history" class="h-5 w-5" aria-hidden="true"></i></span>
+          <div><h2 id="status-history-heading" class="font-semibold text-slate-950">ประวัติสถานะ</h2><p class="text-sm text-slate-500">สถานะล่าสุดอยู่ด้านบน</p></div>
+        </div>
+        <ol class="px-5 py-5 sm:px-6">
+          {% for item in order.status_history.all reversed %}
+            <li class="grid gap-4 pb-7 last:pb-0" style="grid-template-columns: 88px 20px minmax(0, 1fr);">
+              <time class="pt-0.5 text-right text-xs leading-5 {% if forloop.first %}text-slate-600{% else %}text-slate-400{% endif %}" datetime="{{ item.created_at|date:'c' }}"><span class="block">{{ item.created_at|date:"d M Y" }}</span><span class="block">{{ item.created_at|date:"H:i" }}</span></time>
+              <div class="relative flex justify-center">
+                {% if not forloop.last %}<span class="absolute w-px bg-stone-200" style="top: 16px; bottom: -28px;" aria-hidden="true"></span>{% endif %}
+                <span class="relative z-10 mt-1 h-3 w-3 rounded-full {% if forloop.first %}bg-leaf ring-4 ring-emerald-50{% else %}bg-stone-300{% endif %}"></span>
+              </div>
+              <div class="min-w-0">
+                {% if forloop.first %}<p class="mb-1 text-xs font-semibold text-leaf">สถานะล่าสุด</p>{% endif %}
+                <h3 class="text-base {% if forloop.first %}font-semibold text-leaf{% else %}font-medium text-slate-600{% endif %}">{{ item.get_status_display }}</h3>
+                {% if item.note %}<p class="mt-1 break-words text-sm leading-6 {% if forloop.first %}text-slate-700{% else %}text-slate-500{% endif %}">{{ item.note }}</p>{% endif %}
+                {% if item.changed_by %}<p class="mt-1 text-xs {% if forloop.first %}text-slate-500{% else %}text-slate-400{% endif %}">อัปเดตโดย {{ item.changed_by }}</p>{% endif %}
+              </div>
+            </li>
+          {% empty %}
+            <li class="py-4 text-center text-sm text-slate-500">ยังไม่มีประวัติเพิ่มเติม</li>
+          {% endfor %}
         </ol>
-      </div>
+      </section>
 
       {% if user.is_owner and order.payment %}
         <div class="rounded-md border border-stone-200 bg-white p-5 shadow-sm">
@@ -95,8 +122,8 @@
         <p class="text-sm text-slate-600">{{ order.shipping_phone }}</p>
         <p class="mt-2 whitespace-pre-line text-sm text-slate-700">{{ order.shipping_address }}</p>
         {% if order.shipping_province %}<p class="text-sm text-slate-700">{{ order.shipping_province }} {{ order.shipping_postal_code }}</p>{% endif %}
-        {% if order.tracking_number %}
-          <div class="mt-4 border-t border-stone-100 pt-4"><p class="text-sm text-slate-500">{{ order.shipping_carrier }}</p><p class="mt-1 font-semibold">{{ order.tracking_number }}</p></div>
+        {% if order.payment_status == 'paid' and order.status != 'cancelled' and order.status != 'refunded' %}
+          <div class="mt-4 border-t border-stone-100 pt-4">{% if order.tracking_number %}<p class="text-sm text-slate-500">{{ order.shipping_carrier }}</p><p class="mt-1 font-semibold">{{ order.tracking_number }}</p>{% else %}<p class="text-sm text-slate-600">ผู้ขายกำลังเตรียมจัดส่งสินค้า</p>{% endif %}<a href="{% url 'orders:order_tracking' order.pk %}" class="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-leaf hover:underline"><i data-lucide="truck" class="h-4 w-4" aria-hidden="true"></i>ติดตามสถานะการจัดส่ง</a></div>
         {% endif %}
         {% include "orders/_tracking.html" %}
       </div>

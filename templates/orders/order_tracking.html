@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}รายละเอียดการจัดส่ง {{ order.reference }}{% endblock %}
+
+{% block content %}
+<section class="mx-auto max-w-3xl space-y-4">
+  <header class="flex flex-wrap items-center justify-between gap-4 rounded-md border border-stone-200 bg-white px-4 py-3 shadow-sm sm:px-5">
+    <div class="flex min-w-0 items-center gap-3"><a href="{{ order.get_absolute_url }}" class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-leaf hover:bg-emerald-50" aria-label="กลับไปรายละเอียดคำสั่งซื้อ"><i data-lucide="arrow-left" class="h-6 w-6" aria-hidden="true"></i></a><h1 class="truncate text-xl font-semibold text-slate-950">รายละเอียดการจัดส่ง</h1></div>
+    {% if order.status == 'shipped' %}<form method="post" action="{% url 'orders:confirm_received' order.pk %}">{% csrf_token %}<button type="submit" class="inline-flex h-10 items-center gap-2 rounded-md bg-leaf px-4 text-sm font-semibold text-white hover:bg-emerald-800"><i data-lucide="package-check" class="h-4 w-4" aria-hidden="true"></i>ได้รับสินค้าแล้ว</button></form>{% endif %}
+  </header>
+
+  <section class="overflow-hidden rounded-md border border-stone-200 bg-white shadow-sm">
+    <div class="bg-leaf px-5 py-5 text-white sm:px-6"><p class="text-xl font-semibold">{% if order.status == 'completed' %}คำสั่งซื้อเสร็จสมบูรณ์{% elif order.shipment.status == 'Delivered' %}พัสดุถูกนำจ่ายแล้ว{% elif order.shipment.status == 'OutForDelivery' %}พัสดุกำลังนำจ่าย{% elif order.shipment %}{{ order.shipment.status_label }}{% else %}ผู้ขายกำลังเตรียมจัดส่ง{% endif %}</p><p class="mt-1 text-sm text-green-100">คำสั่งซื้อ {{ order.reference }}</p></div>
+    <div class="divide-y divide-stone-100">
+      <div class="flex items-start gap-4 px-5 py-5 sm:px-6"><span class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-emerald-50 text-leaf"><i data-lucide="truck" class="h-5 w-5" aria-hidden="true"></i></span><div class="min-w-0 flex-1"><p class="font-semibold text-slate-950">ข้อมูลการจัดส่ง</p>{% if order.tracking_number %}<p class="mt-2 text-sm text-slate-700">{{ order.shipping_carrier }}</p><div class="mt-1 flex flex-wrap items-center gap-2"><p class="break-all text-lg font-semibold text-leaf">{{ order.tracking_number }}</p><button type="button" data-copy-tracking="{{ order.tracking_number }}" class="inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-500 hover:bg-stone-100 hover:text-leaf" title="คัดลอกเลขพัสดุ" aria-label="คัดลอกเลขพัสดุ"><i data-lucide="copy" class="h-4 w-4" aria-hidden="true"></i></button></div>{% else %}<p class="mt-2 text-sm text-slate-600">ผู้ขายยังไม่ได้ระบุเลขติดตามพัสดุ</p>{% endif %}</div></div>
+      <div class="flex items-start gap-4 px-5 py-5 sm:px-6"><span class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-stone-100 text-slate-700"><i data-lucide="map-pin" class="h-5 w-5" aria-hidden="true"></i></span><div class="min-w-0"><p class="font-semibold text-slate-950">ที่อยู่ในการจัดส่ง</p><p class="mt-2 text-sm font-medium text-slate-800">{{ order.shipping_name }} <span class="font-normal text-slate-500">{{ order.shipping_phone }}</span></p><p class="mt-1 text-sm leading-6 text-slate-600">{{ order.shipping_address }} {{ order.shipping_province }} {{ order.shipping_postal_code }}</p></div></div>
+    </div>
+  </section>
+
+  <section class="overflow-hidden rounded-md border border-stone-200 bg-white shadow-sm">
+    <div class="flex items-center justify-between gap-4 border-b border-stone-100 px-5 py-4 sm:px-6"><p class="font-semibold text-slate-950">สถานะการจัดส่ง</p><a href="{{ order.get_absolute_url }}" class="inline-flex items-center gap-1 text-sm font-semibold text-leaf hover:underline">รายละเอียดคำสั่งซื้อ<i data-lucide="chevron-right" class="h-4 w-4" aria-hidden="true"></i></a></div>
+    {% if order.tracking_number %}
+      <div class="px-5 py-5 sm:px-6"><ol class="space-y-6">{% for event in tracking_events %}<li class="grid gap-3" style="grid-template-columns: 76px 20px minmax(0, 1fr);"><div class="pt-0.5 text-right text-xs leading-5 text-slate-500">{% if event.occurred_at %}<p>{{ event.occurred_at|date:"d/m/Y" }}</p><p>{{ event.occurred_at|date:"H:i" }}</p>{% elif event.time_label %}<p class="break-words">{{ event.time_label }}</p>{% endif %}</div><div class="relative flex justify-center">{% if not forloop.last %}<span class="absolute w-px bg-stone-200" style="top: 16px; bottom: -28px;"></span>{% endif %}<span class="relative z-10 mt-1 h-3 w-3 rounded-full {% if forloop.first %}bg-leaf{% else %}bg-stone-300{% endif %}"></span></div><div class="min-w-0 pb-1"><p class="break-words font-medium {% if forloop.first %}text-leaf{% else %}text-slate-800{% endif %}">{{ event.message }}</p>{% if event.location %}<p class="mt-1 break-words text-sm text-slate-600">{{ event.location }}</p>{% endif %}</div></li>{% endfor %}</ol></div>
+    {% else %}
+      <div class="px-5 py-8 text-center text-sm text-slate-500 sm:px-6">ผู้ขายกำลังเตรียมจัดส่ง เมื่อบริษัทขนส่งอัปเดตข้อมูล รายละเอียดจะปรากฏที่นี่</div>
+    {% endif %}
+  </section>
+
+  <section class="overflow-hidden rounded-md border border-stone-200 bg-white shadow-sm"><div class="flex items-center gap-3 border-b border-stone-100 px-5 py-4 sm:px-6"><i data-lucide="store" class="h-5 w-5 text-leaf" aria-hidden="true"></i><p class="font-semibold text-slate-950">{{ order.seller.farmer_profile.farm_name|default:order.seller.display_name|default:order.seller.username }}</p></div>{% for item in order.items.all %}{% if forloop.first %}<a href="{{ order.get_absolute_url }}" class="flex items-center gap-4 px-5 py-4 sm:px-6"><span class="grid shrink-0 place-items-center overflow-hidden rounded-md border border-stone-200 bg-stone-50" style="width: 64px; height: 64px;">{% if item.product.image %}<img src="{{ item.product.image.url }}" alt="{{ item.product_name }}" style="width: 100%; height: 100%; object-fit: cover;" loading="lazy">{% else %}<i data-lucide="package" class="h-6 w-6 text-leaf" aria-hidden="true"></i>{% endif %}</span><span class="min-w-0 flex-1"><span class="block truncate font-medium text-slate-950">{{ item.product_name }}</span><span class="mt-1 block text-sm text-slate-500">{{ item.quantity|floatformat:'-2' }} {{ item.unit }}</span></span><span class="shrink-0 font-semibold text-slate-950">฿{{ item.line_total|floatformat:2 }}</span></a>{% endif %}{% endfor %}<div class="flex justify-end border-t border-stone-100 px-5 py-4 text-sm sm:px-6"><span class="text-slate-600">รวมคำสั่งซื้อ </span><span class="ml-2 font-semibold text-slate-950">฿{{ order.total_amount|floatformat:2 }}</span></div></section>
+</section>
+{% endblock %}
+
+{% block extra_head %}
+<script>
+  document.addEventListener("click", function (event) {
+    const button = event.target.closest("[data-copy-tracking]");
+    if (!button || !navigator.clipboard) return;
+    navigator.clipboard.writeText(button.dataset.copyTracking).then(function () {
+      button.title = "คัดลอกแล้ว";
+    });
+  });
+</script>
+{% endblock %}

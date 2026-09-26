@@ -6,6 +6,8 @@ from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from django.db import connection
 
+from agri_market.settings import cloudinary_storage_config
+
 
 class Command(BaseCommand):
     help = "ตรวจสอบค่าที่จำเป็นก่อนเปิดระบบจริง"
@@ -16,9 +18,6 @@ class Command(BaseCommand):
         required_env = [
             "DATABASE_URL",
             "CLOUDINARY_URL",
-            "STRIPE_SECRET_KEY",
-            "STRIPE_PUBLISHABLE_KEY",
-            "STRIPE_WEBHOOK_SECRET",
             "EMAIL_HOST",
             "EMAIL_HOST_USER",
             "EMAIL_HOST_PASSWORD",
@@ -28,9 +27,20 @@ class Command(BaseCommand):
             "REDIS_URL",
             "SITE_URL",
         ]
+        if settings.PAYMENT_MODE == "live":
+            required_env.extend(
+                ["STRIPE_SECRET_KEY", "STRIPE_PUBLISHABLE_KEY", "STRIPE_WEBHOOK_SECRET"]
+            )
         for name in required_env:
             if not os.environ.get(name):
                 errors.append(f"ยังไม่ได้กำหนด {name}")
+        _, cloudinary_config = cloudinary_storage_config(
+            os.environ.get("CLOUDINARY_URL")
+        )
+        if not cloudinary_config:
+            errors.append(
+                "CLOUDINARY_URL ต้องอยู่ในรูปแบบ cloudinary://API_KEY:API_SECRET@CLOUD_NAME"
+            )
 
         if settings.DEBUG:
             errors.append("DEBUG ต้องเป็น False")
@@ -72,7 +82,14 @@ class Command(BaseCommand):
             errors.append("ต้องกำหนด STRIPE_CONNECT_WEBHOOK_SECRET ก่อนเปิดการโอนอัตโนมัติ")
         if not settings.AFTERSHIP_WEBHOOK_SECRET:
             warnings.append("ยังไม่ได้เชื่อม webhook ติดตามพัสดุ")
-        if settings.STRIPE_SECRET_KEY.startswith("sk_test_"):
+        elif not settings.AFTERSHIP_API_KEY:
+            warnings.append("ยังไม่ได้ตั้ง AFTERSHIP_API_KEY จึงต้องลงทะเบียนเลขพัสดุใน AfterShip เอง")
+        if settings.PAYMENT_MODE == "test" and not settings.STRIPE_SECRET_KEY:
+            warnings.append(
+                "PAYMENT_MODE=test ไม่มี Stripe key ระบบจะใช้หน้าชำระเงินจำลองภายใน "
+                "และจะไม่มีการตัดเงินจริง"
+            )
+        elif settings.STRIPE_SECRET_KEY.startswith("sk_test_"):
             warnings.append("Stripe ยังอยู่ใน Test mode ไม่รับหรือโอนเงินจริง")
         if not settings.TERMS_VERSION or not settings.PRIVACY_VERSION:
             errors.append("ต้องกำหนดเวอร์ชันเงื่อนไขการใช้งานและนโยบายความเป็นส่วนตัว")

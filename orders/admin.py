@@ -97,6 +97,8 @@ class ShipmentAdmin(OwnerOnlyAdminMixin, admin.ModelAdmin):
         "tracking_number",
         "status_label",
         "carrier_slug",
+        "attempts",
+        "next_sync_at",
         "provider_updated_at",
         "updated_at",
     )
@@ -117,6 +119,9 @@ class ShipmentAdmin(OwnerOnlyAdminMixin, admin.ModelAdmin):
         "status",
         "status_label",
         "checkpoint_timeline",
+        "attempts",
+        "last_error",
+        "next_sync_at",
         "provider_updated_at",
         "updated_at",
     )
@@ -124,6 +129,7 @@ class ShipmentAdmin(OwnerOnlyAdminMixin, admin.ModelAdmin):
         ("คำสั่งซื้อ", {"fields": ("order",)}),
         ("ข้อมูลพัสดุ", {"fields": ("tracking_number", "carrier_slug", "provider_id", "status", "status_label")} ),
         ("จุดติดตาม", {"fields": ("checkpoint_timeline",)}),
+        ("การเชื่อมต่อ AfterShip", {"fields": ("attempts", "last_error", "next_sync_at")}),
         ("วันเวลา", {"fields": ("provider_updated_at", "updated_at")} ),
     )
     inlines = [ShipmentEventInline]

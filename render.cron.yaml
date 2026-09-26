@@ -32,6 +32,11 @@ services:
           type: web
           name: agri-market
           envVarKey: SITE_URL
+      - key: AFTERSHIP_API_KEY
+        fromService:
+          type: web
+          name: agri-market
+          envVarKey: AFTERSHIP_API_KEY
       - key: STRIPE_SECRET_KEY
         fromService:
           type: web
@@ -57,6 +62,16 @@ services:
           type: web
           name: agri-market
           envVarKey: SETTLEMENT_MAX_ATTEMPTS
+      - key: DELIVERY_CONFIRMATION_DAYS
+        fromService:
+          type: web
+          name: agri-market
+          envVarKey: DELIVERY_CONFIRMATION_DAYS
+      - key: AFTERSHIP_MAX_ATTEMPTS
+        fromService:
+          type: web
+          name: agri-market
+          envVarKey: AFTERSHIP_MAX_ATTEMPTS
       - key: ORDER_RESERVATION_MINUTES
         fromService:
           type: web

@@ -88,7 +88,7 @@
         <p class="mt-2 text-sm text-slate-500">สั่งขั้นต่ำ {{ product.minimum_order_quantity|floatformat:"-2" }} {{ product.get_unit_display }} · เหลือ {{ product.stock_quantity|floatformat:"-2" }} {{ product.get_unit_display }}</p>
       </div>
 
-      {% if product.is_available %}
+      {% if product.is_available and user != product.seller %}
         <form id="product-cart-form" method="post" action="{% url 'orders:cart_add' product.id %}" class="mt-7">
           {% csrf_token %}
           <div class="flex flex-wrap items-center gap-4">
@@ -107,6 +107,8 @@
             <a id="buy-now-link" class="inline-flex min-h-12 items-center justify-center rounded-md bg-leaf px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-800" data-buy-url="{% url 'orders:checkout' product.id %}" href="{% url 'orders:checkout' product.id %}?quantity={{ product.minimum_order_quantity|floatformat:'-2' }}">ซื้อทันที</a>
           </div>
         </form>
+      {% elif user == product.seller %}
+        <div class="mt-7 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-leaf">สินค้านี้อยู่ในร้านค้าของคุณ</div>
       {% else %}
         <div class="mt-7 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">สินค้านี้ยังไม่พร้อมจำหน่าย</div>
       {% endif %}
@@ -139,7 +141,11 @@
   <section class="mt-12 rounded-md border border-emerald-200 bg-white p-5 sm:p-6" aria-labelledby="seller-profile-title">
     <div class="grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(420px,0.85fr)] lg:items-center">
       <div class="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center">
-        <div class="grid h-20 w-20 shrink-0 place-items-center rounded-full bg-emerald-50 text-leaf ring-1 ring-emerald-200"><i data-lucide="sprout" class="h-9 w-9" aria-hidden="true"></i></div>
+        {% if product.seller.avatar %}
+          <img src="{{ product.seller.avatar.url }}" alt="รูปโปรไฟล์ {{ product.seller.display_name|default:product.seller.username }}" class="h-20 w-20 shrink-0 rounded-full border border-emerald-200 object-cover">
+        {% else %}
+          <div class="grid h-20 w-20 shrink-0 place-items-center rounded-full bg-emerald-50 text-leaf ring-1 ring-emerald-200"><i data-lucide="sprout" class="h-9 w-9" aria-hidden="true"></i></div>
+        {% endif %}
         <div class="min-w-0 flex-1">
           <div class="flex flex-wrap items-center gap-2">
             <h2 id="seller-profile-title" class="truncate text-lg font-semibold text-slate-950">{{ seller_profile.farm_name|default:product.seller }}</h2>
@@ -147,7 +153,7 @@
           </div>
           <p class="mt-1 truncate text-sm text-slate-600">{{ product.community.name }}</p>
           <div class="mt-3 flex flex-wrap gap-2">
-            {% if user.is_authenticated and user != product.seller and user.is_consumer %}
+            {% if user.is_authenticated and user != product.seller and user.can_buy %}
               <form method="post" action="{% url 'accounts:conversation_start' product.id %}">{% csrf_token %}<button class="inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-leaf px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-800" type="submit"><i data-lucide="message-circle" class="h-4 w-4" aria-hidden="true"></i>แชทกับผู้ขาย</button></form>
             {% elif not user.is_authenticated %}
               <a class="inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-leaf px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-800" href="{% url 'login' %}?next={{ request.path|urlencode }}"><i data-lucide="message-circle" class="h-4 w-4" aria-hidden="true"></i>แชทกับผู้ขาย</a>
@@ -168,6 +174,15 @@
     <div>
       <h2 id="product-information-title" class="text-xl font-semibold text-ink">รายละเอียดสินค้า</h2>
       <p class="mt-4 whitespace-pre-line text-sm leading-7 text-slate-700">{{ product.description|default:"ผู้ขายยังไม่ได้เพิ่มรายละเอียดสินค้า" }}</p>
+      {% if product.detail_images.all %}
+        <div class="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {% for detail_image in product.detail_images.all %}
+            <a class="overflow-hidden rounded-md border border-stone-200 bg-stone-50" href="{{ detail_image.image.url }}" target="_blank" rel="noopener">
+              <img class="max-h-[560px] w-full object-contain" src="{{ detail_image.image.url }}" alt="{{ detail_image.alt_text|default:product.name }} - รูปประกอบรายละเอียด {{ forloop.counter }}" loading="lazy">
+            </a>
+          {% endfor %}
+        </div>
+      {% endif %}
     </div>
     <dl class="grid grid-cols-2 gap-x-5 gap-y-4 text-sm">
       <div><dt class="text-slate-500">รหัสสินค้า</dt><dd class="mt-1 font-semibold text-slate-900">{{ product.sku|default:"-" }}</dd></div>
@@ -202,20 +217,44 @@
         <article class="py-5">
           <div class="flex flex-wrap items-center justify-between gap-3"><p class="font-semibold text-slate-900">{{ review.user }}</p><p class="inline-flex items-center gap-1 text-sm font-semibold text-leaf"><i data-lucide="star" class="h-4 w-4 fill-amber-400 text-amber-400" aria-hidden="true"></i>{{ review.rating }}/5</p></div>
           {% if review.comment %}<p class="mt-2 text-sm leading-6 text-slate-700">{{ review.comment }}</p>{% endif %}
+          {% if review.media.all %}
+            <div class="mt-3 flex flex-wrap gap-2">
+              {% for media in review.media.all %}
+                {% if media.media_type == "image" %}
+                  <a href="{{ media.file.url }}" target="_blank" rel="noopener" class="block h-24 w-24 overflow-hidden rounded-md border border-stone-200 bg-stone-50">
+                    <img src="{{ media.file.url }}" alt="รูปประกอบรีวิว" class="h-full w-full object-cover" loading="lazy">
+                  </a>
+                {% else %}
+                  <video controls preload="metadata" class="h-24 w-40 rounded-md border border-stone-200 bg-black" aria-label="วิดีโอประกอบรีวิว">
+                    <source src="{{ media.file.url }}">
+                    เบราว์เซอร์นี้ไม่รองรับวิดีโอ
+                  </video>
+                {% endif %}
+              {% endfor %}
+            </div>
+          {% endif %}
         </article>
       {% empty %}
         <p class="py-6 text-sm text-slate-600">ยังไม่มีรีวิวสำหรับสินค้านี้</p>
       {% endfor %}
     </div>
-    {% if user.is_authenticated and user != product.seller %}
-      <form method="post" action="{% url 'catalog:submit_review' product.id %}" class="mt-6 grid gap-3 sm:grid-cols-[140px_minmax(0,1fr)_auto]">
+    {% if can_review_product %}
+      <form method="post" enctype="multipart/form-data" action="{% url 'catalog:submit_review' product.id %}" class="mt-6 rounded-md border border-emerald-200 bg-emerald-50/50 p-4 sm:p-5">
         {% csrf_token %}
-        <label class="sr-only" for="review-rating">คะแนน</label>
-        <select id="review-rating" name="rating" class="rounded-md border border-slate-300 bg-white px-3 py-2.5 text-sm"><option value="5">5 ดาว</option><option value="4">4 ดาว</option><option value="3">3 ดาว</option><option value="2">2 ดาว</option><option value="1">1 ดาว</option></select>
-        <label class="sr-only" for="review-comment">ความคิดเห็น</label>
-        <input id="review-comment" name="comment" class="rounded-md border border-slate-300 px-3 py-2.5 text-sm" placeholder="เขียนความคิดเห็นเกี่ยวกับสินค้า">
-        <button class="rounded-md bg-ink px-5 py-2.5 text-sm font-semibold text-white" type="submit">ส่งรีวิว</button>
+        <div class="flex items-center gap-2"><i data-lucide="badge-check" class="h-5 w-5 text-leaf" aria-hidden="true"></i><p class="font-semibold text-slate-950">เขียนรีวิวสินค้าที่คุณซื้อแล้ว</p></div>
+        <div class="mt-4 grid gap-3 sm:grid-cols-[140px_minmax(0,1fr)]">
+          <div><label class="mb-1.5 block text-sm font-medium text-slate-700" for="review-rating">คะแนน</label><select id="review-rating" name="rating" class="min-h-11 w-full rounded-md border border-slate-300 bg-white px-3 text-sm"><option value="5">5 ดาว</option><option value="4">4 ดาว</option><option value="3">3 ดาว</option><option value="2">2 ดาว</option><option value="1">1 ดาว</option></select></div>
+          <div><label class="mb-1.5 block text-sm font-medium text-slate-700" for="review-comment">ความคิดเห็น</label><input id="review-comment" name="comment" class="min-h-11 w-full rounded-md border border-slate-300 bg-white px-3 text-sm" placeholder="แบ่งปันประสบการณ์เกี่ยวกับสินค้า"></div>
+        </div>
+        <div class="mt-4">
+          <input id="review-media" name="media" type="file" multiple accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime" class="sr-only" data-review-media-input>
+          <label for="review-media" class="flex min-h-20 cursor-pointer items-center justify-center gap-3 rounded-md border border-dashed border-emerald-300 bg-white px-4 py-3 text-center text-sm text-slate-700 hover:border-leaf hover:bg-emerald-50"><i data-lucide="image-plus" class="h-6 w-6 shrink-0 text-leaf" aria-hidden="true"></i><span><span class="block font-semibold">เพิ่มรูปหรือวิดีโอ</span><span class="mt-0.5 block text-xs text-slate-500">JPG, PNG, WEBP, MP4, MOV หรือ WEBM สูงสุด 5 ไฟล์</span></span></label>
+          <ul class="mt-3 hidden divide-y divide-stone-100 rounded-md border border-stone-200 bg-white text-sm" data-review-media-preview aria-live="polite"></ul>
+        </div>
+        <div class="mt-4 flex justify-end"><button class="inline-flex min-h-11 items-center gap-2 rounded-md bg-ink px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-800" type="submit"><i data-lucide="send" class="h-4 w-4" aria-hidden="true"></i>ส่งรีวิว</button></div>
       </form>
+    {% elif user.is_authenticated and user != product.seller %}
+      <div class="mt-6 flex items-start gap-3 rounded-md border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-slate-600"><i data-lucide="shopping-bag" class="mt-0.5 h-5 w-5 shrink-0 text-leaf" aria-hidden="true"></i><p>ซื้อสินค้านี้และชำระเงินเรียบร้อยแล้ว คุณจึงจะเขียนรีวิวและแนบรูปหรือวิดีโอได้</p></div>
     {% endif %}
   </section>
 
@@ -243,23 +282,40 @@
 <script>
   document.addEventListener("DOMContentLoaded", function () {
     const mainImage = document.getElementById("main-product-image");
-    const thumbnails = document.getElementById("product-thumbnails");
-    document.querySelectorAll("[data-gallery-thumb]").forEach(function (button) {
+    const galleryThumbs = Array.from(document.querySelectorAll("[data-gallery-thumb]"));
+
+    function selectGalleryThumb(button, shouldScroll) {
+      if (!mainImage || !button) return;
+      mainImage.src = button.dataset.gallerySrc;
+      mainImage.alt = button.dataset.galleryAlt;
+      galleryThumbs.forEach(function (thumb) {
+        thumb.classList.remove("border-2", "border-leaf");
+        thumb.classList.add("border", "border-stone-300");
+      });
+      button.classList.remove("border", "border-stone-300");
+      button.classList.add("border-2", "border-leaf");
+      if (shouldScroll) {
+        button.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+      }
+    }
+
+    galleryThumbs.forEach(function (button) {
       button.addEventListener("click", function () {
-        if (!mainImage) return;
-        mainImage.src = button.dataset.gallerySrc;
-        mainImage.alt = button.dataset.galleryAlt;
-        document.querySelectorAll("[data-gallery-thumb]").forEach(function (thumb) {
-          thumb.classList.remove("border-2", "border-leaf");
-          thumb.classList.add("border", "border-stone-300");
-        });
-        button.classList.remove("border", "border-stone-300");
-        button.classList.add("border-2", "border-leaf");
+        selectGalleryThumb(button, false);
       });
     });
     document.querySelectorAll("[data-gallery-direction]").forEach(function (button) {
       button.addEventListener("click", function () {
-        if (thumbnails) thumbnails.scrollBy({ left: Number(button.dataset.galleryDirection) * 184, behavior: "smooth" });
+        if (!galleryThumbs.length) return;
+        const currentIndex = Math.max(
+          0,
+          galleryThumbs.findIndex(function (thumb) {
+            return thumb.classList.contains("border-2");
+          }),
+        );
+        const direction = Number(button.dataset.galleryDirection);
+        const nextIndex = (currentIndex + direction + galleryThumbs.length) % galleryThumbs.length;
+        selectGalleryThumb(galleryThumbs[nextIndex], true);
       });
     });
 
@@ -284,6 +340,35 @@
       quantity.addEventListener("change", function () { updateQuantity(quantity.value); });
       updateQuantity(quantity.value);
     }
+  });
+</script>
+{% endblock %}
+
+{% block extra_head %}
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const input = document.querySelector("[data-review-media-input]");
+    const preview = document.querySelector("[data-review-media-preview]");
+    if (!input || !preview) return;
+
+    input.addEventListener("change", function () {
+      const files = Array.from(input.files).slice(0, 5);
+      preview.replaceChildren();
+      files.forEach(function (file) {
+        const item = document.createElement("li");
+        const name = document.createElement("span");
+        const typeLabel = document.createElement("span");
+        item.className = "flex items-center justify-between gap-3 px-3 py-2";
+        const type = file.type.startsWith("video/") ? "วิดีโอ" : "รูปภาพ";
+        name.className = "min-w-0 truncate text-slate-700";
+        name.textContent = file.name;
+        typeLabel.className = "shrink-0 text-xs text-slate-500";
+        typeLabel.textContent = type;
+        item.append(name, typeLabel);
+        preview.appendChild(item);
+      });
+      preview.classList.toggle("hidden", files.length === 0);
+    });
   });
 </script>
 {% endblock %}

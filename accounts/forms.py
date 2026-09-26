@@ -3,10 +3,19 @@ from datetime import timedelta
 from urllib.parse import urlsplit
 from django.conf import settings
 from django.contrib.auth.forms import PasswordResetForm, UserCreationForm
+from django.core.validators import FileExtensionValidator
+from django.core.files.uploadedfile import UploadedFile
 from django.utils import timezone
 from django.template.loader import render_to_string
 
-from .models import AVATAR_MAX_SIZE, Community, DeliveryAddress, DirectMessage, FarmerProfile, NewsPost, Report, ReportMessage, SupportMessage, SupportTicket, User
+from .models import AVATAR_MAX_SIZE, Community, DeliveryAddress, DirectMessage, FarmerProfile, NewsPost, Report, ReportMessage, SupportMessage, SupportTicket, User, validate_store_image_size
+
+
+def split_display_name(display_name):
+    parts = display_name.strip().split(maxsplit=1)
+    first_name = parts[0] if parts else ""
+    last_name = parts[1] if len(parts) > 1 else ""
+    return first_name, last_name
 
 
 def validate_upload(upload):
@@ -26,7 +35,8 @@ class StyledFormMixin:
         super().__init__(*args, **kwargs)
         placeholders = {
             "username": "ตัวอย่าง: farmer123",
-            "display_name": "ชื่อที่จะแสดงบนโปรไฟล์",
+            "first_name": "กรอกชื่อ",
+            "last_name": "กรอกนามสกุล",
             "email": "example@email.com",
             "phone": "0812345678",
             "password1": "รหัสผ่านอย่างน้อย 8 ตัว",
@@ -46,8 +56,22 @@ class StyledFormMixin:
                 field.widget.attrs["placeholder"] = placeholders[name]
             if name in help_texts:
                 field.help_text = help_texts[name]
-            if name in {"display_name", "email", "phone"}:
+            if name in {"first_name", "last_name", "birth_date", "email", "phone"}:
                 field.required = True
+
+
+class MultipleFileInput(forms.FileInput):
+    allow_multiple_selected = True
+
+
+class MultipleFileField(forms.FileField):
+    def clean(self, data, initial=None):
+        if not data:
+            return []
+        if not isinstance(data, (list, tuple)):
+            data = [data]
+        clean_file = super().clean
+        return [clean_file(file, initial) for file in data]
 
 
 class PasswordResetRequestForm(PasswordResetForm):
@@ -90,18 +114,25 @@ class BaseSignupForm(StyledFormMixin, UserCreationForm):
     class Meta:
         model = User
         fields = [
+            "first_name",
+            "last_name",
+            "birth_date",
             "username",
-            "display_name",
             "email",
             "phone",
             "password1",
             "password2",
         ]
         labels = {
+            "first_name": "ชื่อ",
+            "last_name": "นามสกุล",
+            "birth_date": "วันเกิด",
             "username": "ชื่อผู้ใช้",
-            "display_name": "ชื่อที่แสดง",
             "email": "อีเมล",
             "phone": "เบอร์โทรศัพท์",
+        }
+        widgets = {
+            "birth_date": forms.DateInput(attrs={"type": "date"}),
         }
 
     def clean_gender(self):
@@ -117,8 +148,18 @@ class BaseSignupForm(StyledFormMixin, UserCreationForm):
             raise forms.ValidationError("อีเมลนี้ถูกใช้งานแล้ว โปรดลองใช้อีเมลอื่น")
         return email
 
+    def clean_birth_date(self):
+        birth_date = self.cleaned_data["birth_date"]
+        if birth_date > timezone.localdate():
+            raise forms.ValidationError("วันเกิดต้องไม่เป็นวันในอนาคต")
+        return birth_date
+
     def save(self, commit=True):
         user = super().save(commit=False)
+        user.first_name = self.cleaned_data["first_name"].strip()
+        user.last_name = self.cleaned_data["last_name"].strip()
+        user.birth_date = self.cleaned_data["birth_date"]
+        user.display_name = " ".join(part for part in [user.first_name, user.last_name] if part)
         accepted_at = timezone.now()
         user.terms_accepted_at = accepted_at
         user.privacy_accepted_at = accepted_at
@@ -185,7 +226,8 @@ class FarmerProfileForm(StyledFormMixin, forms.ModelForm):
         }
 
     def clean_verification_document(self):
-        return validate_upload(self.cleaned_data.get("verification_document"))
+        document = self.cleaned_data.get("verification_document")
+        return validate_upload(document) if isinstance(document, UploadedFile) else document
 
     def clean(self):
         cleaned_data = super().clean()
@@ -194,8 +236,8 @@ class FarmerProfileForm(StyledFormMixin, forms.ModelForm):
         return cleaned_data
 
 
-class SellerStoreProfileForm(StyledFormMixin, forms.ModelForm):
-    """Editable storefront details that do not affect farmer verification."""
+class SellerStoreDetailsForm(StyledFormMixin, forms.ModelForm):
+    """Store text fields saved independently from optional cover media."""
 
     class Meta:
         model = FarmerProfile
@@ -210,6 +252,53 @@ class SellerStoreProfileForm(StyledFormMixin, forms.ModelForm):
         widgets = {
             "address": forms.Textarea(attrs={"rows": 3}),
             "bio": forms.Textarea(attrs={"rows": 4, "placeholder": "แนะนำร้านค้า จุดเด่น หรือวิธีดูแลสินค้า"}),
+        }
+
+
+class SellerStoreProfileForm(SellerStoreDetailsForm):
+    """Store details together with optional cover media for the settings UI."""
+
+    store_cover_slides = MultipleFileField(
+        label="เพิ่มรูปสไลด์หน้าร้าน",
+        required=False,
+        validators=[
+            FileExtensionValidator(["jpg", "jpeg", "png", "webp"]),
+            validate_store_image_size,
+        ],
+        widget=MultipleFileInput(
+            attrs={
+                "accept": "image/jpeg,image/png,image/webp",
+                "data-store-cover-slides-input": "",
+            }
+        ),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.order_fields([
+            "farm_name",
+            "province",
+            "district",
+            "address",
+            "bio",
+            "store_cover",
+            "store_cover_slides",
+        ])
+
+    class Meta(SellerStoreDetailsForm.Meta):
+        fields = [*SellerStoreDetailsForm.Meta.fields, "store_cover"]
+        labels = {
+            **SellerStoreDetailsForm.Meta.labels,
+            "store_cover": "รูปปกหน้าร้าน",
+        }
+        widgets = {
+            **SellerStoreDetailsForm.Meta.widgets,
+            "store_cover": forms.FileInput(
+                attrs={
+                    "accept": "image/jpeg,image/png,image/webp",
+                    "data-store-cover-input": "",
+                }
+            ),
         }
 
 
@@ -228,21 +317,22 @@ class UserProfileForm(StyledFormMixin, forms.ModelForm):
             "birth_date": "วันเกิด",
         }
         widgets = {
-            "birth_date": forms.DateInput(attrs={"type": "date"}),
+            "birth_date": forms.HiddenInput(),
             "gender": forms.RadioSelect(),
             "avatar": forms.FileInput(attrs={"accept": ".jpg,.jpeg,.png,image/jpeg,image/png"}),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        for name in ["display_name", "email", "phone"]:
+        for name in ["email", "phone"]:
             self.fields[name].required = True
-        self.fields["gender"].required = False
+        for name in ["first_name", "last_name", "gender", "birth_date"]:
+            self.fields[name].required = False
 
     def clean_avatar(self):
         avatar = self.cleaned_data.get("avatar")
         if avatar and avatar.size > AVATAR_MAX_SIZE:
-            raise forms.ValidationError("รูปโปรไฟล์ต้องมีขนาดไม่เกิน 1 MB")
+            raise forms.ValidationError("รูปโปรไฟล์ต้องมีขนาดไม่เกิน 5 MB")
         return avatar
     def clean_gender(self):
         return self.cleaned_data.get("gender") or getattr(
@@ -250,6 +340,12 @@ class UserProfileForm(StyledFormMixin, forms.ModelForm):
             "gender",
             User.Gender.UNSPECIFIED,
         ) or User.Gender.UNSPECIFIED
+
+    def clean_birth_date(self):
+        birth_date = self.cleaned_data.get("birth_date")
+        if birth_date and birth_date > timezone.localdate():
+            raise forms.ValidationError("วันเกิดต้องไม่เป็นวันในอนาคต")
+        return birth_date
 
     def clean_email(self):
         email = self.cleaned_data.get("email")
@@ -271,6 +367,9 @@ class StaffSellerAccountForm(UserProfileForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["gender"].widget.attrs["class"] = (
+            "h-4 w-4 border-slate-300 text-emerald-700 focus:ring-emerald-200"
+        )
         self.fields["is_active"].widget.attrs["class"] = (
             "h-5 w-5 rounded border-slate-300 text-emerald-700 "
             "focus:ring-emerald-200"
@@ -287,8 +386,7 @@ class StaffFarmerProfileForm(StyledFormMixin, forms.ModelForm):
             "address",
             "bio",
             "document_type",
-            "verification_status",
-            "rejection_reason",
+            "verification_document",
         ]
         labels = {
             "farm_name": "ชื่อสวน/ฟาร์ม",
@@ -304,6 +402,9 @@ class StaffFarmerProfileForm(StyledFormMixin, forms.ModelForm):
             "address": forms.Textarea(attrs={"rows": 3}),
             "bio": forms.Textarea(attrs={"rows": 3}),
             "rejection_reason": forms.Textarea(attrs={"rows": 3}),
+            "verification_document": forms.FileInput(
+                attrs={"accept": ".pdf,.jpg,.jpeg,.png,.webp"}
+            ),
         }
 
     def clean(self):
@@ -498,23 +599,29 @@ class SupportMessageForm(StyledFormMixin, forms.ModelForm):
 class DirectMessageForm(StyledFormMixin, forms.ModelForm):
     class Meta:
         model = DirectMessage
-        fields = ["body"]
-        labels = {"body": "ข้อความ"}
+        fields = ["body", "attachment"]
+        labels = {"body": "ข้อความ", "attachment": "รูปภาพหรือวิดีโอ"}
         widgets = {
             "body": forms.Textarea(
                 attrs={
-                    "rows": 3,
+                    "rows": 1,
                     "maxlength": 2000,
                     "placeholder": "พิมพ์ข้อความถึงผู้ขาย",
                 }
-            )
+            ),
+            "attachment": forms.FileInput(
+                attrs={"accept": "image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm"}
+            ),
         }
 
-    def clean_body(self):
-        body = self.cleaned_data["body"].strip()
-        if not body:
-            raise forms.ValidationError("กรุณาพิมพ์ข้อความ")
-        return body
+    def clean(self):
+        cleaned_data = super().clean()
+        body = (cleaned_data.get("body") or "").strip()
+        attachment = cleaned_data.get("attachment")
+        if not body and not attachment:
+            raise forms.ValidationError("กรุณาพิมพ์ข้อความหรือแนบรูปภาพหรือวิดีโอ")
+        cleaned_data["body"] = body
+        return cleaned_data
 class DeliveryAddressForm(StyledFormMixin, forms.ModelForm):
     class Meta:
         model = DeliveryAddress

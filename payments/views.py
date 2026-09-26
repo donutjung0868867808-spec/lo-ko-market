@@ -50,34 +50,52 @@ def mark_payment_failed(payment, order):
     return payment
 
 
-def mock_payment_redirect(order, request):
-    payment, _ = Payment.objects.get_or_create(
-        order=order,
-        defaults={
-            "amount": order.total_amount,
-            "currency": settings.DEFAULT_CURRENCY,
-        },
+def start_demo_checkout(order, payment, request):
+    """Prepare an in-app sandbox checkout without handling real payment details."""
+    if not order.stock_reserved:
+        order = reserve_order_stock(order)
+
+    now = timezone.now()
+    checkout_expires_at = max(
+        order.expires_at or now,
+        now + timedelta(minutes=30),
     )
+    if order.expires_at != checkout_expires_at:
+        order.expires_at = checkout_expires_at
+        order.save(update_fields=["expires_at", "updated_at"])
+
     payment.status = Payment.Status.PROCESSING
-    payment.checkout_session_id = f"mock-{order.pk}-{order.created_at.timestamp()}"
-    payment.payment_intent_id = f"mock-intent-{order.pk}"
-    payment.save(update_fields=["status", "checkout_session_id", "payment_intent_id", "updated_at"])
-    mark_session_paid(
-        {"id": payment.checkout_session_id, "payment_intent": payment.payment_intent_id},
-        {"provider": "mock", "order_id": order.pk},
+    payment.checkout_session_id = f"demo-{payment.checkout_attempt_id.hex}"
+    payment.checkout_url = request.build_absolute_uri(
+        reverse("payments:demo_checkout", args=[order.pk])
     )
-    messages.success(request, "ชำระเงินสำเร็จด้วยระบบจำลองในเครื่อง")
-    return redirect("orders:order_detail", pk=order.pk)
+    payment.checkout_expires_at = checkout_expires_at
+    payment.save(
+        update_fields=[
+            "status",
+            "checkout_session_id",
+            "checkout_url",
+            "checkout_expires_at",
+            "updated_at",
+        ]
+    )
+    order.payment_status = Order.PaymentStatus.PROCESSING
+    order.save(update_fields=["payment_status", "updated_at"])
+    return redirect("payments:demo_checkout", order_id=order.pk)
 
 
 def stripe_client():
-    if not settings.STRIPE_SECRET_KEY:
+    secret_key = settings.STRIPE_SECRET_KEY
+    if not secret_key:
+        return None
+    if settings.PAYMENT_MODE == "test" and secret_key.startswith("sk_live_"):
+        logger.error("Blocked a live Stripe key because PAYMENT_MODE is test.")
         return None
     try:
         import stripe
     except ImportError:
         return None
-    stripe.api_key = settings.STRIPE_SECRET_KEY
+    stripe.api_key = secret_key
     return stripe
 
 
@@ -243,8 +261,12 @@ def create_checkout_session(request, order_id):
 
         stripe = stripe_client()
         if stripe is None:
-            if settings.DEBUG:
-                return mock_payment_redirect(order, request)
+            if settings.PAYMENT_MODE == "test":
+                try:
+                    return start_demo_checkout(order, payment, request)
+                except ValidationError as exc:
+                    messages.error(request, exc.message)
+                    return redirect(order)
             mark_payment_failed(payment, order)
             if order.stock_reserved:
                 release_order_stock(order, "คืนสต็อกเนื่องจากระบบชำระเงินไม่พร้อม")
@@ -298,8 +320,12 @@ def create_checkout_session(request, order_id):
             )
         except Exception:
             logger.exception("Unable to create Stripe checkout for order %s", order.pk)
-            if settings.DEBUG:
-                return mock_payment_redirect(order, request)
+            if settings.PAYMENT_MODE == "test":
+                try:
+                    return start_demo_checkout(order, payment, request)
+                except ValidationError as exc:
+                    messages.error(request, exc.message)
+                    return redirect(order)
             mark_payment_failed(payment, order)
             release_order_stock(order, "คืนสต็อกเนื่องจากสร้างหน้าชำระเงินไม่สำเร็จ")
             messages.error(request, "ไม่สามารถเชื่อมต่อระบบชำระเงินได้ กรุณาลองใหม่")
@@ -321,6 +347,58 @@ def create_checkout_session(request, order_id):
         order.payment_status = Order.PaymentStatus.PROCESSING
         order.save(update_fields=["payment_status", "updated_at"])
         return redirect(session.url)
+
+
+@login_required
+def demo_checkout(request, order_id):
+    if settings.PAYMENT_MODE != "test":
+        messages.error(request, "หน้าชำระเงินจำลองใช้ได้เฉพาะโหมดทดลอง")
+        return redirect("orders:order_detail", pk=order_id)
+
+    order = get_object_or_404(Order, pk=order_id, buyer=request.user)
+    payment = get_object_or_404(Payment, order=order)
+    if payment.status == Payment.Status.PAID:
+        return redirect(f"{reverse('payments:success')}?session_id={payment.checkout_session_id}")
+    if payment.status != Payment.Status.PROCESSING or not payment.checkout_session_id:
+        return redirect("payments:create_checkout", order_id=order.pk)
+    if order.is_expired:
+        cancel_unpaid_order(order, changed_by=request.user, note="หมดเวลาชำระเงินทดลอง")
+        messages.error(request, "รายการชำระเงินหมดเวลาแล้ว")
+        return redirect(order)
+    return render(request, "payments/demo_checkout.html", {"order": order, "payment": payment})
+
+
+@login_required
+@require_POST
+def complete_demo_checkout(request, order_id):
+    if settings.PAYMENT_MODE != "test":
+        messages.error(request, "หน้าชำระเงินจำลองใช้ได้เฉพาะโหมดทดลอง")
+        return redirect("orders:order_detail", pk=order_id)
+
+    order = get_object_or_404(Order, pk=order_id, buyer=request.user)
+    payment = get_object_or_404(Payment, order=order)
+    if payment.status == Payment.Status.PAID:
+        return redirect(f"{reverse('payments:success')}?session_id={payment.checkout_session_id}")
+    if payment.status != Payment.Status.PROCESSING or not payment.checkout_session_id:
+        return redirect("payments:create_checkout", order_id=order.pk)
+    if order.is_expired:
+        cancel_unpaid_order(order, changed_by=request.user, note="หมดเวลาชำระเงินทดลอง")
+        messages.error(request, "รายการชำระเงินหมดเวลาแล้ว")
+        return redirect(order)
+
+    method = request.POST.get("payment_method", "card")
+    if method not in {"card", "promptpay"}:
+        messages.error(request, "กรุณาเลือกวิธีชำระเงิน")
+        return redirect("payments:demo_checkout", order_id=order.pk)
+
+    mark_session_paid(
+        {
+            "id": payment.checkout_session_id,
+            "payment_intent": f"demo-intent-{payment.checkout_attempt_id.hex}",
+        },
+        {"provider": "demo", "payment_method": method, "order_id": order.pk},
+    )
+    return redirect(f"{reverse('payments:success')}?session_id={payment.checkout_session_id}")
 
 
 def success(request):

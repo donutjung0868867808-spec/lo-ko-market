@@ -3,8 +3,10 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.management import call_command
 from django.db import transaction
-from django.db.models import Avg, Count, Prefetch, Q, Sum
+from django.db.models import Avg, Count, Max, Prefetch, Q, Sum
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
+from django.views.decorators.cache import never_cache
 
 from accounts.decorators import role_required, user_community
 from accounts.models import AuditEvent, Community, Notification, Report, User
@@ -14,7 +16,21 @@ from orders.models import Order
 
 from accounts.forms import ReportForm
 from .forms import ProductForm, ProductImageForm, ProductReviewForm
-from .models import Category, Product, ProductFavorite, ProductImage, ProductReview, SellerFavorite, StockMovement
+from .models import (
+    Category,
+    HomeSlide,
+    Product,
+    ProductClick,
+    ProductDetailImage,
+    ProductFavorite,
+    ProductImage,
+    ProductReview,
+    ProductReviewMedia,
+    SellerFavorite,
+    SellerStoreVisit,
+    StockMovement,
+    review_media_type_for_upload,
+)
 
 
 def ensure_demo_catalog_data():
@@ -23,9 +39,42 @@ def ensure_demo_catalog_data():
     call_command("seed_demo_data", verbosity=0)
 
 
+def analytics_session_key(request):
+    if not request.session.session_key:
+        request.session.create()
+    return request.session.session_key
+
+
+def track_store_visit(request, seller):
+    if request.user.is_authenticated and request.user.pk == seller.pk:
+        return
+    SellerStoreVisit.objects.get_or_create(
+        seller=seller,
+        session_key=analytics_session_key(request),
+        visited_on=timezone.localdate(),
+    )
+
+
+def track_product_click(request, product):
+    if request.user.is_authenticated and request.user.pk == product.seller_id:
+        return
+    ProductClick.objects.create(
+        seller=product.seller,
+        product=product,
+        session_key=analytics_session_key(request),
+    )
+
+
 def save_product_gallery_images(product, images):
     for image in images:
         ProductImage.objects.create(product=product, image=image)
+
+
+def save_product_detail_images(product, images):
+    next_sort_order = product.detail_images.aggregate(last=Max("sort_order"))["last"] or 0
+    for image in images:
+        next_sort_order += 1
+        ProductDetailImage.objects.create(product=product, image=image, sort_order=next_sort_order)
 
 
 def use_first_gallery_image_as_cover(product, images):
@@ -33,6 +82,20 @@ def use_first_gallery_image_as_cover(product, images):
     if not product.image and images:
         product.image = images.pop(0)
     return images
+
+
+def can_review_product(user, product):
+    """Only customers with a successful, active purchase can review a product."""
+    if not user.is_authenticated or product.seller_id == user.id:
+        return False
+
+    return Order.objects.filter(
+        buyer=user,
+        items__product=product,
+        payment_status=Order.PaymentStatus.PAID,
+    ).exclude(
+        status__in=[Order.Status.CANCELLED, Order.Status.REFUNDED]
+    ).exists()
 
 
 def filtered_products(request):
@@ -74,9 +137,7 @@ def product_list(request):
         "products": filtered_products(request),
         "categories": categories,
         "communities": communities,
-        "provinces": communities.exclude(province="").values_list(
-            "province", flat=True
-        ).distinct().order_by("province"),
+        "hero_slides": HomeSlide.objects.filter(is_active=True),
     }
     return render(request, "catalog/product_list.html", context)
 
@@ -117,7 +178,7 @@ def can_manage_product(user, product):
 
 def product_detail(request, pk):
     product = get_object_or_404(
-        Product.objects.select_related("seller", "community", "category").prefetch_related("images"),
+        Product.objects.select_related("seller", "community", "category").prefetch_related("images", "detail_images"),
         pk=pk,
     )
     if product.status != Product.Status.ACTIVE:
@@ -130,12 +191,14 @@ def product_detail(request, pk):
         if not allowed:
             messages.error(request, "สินค้านี้ยังไม่เปิดขาย")
             return redirect("catalog:product_list")
+    if product.status == Product.Status.ACTIVE:
+        track_product_click(request, product)
     is_product_favorite = False
     is_seller_favorite = False
     if request.user.is_authenticated:
         is_product_favorite = ProductFavorite.objects.filter(user=request.user, product=product).exists()
         is_seller_favorite = SellerFavorite.objects.filter(user=request.user, seller=product.seller).exists()
-    reviews = product.reviews.select_related("user")
+    reviews = product.reviews.select_related("user").prefetch_related("media")
     sold_quantity = (
         product.order_items.filter(order__payment_status=Order.PaymentStatus.PAID)
         .aggregate(total=Sum("quantity"))["total"]
@@ -181,6 +244,7 @@ def product_detail(request, pk):
             "recommended_products": recommended_products,
             "is_product_favorite": is_product_favorite,
             "is_seller_favorite": is_seller_favorite,
+            "can_review_product": can_review_product(request.user, product),
             "image_form": ProductImageForm(),
             "can_manage_product": can_manage_product(request.user, product),
             "can_moderate_product": can_manage_product(request.user, product)
@@ -196,23 +260,46 @@ def submit_review(request, pk):
         messages.error(request, "กรุณาเข้าสู่ระบบก่อนเขียนรีวิว")
         return redirect(product)
 
-    has_purchase = Order.objects.filter(
-        buyer=request.user,
-        items__product=product,
-        payment_status=Order.PaymentStatus.PAID,
-    ).exists()
-    if not has_purchase:
-        messages.error(request, "รีวิวได้เฉพาะผู้ซื้อที่เคยสั่งซื้อสินค้านี้และชำระเงินแล้ว")
+    if not can_review_product(request.user, product):
+        messages.error(request, "รีวิวได้เฉพาะผู้ที่ซื้อสินค้านี้และชำระเงินเรียบร้อยแล้ว")
         return redirect(product)
 
     if request.method == "POST":
-        rating = int(request.POST.get("rating", 5))
+        try:
+            rating = int(request.POST.get("rating", 5))
+        except (TypeError, ValueError):
+            rating = 5
+        rating = min(5, max(1, rating))
         comment = request.POST.get("comment", "").strip()
-        ProductReview.objects.update_or_create(
+        media_files = request.FILES.getlist("media")
+        if len(media_files) > 5:
+            messages.error(request, "แนบรูปหรือวิดีโอได้สูงสุด 5 ไฟล์ต่อรีวิว")
+            return redirect(product)
+
+        try:
+            review_media = [
+                ProductReviewMedia(
+                    file=uploaded_file,
+                    media_type=review_media_type_for_upload(uploaded_file),
+                )
+                for uploaded_file in media_files
+            ]
+            for media in review_media:
+                media.full_clean(exclude={"review"})
+        except ValidationError as error:
+            messages.error(request, error.messages[0])
+            return redirect(product)
+
+        review, _ = ProductReview.objects.update_or_create(
             product=product,
             user=request.user,
             defaults={"rating": rating, "comment": comment},
         )
+        if media_files:
+            review.media.all().delete()
+            for media in review_media:
+                media.review = review
+                media.save()
         messages.success(request, "ส่งรีวิวแล้ว")
         return redirect(product)
 
@@ -234,11 +321,13 @@ def product_create(request):
     if request.method == "POST" and form.is_valid():
         product = form.save(commit=False)
         gallery_images = use_first_gallery_image_as_cover(product, form.cleaned_data["image"])
+        detail_images = form.cleaned_data["detail_images"]
         product.seller = request.user
         product.community = profile.community
         product.status = Product.Status.PENDING
         product.save()
         save_product_gallery_images(product, gallery_images)
+        save_product_detail_images(product, detail_images)
         messages.success(request, "ส่งสินค้าให้เจ้าหน้าที่ตรวจสอบแล้ว")
         return redirect(product)
 
@@ -248,7 +337,7 @@ def product_create(request):
 @login_required
 def product_update(request, pk):
     product = get_object_or_404(
-        Product.objects.select_related("community", "seller"),
+        Product.objects.select_related("community", "seller").prefetch_related("images", "detail_images"),
         pk=pk,
     )
     if not can_manage_product(request.user, product):
@@ -263,19 +352,31 @@ def product_update(request, pk):
     }
     old_stock = product.stock_quantity
     old_image_name = product.image.name if product.image else ""
+    old_harvest_date = product.harvest_date
+    old_expiry_date = product.expiry_date
     form = ProductForm(request.POST or None, request.FILES or None, instance=product)
     if request.method == "POST" and form.is_valid():
         remove_image = request.POST.get("remove_image") == "1" and not request.FILES.get("image")
         gallery_images = form.cleaned_data["image"]
+        detail_images = form.cleaned_data["detail_images"]
         with transaction.atomic():
             product = form.save(commit=False)
+            # A browser date input can submit an empty value when it cannot render
+            # a localized date. Keep existing dates unless an actual replacement was sent.
+            if not request.POST.get("harvest_date") and old_harvest_date:
+                product.harvest_date = old_harvest_date
+            if not request.POST.get("expiry_date") and old_expiry_date:
+                product.expiry_date = old_expiry_date
             if remove_image:
                 product.image = ""
+            elif not product.image and old_image_name:
+                product.image = old_image_name
             gallery_images = use_first_gallery_image_as_cover(product, gallery_images)
             if request.user.is_farmer:
                 product.status = Product.Status.PENDING
             product.save()
             save_product_gallery_images(product, gallery_images)
+            save_product_detail_images(product, detail_images)
             if product.stock_quantity != old_stock:
                 StockMovement.objects.create(
                     product=product,
@@ -369,7 +470,7 @@ def product_review(request):
         products = products.none()
 
     if request.method == "POST":
-        product = get_object_or_404(Product, pk=request.POST.get("product_id"))
+        product = get_object_or_404(products, pk=request.POST.get("product_id"))
         if not request.user.is_owner and not community:
             messages.error(request, "บัญชีเจ้าหน้าที่ยังไม่ได้ผูกกับชุมชน")
             return redirect("catalog:product_review")
@@ -472,6 +573,14 @@ def product_moderation_action(request, pk, action):
     if not request.user.is_owner and (not community or product.community_id != community.id):
         messages.error(request, "จัดการได้เฉพาะสินค้าในชุมชนของคุณ")
         return redirect("accounts:dashboard")
+    is_community_staff = request.user.is_cooperative_staff and not request.user.is_owner
+    if is_community_staff and (
+        (action == "block" and product.status != Product.Status.ACTIVE)
+        or (action == "unblock" and product.status != Product.Status.BLOCKED)
+        or action not in {"block", "unblock"}
+    ):
+        messages.error(request, "สถานะสินค้านี้ไม่สามารถจัดการด้วยคำสั่งที่เลือกได้")
+        return redirect(product)
     if request.method == "POST":
         before_status = product.status
         if action == "block":
@@ -505,8 +614,10 @@ def product_moderation_action(request, pk, action):
     return redirect(product)
 
 
+@never_cache
 def seller_store(request, seller_id):
     seller = get_object_or_404(User, pk=seller_id, role=User.Roles.FARMER, is_active=True)
+    track_store_visit(request, seller)
     active_products = (
         Product.objects.select_related("community", "category")
         .prefetch_related("images")
@@ -563,6 +674,22 @@ def seller_store(request, seller_id):
         ).order_by("-favorite_count", "-created_at")
 
     featured_product = active_products.first()
+    store_cover_slides = []
+    if seller_profile:
+        if seller_profile.store_cover:
+            store_cover_slides.append(
+                {
+                    "url": seller_profile.store_cover.url,
+                    "alt_text": f"รูปปก {seller_profile.farm_name or seller.username}",
+                }
+            )
+        store_cover_slides.extend(
+            {
+                "url": slide.image.url,
+                "alt_text": f"รูปสไลด์ {seller_profile.farm_name or seller.username}",
+            }
+            for slide in seller_profile.store_cover_slides.filter(is_active=True)
+        )
     is_following = False
     if request.user.is_authenticated:
         is_following = SellerFavorite.objects.filter(
@@ -580,6 +707,7 @@ def seller_store(request, seller_id):
             "categories": categories,
             "recommended_products": recommended_products,
             "featured_product": featured_product,
+            "store_cover_slides": store_cover_slides,
             "product_count": active_products.count(),
             "filtered_product_count": products.count(),
             "follower_count": seller.seller_favorited_by.count(),

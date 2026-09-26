@@ -1,16 +1,67 @@
 from decimal import Decimal
 
 from django.conf import settings
-from django.core.validators import FileExtensionValidator, MaxValueValidator, MinValueValidator
+from django.core.exceptions import ValidationError
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.db.models.fields.files import FieldFile
 from django.urls import reverse
 from django.utils import timezone
+from PIL import Image, UnidentifiedImageError
 
 
 def validate_image_size(upload):
     if upload and upload.size > settings.MAX_UPLOAD_SIZE:
-        from django.core.exceptions import ValidationError
         raise ValidationError("รูปภาพมีขนาดใหญ่เกินกำหนด")
+
+
+def validate_image_file(upload):
+    """Allow supported image bytes even when the browser provides no extension."""
+    if not upload or isinstance(upload, FieldFile):
+        return
+
+    position = upload.tell() if hasattr(upload, "tell") else 0
+    try:
+        upload.seek(0)
+        image = Image.open(upload)
+        image.verify()
+        if image.format not in {"JPEG", "PNG", "WEBP"}:
+            raise ValidationError("รองรับเฉพาะรูป JPG, PNG และ WEBP")
+    except (UnidentifiedImageError, OSError, SyntaxError) as exc:
+        raise ValidationError("ไฟล์ที่เลือกไม่ใช่รูปภาพที่ใช้งานได้") from exc
+    finally:
+        if hasattr(upload, "seek"):
+            upload.seek(position)
+
+
+REVIEW_VIDEO_EXTENSIONS = {".mp4", ".mov", ".webm"}
+REVIEW_VIDEO_MAX_SIZE = 25 * 1024 * 1024
+
+
+def review_media_type_for_upload(upload):
+    """Return the supported media type without relying solely on a filename."""
+    try:
+        validate_image_file(upload)
+        return "image"
+    except ValidationError:
+        pass
+
+    filename = (getattr(upload, "name", "") or "").lower()
+    content_type = (getattr(upload, "content_type", "") or "").lower()
+    if (
+        any(filename.endswith(extension) for extension in REVIEW_VIDEO_EXTENSIONS)
+        and (not content_type or content_type.startswith("video/"))
+    ):
+        return "video"
+    raise ValidationError("รองรับเฉพาะรูป JPG, PNG, WEBP และวิดีโอ MP4, MOV, WEBM")
+
+
+def validate_review_media_file(upload):
+    media_type = review_media_type_for_upload(upload)
+    if media_type == "image":
+        validate_image_size(upload)
+    elif upload and upload.size > REVIEW_VIDEO_MAX_SIZE:
+        raise ValidationError("วิดีโอมีขนาดใหญ่เกิน 25 MB")
 
 
 class ProductReview(models.Model):
@@ -46,6 +97,34 @@ class ProductReview(models.Model):
         return f"รีวิวของ {self.user} ต่อ {self.product} ({self.rating})"
 
 
+class ProductReviewMedia(models.Model):
+    class MediaType(models.TextChoices):
+        IMAGE = "image", "รูปภาพ"
+        VIDEO = "video", "วิดีโอ"
+
+    review = models.ForeignKey(
+        ProductReview,
+        on_delete=models.CASCADE,
+        related_name="media",
+    )
+    file = models.FileField(
+        "ไฟล์สื่อ",
+        upload_to="reviews/%Y/%m/",
+        validators=[validate_review_media_file],
+    )
+    media_type = models.CharField(
+        "ประเภทสื่อ",
+        max_length=10,
+        choices=MediaType.choices,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "สื่อประกอบรีวิว"
+        verbose_name_plural = "สื่อประกอบรีวิว"
+        ordering = ["id"]
+
+
 class Category(models.Model):
     name = models.CharField(max_length=120, unique=True)
     slug = models.SlugField(max_length=140, unique=True)
@@ -54,7 +133,7 @@ class Category(models.Model):
         "รูปหมวดหมู่",
         upload_to="categories/",
         blank=True,
-        validators=[FileExtensionValidator(["jpg", "jpeg", "png", "webp"]), validate_image_size],
+        validators=[validate_image_file, validate_image_size],
     )
     is_active = models.BooleanField(default=True)
 
@@ -65,6 +144,25 @@ class Category(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class HomeSlide(models.Model):
+    image = models.FileField(
+        "ภาพสไลด์",
+        upload_to="home-slides/",
+        validators=[validate_image_file, validate_image_size],
+    )
+    alt_text = models.CharField("คำอธิบายภาพ", max_length=180, blank=True)
+    sort_order = models.PositiveSmallIntegerField("ลำดับ", default=0)
+    is_active = models.BooleanField("เปิดใช้งาน", default=True)
+
+    class Meta:
+        verbose_name = "ภาพสไลด์หน้าแรก"
+        verbose_name_plural = "ภาพสไลด์หน้าแรก"
+        ordering = ["sort_order", "id"]
+
+    def __str__(self):
+        return self.alt_text or f"ภาพสไลด์ #{self.pk}"
 
 
 class Product(models.Model):
@@ -118,9 +216,11 @@ class Product(models.Model):
     last_low_stock_notified_at = models.DateTimeField(null=True, blank=True)
     weight_grams = models.PositiveIntegerField(null=True, blank=True)
     image = models.FileField(
+        "รูปภาพหลัก",
         upload_to="products/",
         blank=True,
-        validators=[FileExtensionValidator(["jpg", "jpeg", "png", "webp"]), validate_image_size],
+        validators=[validate_image_file, validate_image_size],
+        help_text="เลือกรูป JPG, PNG หรือ WEBP ได้ แม้ชื่อไฟล์ไม่มีนามสกุล",
     )
     harvest_date = models.DateField(null=True, blank=True)
     expiry_date = models.DateField(null=True, blank=True)
@@ -216,8 +316,9 @@ class Product(models.Model):
 class ProductImage(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="images")
     image = models.FileField(
+        "รูปสินค้าเพิ่มเติม",
         upload_to="products/gallery/%Y/%m/",
-        validators=[FileExtensionValidator(["jpg", "jpeg", "png", "webp"]), validate_image_size],
+        validators=[validate_image_file, validate_image_size],
     )
     alt_text = models.CharField(max_length=180, blank=True)
     sort_order = models.PositiveSmallIntegerField(default=0)
@@ -226,6 +327,25 @@ class ProductImage(models.Model):
     class Meta:
         verbose_name = "รูปภาพสินค้า"
         verbose_name_plural = "รูปภาพสินค้า"
+        ordering = ["sort_order", "id"]
+
+
+class ProductDetailImage(models.Model):
+    """Images that illustrate the written product description, not the product gallery."""
+
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="detail_images")
+    image = models.FileField(
+        "รูปประกอบรายละเอียดสินค้า",
+        upload_to="products/details/%Y/%m/",
+        validators=[validate_image_file, validate_image_size],
+    )
+    alt_text = models.CharField(max_length=180, blank=True)
+    sort_order = models.PositiveSmallIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "รูปประกอบรายละเอียดสินค้า"
+        verbose_name_plural = "รูปประกอบรายละเอียดสินค้า"
         ordering = ["sort_order", "id"]
 
 
@@ -313,3 +433,50 @@ class SellerFavorite(models.Model):
 
     def __str__(self):
         return f"{self.user} ถูกใจร้าน {self.seller}"
+
+
+class SellerStoreVisit(models.Model):
+    seller = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="store_visits",
+    )
+    session_key = models.CharField(max_length=40)
+    visited_on = models.DateField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "สถิติผู้เยี่ยมชมร้าน"
+        verbose_name_plural = "สถิติผู้เยี่ยมชมร้าน"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["seller", "session_key", "visited_on"],
+                name="unique_daily_seller_store_visit",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["seller", "visited_on"]),
+        ]
+
+
+class ProductClick(models.Model):
+    seller = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="product_clicks",
+    )
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name="clicks",
+    )
+    session_key = models.CharField(max_length=40)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "สถิติการเปิดดูสินค้า"
+        verbose_name_plural = "สถิติการเปิดดูสินค้า"
+        indexes = [
+            models.Index(fields=["seller", "created_at"]),
+            models.Index(fields=["product", "created_at"]),
+        ]

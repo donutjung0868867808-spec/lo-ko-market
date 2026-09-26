@@ -1,4 +1,5 @@
 from django.urls import reverse
+from django.db.models import Count, Q
 
 from accounts.models import EmailDelivery, FarmerProfile, Report, User
 from catalog.models import Product
@@ -27,6 +28,7 @@ ADMIN_WORKFLOWS = (
         "models": (
             "catalog.product",
             "catalog.category",
+            "catalog.homeslide",
             "catalog.productreview",
             "catalog.productfavorite",
             "catalog.sellerfavorite",
@@ -91,6 +93,7 @@ ADMIN_MODEL_DESCRIPTIONS = {
     "accounts.deliveryaddress": "ที่อยู่จัดส่งที่สมาชิกบันทึกไว้",
     "catalog.product": "รายละเอียด ราคา สต็อก และสถานะการขาย",
     "catalog.category": "หมวดหมู่ที่ใช้ค้นหาและแสดงสินค้า",
+    "catalog.homeslide": "ภาพหน้าปกหน้าแรกที่สลับแสดงอัตโนมัติ",
     "catalog.productreview": "ความคิดเห็นและคะแนนจากผู้ซื้อ",
     "catalog.productfavorite": "รายการสินค้าที่สมาชิกบันทึกไว้",
     "catalog.sellerfavorite": "ร้านค้าที่สมาชิกติดตาม",
@@ -182,15 +185,49 @@ def build_admin_dashboard_context():
     shipment_issues = Shipment.objects.filter(
         status__in=("AttemptFail", "Exception", "Expired")
     ).count()
+    active_members = User.objects.filter(is_active=True).aggregate(
+        consumers=Count("pk", filter=Q(role=User.Roles.CONSUMER)),
+        farmers=Count("pk", filter=Q(role=User.Roles.FARMER)),
+        staff=Count("pk", filter=Q(role=User.Roles.COOPERATIVE_STAFF)),
+        owners=Count(
+            "pk",
+            filter=Q(role=User.Roles.OWNER) | Q(is_superuser=True),
+        ),
+    )
 
     return {
         "admin_stats": (
             {
-                "label": "สมาชิกที่ใช้งานอยู่",
-                "value": User.objects.filter(is_active=True).count(),
-                "detail": "บัญชีผู้ซื้อ ผู้ขาย และเจ้าหน้าที่",
-                "url": reverse("admin:accounts_user_changelist"),
-                "icon": "users",
+                "label": "ผู้ดูแลระบบที่ใช้งานอยู่",
+                "value": active_members["owners"],
+                "detail": "บัญชี Admin และ Owner ที่เปิดใช้งาน",
+                "url": reverse("admin:accounts_user_changelist")
+                + "?role__exact=owner",
+                "icon": "shield-check",
+            },
+            {
+                "label": "ผู้ซื้อที่ใช้งานอยู่",
+                "value": active_members["consumers"],
+                "detail": "บัญชีผู้ซื้อที่เปิดใช้งาน",
+                "url": reverse("admin:accounts_user_changelist")
+                + "?role__exact=consumer",
+                "icon": "shopping-bag",
+            },
+            {
+                "label": "ผู้ขายที่ใช้งานอยู่",
+                "value": active_members["farmers"],
+                "detail": "บัญชีผู้ขายที่เปิดใช้งาน",
+                "url": reverse("admin:accounts_user_changelist")
+                + "?role__exact=farmer",
+                "icon": "sprout",
+            },
+            {
+                "label": "เจ้าหน้าที่ที่ใช้งานอยู่",
+                "value": active_members["staff"],
+                "detail": "บัญชีเจ้าหน้าที่ที่เปิดใช้งาน",
+                "url": reverse("admin:accounts_user_changelist")
+                + "?role__exact=cooperative_staff",
+                "icon": "badge-check",
             },
             {
                 "label": "ผู้ขายรอตรวจสอบ",

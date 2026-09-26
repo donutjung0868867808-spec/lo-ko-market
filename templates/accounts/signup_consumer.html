@@ -33,7 +33,7 @@
 </button>
 
 <section class="mx-auto grid w-full max-w-7xl items-center gap-12 xl:grid-cols-[minmax(0,1fr)_460px] xl:gap-24">
-  <div class="hidden justify-center xl:flex" aria-hidden="true"><img src="{% static 'images/market-logo.png' %}" alt="" class="h-72 w-72 object-contain"></div>
+  <div class="hidden justify-center xl:flex" aria-hidden="true"><img src="{% static 'images/market-logo.png' %}" alt="" class="object-contain" style="height: 22rem; width: 22rem;"></div>
 
   <form method="post" class="w-full rounded-3xl border-2 border-leaf bg-white px-5 py-7 shadow-[0_12px_32px_rgba(23,33,29,0.05)] sm:rounded-[2.5rem] sm:px-14">
     {% csrf_token %}
@@ -51,11 +51,9 @@
     {% endif %}
 
     <div class="mt-4 grid gap-x-4 gap-y-2.5 sm:grid-cols-2">
-      <div class="signup-field sm:col-span-2">
-        <label class="text-sm text-stone-600" for="{{ form.display_name.id_for_label }}">ชื่อ-สกุล</label>
-        <div class="mt-1">{{ form.display_name }}</div>
-        {% for error in form.display_name.errors %}<p class="mt-1 text-xs text-red-700">{{ error }}</p>{% endfor %}
-      </div>
+      <div class="signup-field sm:col-span-2"><label class="text-sm text-stone-600" for="{{ form.first_name.id_for_label }}">ชื่อ</label><div class="mt-1">{{ form.first_name }}</div>{% for error in form.first_name.errors %}<p class="mt-1 text-xs text-red-700">{{ error }}</p>{% endfor %}</div>
+      <div class="signup-field sm:col-span-2"><label class="text-sm text-stone-600" for="{{ form.last_name.id_for_label }}">นามสกุล</label><div class="mt-1">{{ form.last_name }}</div>{% for error in form.last_name.errors %}<p class="mt-1 text-xs text-red-700">{{ error }}</p>{% endfor %}</div>
+      <div class="signup-field sm:col-span-2"><label class="text-sm text-stone-600" for="{{ form.birth_date.id_for_label }}">วันเกิด</label><div class="mt-1">{{ form.birth_date }}</div>{% for error in form.birth_date.errors %}<p class="mt-1 text-xs text-red-700">{{ error }}</p>{% endfor %}</div>
       <div class="signup-field sm:col-span-2">
         <label class="text-sm text-stone-600" for="{{ form.username.id_for_label }}">ชื่อผู้ใช้</label>
         <div class="mt-1">{{ form.username }}</div>

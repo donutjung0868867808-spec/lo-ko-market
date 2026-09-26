@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django import forms
 from django.db.models import Prefetch
 from django.utils.html import format_html
 from django.utils import timezone
@@ -7,7 +8,9 @@ from accounts.admin_permissions import CsvExportAdminMixin, OwnerOnlyAdminMixin,
 
 from .models import (
     Category,
+    HomeSlide,
     Product,
+    ProductDetailImage,
     ProductFavorite,
     ProductImage,
     ProductReview,
@@ -16,8 +19,27 @@ from .models import (
 )
 
 
+class CategoryAdminForm(forms.ModelForm):
+    class Meta:
+        model = Category
+        fields = "__all__"
+        widgets = {
+            "image": forms.ClearableFileInput(
+                attrs={
+                    "data-admin-image-input": "true",
+                    "data-image-picker-title": "เลือกรูปหมวดสินค้า",
+                }
+            ),
+        }
+
+    class Media:
+        css = {"all": ("admin/category-image-upload.css",)}
+        js = ("admin/category-image-upload.js",)
+
+
 @admin.register(Category)
 class CategoryAdmin(OwnerOnlyAdminMixin, admin.ModelAdmin):
+    form = CategoryAdminForm
     list_display = ("category_thumbnail", "name", "slug", "is_active")
     list_filter = ("is_active",)
     search_fields = ("name",)
@@ -30,6 +52,41 @@ class CategoryAdmin(OwnerOnlyAdminMixin, admin.ModelAdmin):
         return format_html(
             '<img src="{}" alt="" style="width:48px;height:48px;object-fit:cover;border-radius:6px;">',
             category.image.url,
+        )
+
+
+class HomeSlideAdminForm(forms.ModelForm):
+    class Meta:
+        model = HomeSlide
+        fields = "__all__"
+        widgets = {
+            "image": forms.ClearableFileInput(
+                attrs={
+                    "data-admin-image-input": "true",
+                    "data-image-picker-title": "เลือกรูปสไลด์หน้าแรก",
+                    "data-image-crop-aspect": "3.25",
+                }
+            ),
+        }
+
+    class Media:
+        css = {"all": ("admin/category-image-upload.css",)}
+        js = ("admin/category-image-upload.js",)
+
+
+@admin.register(HomeSlide)
+class HomeSlideAdmin(OwnerOnlyAdminMixin, admin.ModelAdmin):
+    form = HomeSlideAdminForm
+    list_display = ("slide_thumbnail", "alt_text", "sort_order", "is_active")
+    list_editable = ("sort_order", "is_active")
+    list_filter = ("is_active",)
+    search_fields = ("alt_text",)
+
+    @admin.display(description="ตัวอย่างภาพ")
+    def slide_thumbnail(self, slide):
+        return format_html(
+            '<img src="{}" alt="" style="width:96px;height:56px;object-fit:cover;border-radius:6px;">',
+            slide.image.url,
         )
 
 
@@ -48,6 +105,12 @@ class ProductImageInline(admin.TabularInline):
 
     def has_delete_permission(self, request, obj=None):
         return request.user.is_owner
+
+
+class ProductDetailImageInline(ProductImageInline):
+    model = ProductDetailImage
+    verbose_name = "รูปประกอบรายละเอียดสินค้า"
+    verbose_name_plural = "รูปประกอบรายละเอียดสินค้า"
 
 
 class StockMovementInline(admin.TabularInline):
@@ -126,7 +189,7 @@ class ProductAdmin(CsvExportAdminMixin, RoleScopedAdminMixin, admin.ModelAdmin):
         ),
         ("ข้อมูลระบบ", {"fields": ("created_at", "updated_at"), "classes": ("collapse",)}),
     )
-    inlines = [ProductImageInline, StockMovementInline]
+    inlines = [ProductImageInline, ProductDetailImageInline, StockMovementInline]
     actions = ("approve_selected", "block_selected", "unblock_selected", "export_as_csv")
 
     def get_queryset(self, request):

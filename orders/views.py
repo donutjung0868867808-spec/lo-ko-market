@@ -5,20 +5,23 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
+from django.views.decorators.http import require_POST
+from django.utils.dateparse import parse_datetime
 
 from accounts.decorators import user_community
 from accounts.forms import ReportForm
 from accounts.models import Report
 from catalog.models import Product
 
-from .forms import CancelOrderForm, CartCheckoutForm, CheckoutForm, OrderStatusForm
-from .models import Order, OrderItem
+from .forms import CancelOrderForm, CartCheckoutForm, CheckoutForm, OrderStatusForm, SellerShipmentForm
+from .models import Order, OrderItem, Shipment
 from .services import (
-    apply_coupon,
     cancel_unpaid_order,
     change_order_status,
     expire_stale_orders,
     reserve_order_stock,
+    ship_order,
     shipping_fee_for,
 )
 
@@ -58,6 +61,8 @@ def cart_items(request):
     total = Decimal("0.00")
 
     for product in products:
+        if request.user.is_authenticated and product.seller_id == request.user.id:
+            continue
         quantity = parse_quantity(cart.get(str(product.pk)), default=product.minimum_order_quantity, step=product.quantity_step)
         available = available_quantity(product)
         if available <= 0 or quantity <= 0:
@@ -98,6 +103,35 @@ def can_view_order(user, order):
     return order.buyer_id == user.id
 
 
+def tracking_events(order):
+    """Normalize carrier checkpoints for a readable, newest-first delivery timeline."""
+    try:
+        shipment = order.shipment
+    except Shipment.DoesNotExist:
+        return []
+
+    events = []
+    for point in reversed(shipment.checkpoints):
+        events.append(
+            {
+                "message": point.get("message") or "กำลังอัปเดตสถานะพัสดุ",
+                "location": point.get("location", ""),
+                "occurred_at": parse_datetime(point.get("time", "")),
+                "time_label": point.get("time", ""),
+            }
+        )
+    if not events:
+        events.append(
+            {
+                "message": shipment.status_label,
+                "location": "",
+                "occurred_at": shipment.provider_updated_at,
+                "time_label": "",
+            }
+        )
+    return events
+
+
 def can_manage_order(user, order):
     return user.is_owner or (user.is_farmer and order.seller_id == user.id) or (
         user.is_cooperative_staff and user_community(user) == order.community
@@ -128,26 +162,35 @@ def buyer_initial(user):
     return initial
 
 
-def finalize_order(order, coupon_code=""):
+def finalize_order(order):
     order.refresh_total()
     order.shipping_fee = shipping_fee_for(order)
     order.save(update_fields=["shipping_fee", "updated_at"])
     order.refresh_total()
-    apply_coupon(order, coupon_code)
     return reserve_order_stock(order)
 
 
 @login_required
 def cart_detail(request):
     items, total = cart_items(request)
-    form = CartCheckoutForm(initial=buyer_initial(request.user))
-    return render(request, "orders/cart.html", {"items": items, "total": total, "form": form})
+    return render(
+        request,
+        "orders/cart.html",
+        {
+            "items": items,
+            "total": total,
+            "selected_item_ids": {item["product"].pk for item in items},
+        },
+    )
 
 
 @login_required
 def cart_add(request, product_id):
     product = get_object_or_404(Product, pk=product_id, status=Product.Status.ACTIVE)
-    if not request.user.is_consumer and not request.user.is_owner:
+    if product.seller_id == request.user.id:
+        messages.info(request, "ไม่สามารถซื้อสินค้าจากร้านค้าของตัวเองได้")
+        return redirect(product)
+    if not request.user.can_buy and not request.user.is_owner:
         messages.error(request, "ตะกร้าสินค้าเปิดให้ผู้บริโภคทั่วไป")
         return redirect(product)
     if request.method == "POST":
@@ -168,6 +211,61 @@ def cart_add(request, product_id):
         messages.success(request, "เพิ่มสินค้าในตะกร้าแล้ว")
         return redirect("orders:cart")
     return redirect(product)
+
+
+@login_required
+@require_POST
+def order_reorder(request, pk):
+    order = get_object_or_404(
+        Order.objects.prefetch_related("items__product"),
+        pk=pk,
+        buyer=request.user,
+    )
+    if not request.user.can_buy and not request.user.is_owner:
+        messages.error(request, "บัญชีนี้ไม่สามารถสั่งซื้อสินค้าได้")
+        return redirect("orders:order_list")
+
+    cart = request.session.get(CART_SESSION_KEY, {})
+    added_count = 0
+    unavailable_count = 0
+
+    for item in order.items.all():
+        product = item.product
+        if (
+            product.status != Product.Status.ACTIVE
+            or product.seller_id == request.user.id
+            or available_quantity(product) <= 0
+        ):
+            unavailable_count += 1
+            continue
+
+        quantity = parse_quantity(
+            item.quantity,
+            default=product.minimum_order_quantity,
+            step=product.quantity_step,
+        )
+        quantity = max(quantity, product.minimum_order_quantity)
+        current_quantity = parse_quantity(
+            cart.get(str(product.pk)),
+            default=Decimal("0.00"),
+            step=product.quantity_step,
+        )
+        next_quantity = min(current_quantity + quantity, available_quantity(product))
+        if next_quantity <= current_quantity:
+            unavailable_count += 1
+            continue
+
+        cart[str(product.pk)] = str(next_quantity)
+        added_count += 1
+
+    request.session[CART_SESSION_KEY] = cart
+    request.session.modified = True
+
+    if added_count:
+        messages.success(request, f"เพิ่มสินค้า {added_count} รายการลงตะกร้าแล้ว")
+    if unavailable_count:
+        messages.warning(request, f"มีสินค้า {unavailable_count} รายการที่ไม่พร้อมสั่งซื้อ")
+    return redirect("orders:cart")
 
 
 @login_required
@@ -203,7 +301,7 @@ def cart_remove(request, product_id):
 
 @login_required
 def cart_checkout(request):
-    if not request.user.is_consumer and not request.user.is_owner:
+    if not request.user.can_buy and not request.user.is_owner:
         messages.error(request, "การสั่งซื้อเปิดให้ผู้บริโภคทั่วไป")
         return redirect("orders:cart")
 
@@ -212,15 +310,66 @@ def cart_checkout(request):
         messages.warning(request, "ยังไม่มีสินค้าในตะกร้า")
         return redirect("orders:cart")
 
+    selection_data = request.POST if request.method == "POST" else request.GET
+    selection_submitted = selection_data.get("cart_selection") == "1"
+    if request.method == "GET" and selection_submitted:
+        cart = request.session.get(CART_SESSION_KEY, {})
+        cart_changed = False
+        for item in items:
+            product = item["product"]
+            requested_quantity = selection_data.get(f"cart_quantity_{product.pk}")
+            if requested_quantity is None:
+                continue
+            quantity = parse_quantity(
+                requested_quantity,
+                default=item["quantity"],
+                step=product.quantity_step,
+            )
+            quantity = min(quantity, available_quantity(product))
+            if quantity <= 0:
+                cart.pop(str(product.pk), None)
+            else:
+                cart[str(product.pk)] = str(quantity)
+            cart_changed = True
+        if cart_changed:
+            request.session[CART_SESSION_KEY] = cart
+            request.session.modified = True
+            items, total = cart_items(request)
+
+    selected_item_ids = {
+        int(product_id)
+        for product_id in selection_data.getlist("selected_items")
+        if product_id.isdigit()
+    }
+    if selection_submitted:
+        selected_items = [item for item in items if item["product"].pk in selected_item_ids]
+        total = sum((item["line_total"] for item in selected_items), Decimal("0.00"))
+    else:
+        # Keep legacy checkout posts working while the cart UI submits an explicit selection.
+        selected_items = items
+        selected_item_ids = {item["product"].pk for item in items}
+
     form = CartCheckoutForm(request.POST or None, initial=buyer_initial(request.user))
-    if request.method == "POST" and form.is_valid():
+    if request.method == "GET":
+        if not selection_submitted or not selected_items:
+            messages.warning(request, "กรุณาเลือกสินค้าอย่างน้อย 1 รายการ")
+            return redirect("orders:cart")
+        return render(
+            request,
+            "orders/cart_checkout.html",
+            {"items": selected_items, "total": total, "form": form},
+        )
+
+    if selection_submitted and not selected_items:
+        form.add_error(None, "กรุณาเลือกสินค้าอย่างน้อย 1 รายการ")
+    elif form.is_valid():
         cart = request.session.get(CART_SESSION_KEY, {})
         errors = []
         created_orders = []
 
         with transaction.atomic():
             products = Product.objects.select_for_update().select_related("seller", "community").filter(
-                pk__in=cart.keys(),
+                pk__in=selected_item_ids,
                 status=Product.Status.ACTIVE,
             )
             locked_items = []
@@ -255,7 +404,7 @@ def cart_checkout(request):
                     ),
                     reverse=True,
                 )
-                for group_index, grouped_items in enumerate(grouped_orders):
+                for grouped_items in grouped_orders:
                     first_product = grouped_items[0]["product"]
                     order = Order.objects.create(
                         buyer=request.user,
@@ -279,8 +428,7 @@ def cart_checkout(request):
                             unit_price=product.price,
                         )
                     try:
-                        coupon_code = form.cleaned_data["coupon_code"] if group_index == 0 else ""
-                        finalize_order(order, coupon_code)
+                        finalize_order(order)
                     except ValidationError as exc:
                         errors.append(exc.message)
                         transaction.set_rollback(True)
@@ -291,20 +439,29 @@ def cart_checkout(request):
             for error in errors:
                 form.add_error(None, error)
         else:
-            request.session[CART_SESSION_KEY] = {}
+            for item in locked_items:
+                cart.pop(str(item["product"].pk), None)
+            request.session[CART_SESSION_KEY] = cart
             request.session.modified = True
             if len(created_orders) == 1:
                 return redirect("payments:create_checkout", order_id=created_orders[0].pk)
             messages.success(request, f"สร้างคำสั่งซื้อ {len(created_orders)} รายการแล้ว กรุณาชำระเงินแยกตามผู้ขาย")
             return redirect("orders:order_list")
 
-    items, total = cart_items(request)
-    return render(request, "orders/cart.html", {"items": items, "total": total, "form": form})
+    return render(
+        request,
+        "orders/cart_checkout.html",
+        {
+            "items": selected_items,
+            "total": total,
+            "form": form,
+        },
+    )
 
 
 @login_required
 def checkout(request, product_id):
-    if not request.user.is_consumer and not request.user.is_owner:
+    if not request.user.can_buy and not request.user.is_owner:
         messages.error(request, "การสั่งซื้อเปิดให้ผู้บริโภคทั่วไป")
         return redirect("catalog:product_detail", pk=product_id)
 
@@ -313,6 +470,9 @@ def checkout(request, product_id):
         pk=product_id,
         status=Product.Status.ACTIVE,
     )
+    if product.seller_id == request.user.id:
+        messages.info(request, "ไม่สามารถซื้อสินค้าจากร้านค้าของตัวเองได้")
+        return redirect(product)
     requested_quantity = parse_quantity(
         request.GET.get("quantity"),
         default=product.minimum_order_quantity,
@@ -348,9 +508,9 @@ def checkout(request, product_id):
                     unit_price=product.price,
                 )
                 try:
-                    finalize_order(order, form.cleaned_data["coupon_code"])
+                    finalize_order(order)
                 except ValidationError as exc:
-                    form.add_error("coupon_code", exc.message)
+                    form.add_error(None, exc.message)
                     transaction.set_rollback(True)
                 else:
                     return redirect("payments:create_checkout", order_id=order.pk)
@@ -361,7 +521,11 @@ def checkout(request, product_id):
 @login_required
 def order_list(request):
     expire_stale_orders()
-    orders = scoped_orders(request.user).prefetch_related("items__product")
+    if request.user.is_farmer:
+        orders = Order.objects.filter(buyer=request.user).select_related("buyer", "seller", "community")
+    else:
+        orders = scoped_orders(request.user)
+    orders = orders.select_related("seller__farmer_profile", "shipment").prefetch_related("items__product")
     status_filter = request.GET.get("status", "all")
     status_groups = {
         "pending_payment": [Order.Status.PENDING_PAYMENT],
@@ -410,7 +574,7 @@ def order_list(request):
             "order_query": query,
             "search_by": search_by,
             "payment_filter": payment_filter,
-            "is_seller_order_view": request.user.is_farmer,
+            "is_seller_order_view": False,
         },
     )
 
@@ -419,7 +583,7 @@ def order_list(request):
 def order_detail(request, pk):
     order = get_object_or_404(
         Order.objects.select_related("buyer", "seller", "community", "payment").prefetch_related(
-            "items", "status_history__changed_by", "payment__refunds"
+            "items__product", "status_history__changed_by", "payment__refunds"
         ),
         pk=pk,
     )
@@ -427,6 +591,24 @@ def order_detail(request, pk):
         messages.error(request, "คุณไม่มีสิทธิ์ดูคำสั่งซื้อนี้")
         return redirect("orders:order_list")
     return render(request, "orders/order_detail.html", {"order": order})
+
+
+@login_required
+def order_tracking(request, pk):
+    order = get_object_or_404(
+        Order.objects.select_related("buyer", "seller", "seller__farmer_profile", "community", "shipment").prefetch_related(
+            "items__product", "status_history__changed_by"
+        ),
+        pk=pk,
+    )
+    if not can_view_order(request.user, order):
+        messages.error(request, "คุณไม่มีสิทธิ์ดูข้อมูลการติดตามพัสดุนี้")
+        return redirect("orders:order_list")
+    return render(
+        request,
+        "orders/order_tracking.html",
+        {"order": order, "tracking_events": tracking_events(order)},
+    )
 
 
 @login_required
@@ -450,8 +632,47 @@ def order_update_status(request, pk):
     if not can_manage_order(request.user, order):
         messages.error(request, "คุณไม่มีสิทธิ์ปรับสถานะคำสั่งซื้อนี้")
         return redirect(order)
+    is_community_staff = request.user.is_cooperative_staff and not request.user.is_owner
+    if is_community_staff and order.status not in {
+        Order.Status.PAID,
+        Order.Status.CONFIRMED,
+    }:
+        messages.error(
+            request,
+            "เจ้าหน้าที่ชุมชนปรับได้เฉพาะขั้นตอนยืนยันและเตรียมสินค้า",
+        )
+        return redirect(order)
+
+    seller_quick_ship = request.user == order.seller and order.can_seller_mark_shipped
+    if seller_quick_ship:
+        form = SellerShipmentForm(request.POST or None)
+        if request.method == "POST" and form.is_valid():
+            try:
+                ship_order(
+                    order,
+                    request.user,
+                    carrier=form.cleaned_data["shipping_carrier"],
+                    tracking_number=form.cleaned_data["tracking_number"],
+                )
+            except ValidationError as exc:
+                form.add_error(None, exc.message)
+            else:
+                messages.success(request, f"แจ้งจัดส่ง {order.reference} แล้ว ผู้ซื้อจะได้รับเลขพัสดุทันที")
+                return redirect(order)
+        return render(
+            request,
+            "orders/order_status_form.html",
+            {"form": form, "order": order, "seller_quick_ship": True},
+        )
 
     form = OrderStatusForm(request.POST or None, instance=order)
+    if is_community_staff:
+        allowed_statuses = {Order.Status.CONFIRMED, Order.Status.PREPARING}
+        form.fields["status"].choices = [
+            choice
+            for choice in form.fields["status"].choices
+            if choice[0] in allowed_statuses
+        ]
     if request.method == "POST" and form.is_valid():
         order.refresh_from_db()
         try:
@@ -470,6 +691,32 @@ def order_update_status(request, pk):
             return redirect(order)
 
     return render(request, "orders/order_status_form.html", {"form": form, "order": order})
+
+
+@login_required
+@require_POST
+def seller_ship_order(request, pk):
+    order = get_object_or_404(Order, pk=pk, seller=request.user)
+    if not request.user.is_farmer:
+        messages.error(request, "เฉพาะผู้ขายเท่านั้นที่สามารถแจ้งจัดส่งพัสดุได้")
+        return redirect(order)
+
+    form = SellerShipmentForm(request.POST)
+    if form.is_valid():
+        try:
+            ship_order(
+                order,
+                request.user,
+                carrier=form.cleaned_data["shipping_carrier"],
+                tracking_number=form.cleaned_data["tracking_number"],
+            )
+        except ValidationError as exc:
+            messages.error(request, exc.message)
+        else:
+            messages.success(request, f"แจ้งจัดส่ง {order.reference} แล้ว ผู้ซื้อจะได้รับเลขพัสดุทันที")
+    else:
+        messages.error(request, "กรุณาระบุบริษัทขนส่งและเลขติดตามพัสดุ")
+    return redirect(f"{reverse('accounts:farmer_shop_center')}?section=orders&status=preparing")
 
 
 @login_required

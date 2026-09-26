@@ -14,26 +14,40 @@
     <div class="rounded-md border border-stone-200 bg-white shadow-sm">
       <div class="divide-y divide-stone-100">
         {% for item in items %}
-          <div class="grid gap-4 p-4 md:grid-cols-[120px_1fr_180px]">
-            <a class="block aspect-square overflow-hidden rounded-md bg-stone-100" href="{{ item.product.get_absolute_url }}">
-              {% if item.product.image %}
-                <img class="h-full w-full object-cover" src="{{ item.product.image.url }}" alt="{{ item.product.name }}">
-              {% else %}
-                <img class="h-full w-full object-cover" src="{% static 'images/product-placeholder.svg' %}" alt="{{ item.product.name }}">
-              {% endif %}
-            </a>
+          <div class="grid gap-4 p-4 md:grid-cols-[120px_1fr_180px]" data-cart-item data-cart-price="{{ item.product.price }}" data-cart-product-id="{{ item.product.id }}">
+            <div class="relative">
+              <label class="absolute left-2 top-2 z-10 inline-flex cursor-pointer items-center rounded bg-white p-1 shadow-sm">
+                <input
+                  class="h-5 w-5 rounded border-stone-300 text-leaf focus:ring-leaf"
+                  type="checkbox"
+                  name="selected_items"
+                  value="{{ item.product.id }}"
+                  form="cart-checkout-form"
+                  data-cart-select
+                  data-cart-line-total="{{ item.line_total }}"
+                  {% if item.product.id in selected_item_ids %}checked{% endif %}
+                >
+                <span class="sr-only">เลือก {{ item.product.name }}</span>
+              </label>
+              <a class="block aspect-square overflow-hidden rounded-md bg-stone-100" href="{{ item.product.get_absolute_url }}">
+                {% if item.product.image %}
+                  <img class="h-full w-full object-cover" src="{{ item.product.image.url }}" alt="{{ item.product.name }}">
+                {% else %}
+                  <img class="h-full w-full object-cover" src="{% static 'images/product-placeholder.svg' %}" alt="{{ item.product.name }}">
+                {% endif %}
+              </a>
+            </div>
             <div>
               <a class="font-semibold text-slate-950" href="{{ item.product.get_absolute_url }}">{{ item.product.name }}</a>
               <p class="mt-1 text-sm text-slate-600">{{ item.product.seller }} · {{ item.product.community.name }}</p>
               <p class="mt-2 text-sm font-semibold text-leaf">฿{{ item.product.price|floatformat:2 }} / {{ item.product.get_unit_display }}</p>
             </div>
             <div class="space-y-2">
-              <form method="post" action="{% url 'orders:cart_update' item.product.id %}" class="flex gap-2">
+              <form method="post" action="{% url 'orders:cart_update' item.product.id %}" data-cart-update-form>
                 {% csrf_token %}
-                <input name="quantity" type="number" min="0" step="{{ item.product.quantity_step|floatformat:'-2' }}" value="{{ item.quantity|floatformat:'-2' }}" inputmode="decimal" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm">
-                <button class="rounded-md bg-ink px-3 py-2 text-sm font-semibold text-white" type="submit">อัปเดต</button>
+                <input name="quantity" type="number" min="0" step="{{ item.product.quantity_step|floatformat:'-2' }}" value="{{ item.quantity|floatformat:'-2' }}" inputmode="decimal" data-cart-quantity class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm">
               </form>
-              <p class="text-sm text-slate-600">รวม ฿{{ item.line_total|floatformat:2 }}</p>
+              <p class="text-sm text-slate-600">รวม ฿<span data-cart-line-total>{{ item.line_total|floatformat:2 }}</span></p>
               <form method="post" action="{% url 'orders:cart_remove' item.product.id %}">
                 {% csrf_token %}
                 <button class="text-sm font-semibold text-red-700" type="submit">นำออก</button>
@@ -48,24 +62,113 @@
 
     <aside class="h-fit rounded-md border border-stone-200 bg-white p-5 shadow-soft">
       <div class="flex items-center justify-between border-b border-stone-100 pb-4">
-        <p class="font-semibold text-slate-950">ยอดรวม</p>
-        <p class="text-2xl font-semibold text-leaf">฿{{ total|floatformat:2 }}</p>
+        <div>
+          <p class="font-semibold text-slate-950">ยอดรวม</p>
+          <label class="mt-2 inline-flex cursor-pointer items-center gap-2 text-sm text-slate-600">
+            <input class="h-4 w-4 rounded border-stone-300 text-leaf focus:ring-leaf" type="checkbox" data-cart-select-all checked>
+            เลือกทั้งหมด
+          </label>
+        </div>
+        <div class="text-right">
+          <p class="text-2xl font-semibold text-leaf">฿<span data-cart-total>{{ total|floatformat:2 }}</span></p>
+          <p class="mt-1 text-xs text-slate-500">เลือก <span data-cart-selected-count>{{ items|length }}</span> รายการ</p>
+        </div>
       </div>
       {% if items %}
-        <form method="post" action="{% url 'orders:cart_checkout' %}" class="mt-5 space-y-4">
-          {% csrf_token %}
-          {% if form.non_field_errors %}<div class="rounded-md bg-red-50 p-3 text-sm text-red-700">{{ form.non_field_errors }}</div>{% endif %}
-          {% for field in form %}
-            <div>
-              <label class="text-sm font-semibold text-slate-700" for="{{ field.id_for_label }}">{{ field.label }}</label>
-              <div class="mt-2">{{ field }}</div>
-              {% for error in field.errors %}<p class="mt-1 text-sm text-red-700">{{ error }}</p>{% endfor %}
-            </div>
-          {% endfor %}
-          <button class="w-full rounded-md bg-leaf px-5 py-2.5 text-sm font-semibold text-white" type="submit">ไปชำระเงิน</button>
+        <form id="cart-checkout-form" method="get" action="{% url 'orders:cart_checkout' %}" class="mt-5">
+          <input type="hidden" name="cart_selection" value="1">
+          <button class="w-full rounded-md bg-leaf px-5 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50" type="submit" data-cart-checkout-button>ไปชำระเงิน</button>
         </form>
       {% endif %}
     </aside>
   </div>
 </section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const selections = Array.from(document.querySelectorAll("[data-cart-select]"));
+    const selectAll = document.querySelector("[data-cart-select-all]");
+    const total = document.querySelector("[data-cart-total]");
+    const selectedCount = document.querySelector("[data-cart-selected-count]");
+    const checkoutButton = document.querySelector("[data-cart-checkout-button]");
+    const checkoutForm = document.querySelector("#cart-checkout-form");
+    const cartItems = Array.from(document.querySelectorAll("[data-cart-item]"));
+
+    if (!selections.length || !selectAll || !total || !selectedCount || !checkoutButton) return;
+
+    const currency = new Intl.NumberFormat("th-TH", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+
+    function updateLineTotal(item) {
+      const quantity = Number(item.querySelector("[data-cart-quantity]").value || 0);
+      const amount = Math.max(0, quantity) * Number(item.dataset.cartPrice || 0);
+      item.querySelector("[data-cart-select]").dataset.cartLineTotal = amount.toFixed(2);
+      item.querySelector("[data-cart-line-total]").textContent = currency.format(amount);
+    }
+
+    function updateSummary() {
+      cartItems.forEach(updateLineTotal);
+      const selected = selections.filter(function (selection) {
+        return selection.checked;
+      });
+      const amount = selected.reduce(function (sum, selection) {
+        return sum + Number(selection.dataset.cartLineTotal || 0);
+      }, 0);
+
+      total.textContent = currency.format(amount);
+      selectedCount.textContent = selected.length;
+      checkoutButton.disabled = selected.length === 0;
+      selectAll.checked = selected.length === selections.length;
+      selectAll.indeterminate = selected.length > 0 && selected.length < selections.length;
+    }
+
+    async function saveQuantity(form) {
+      try {
+        await fetch(form.action, {
+          method: "POST",
+          body: new FormData(form),
+          credentials: "same-origin",
+        });
+      } catch (error) {
+        // The checkout submission still sends the latest quantity as a fallback.
+      }
+    }
+
+    selections.forEach(function (selection) {
+      selection.addEventListener("change", updateSummary);
+    });
+    cartItems.forEach(function (item) {
+      const quantityInput = item.querySelector("[data-cart-quantity]");
+      quantityInput.addEventListener("input", updateSummary);
+      quantityInput.addEventListener("change", function () {
+        saveQuantity(item.querySelector("[data-cart-update-form]"));
+      });
+    });
+    selectAll.addEventListener("change", function () {
+      selections.forEach(function (selection) {
+        selection.checked = selectAll.checked;
+      });
+      updateSummary();
+    });
+    checkoutForm.addEventListener("submit", function () {
+      checkoutForm.querySelectorAll("[data-cart-quantity-value]").forEach(function (input) {
+        input.remove();
+      });
+      cartItems.forEach(function (item) {
+        const quantity = item.querySelector("[data-cart-quantity]").value;
+        const input = document.createElement("input");
+        input.type = "hidden";
+        input.name = "cart_quantity_" + item.dataset.cartProductId;
+        input.value = quantity;
+        input.setAttribute("data-cart-quantity-value", "");
+        checkoutForm.append(input);
+      });
+    });
+    updateSummary();
+  });
+</script>
 {% endblock %}

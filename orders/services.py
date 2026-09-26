@@ -1,8 +1,10 @@
+from datetime import timedelta
 from decimal import Decimal
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from accounts.models import AuditEvent
@@ -10,7 +12,7 @@ from accounts.services import notify_user
 from catalog.models import Product, StockMovement
 from catalog.services import notify_low_stock
 
-from .models import Coupon, CouponRedemption, Order, OrderStatusHistory, ShippingRate
+from .models import CouponRedemption, Order, OrderStatusHistory, Shipment, ShippingRate
 
 
 ALLOWED_STATUS_TRANSITIONS = {
@@ -49,39 +51,6 @@ def shipping_fee_for(order):
     )
     weight_kg = weight_grams / Decimal("1000")
     return (rule.base_fee + (rule.fee_per_kg * weight_kg)).quantize(Decimal("0.01"))
-
-@transaction.atomic
-def apply_coupon(order, code):
-    code = (code or "").strip()
-    if not code:
-        return order
-
-    coupon = Coupon.objects.select_for_update().filter(code__iexact=code, is_active=True).first()
-    now = timezone.now()
-    if not coupon:
-        raise ValidationError("ไม่พบรหัสส่วนลดนี้")
-    if coupon.starts_at and coupon.starts_at > now:
-        raise ValidationError("รหัสส่วนลดยังไม่เริ่มใช้งาน")
-    if coupon.expires_at and coupon.expires_at <= now:
-        raise ValidationError("รหัสส่วนลดหมดอายุแล้ว")
-    if order.subtotal < coupon.minimum_spend:
-        raise ValidationError(f"ต้องมียอดสินค้าอย่างน้อย {coupon.minimum_spend} บาท")
-    if coupon.max_uses is not None and coupon.redemptions.filter(active=True).count() >= coupon.max_uses:
-        raise ValidationError("รหัสส่วนลดถูกใช้ครบแล้ว")
-
-    discount = coupon.discount_for(order.subtotal)
-    order.coupon = coupon
-    order.coupon_code = coupon.code
-    order.discount_amount = discount
-    order.save(update_fields=["coupon", "coupon_code", "discount_amount", "updated_at"])
-    order.refresh_total()
-    CouponRedemption.objects.create(
-        coupon=coupon,
-        order=order,
-        discount_amount=discount,
-    )
-    return order
-
 
 @transaction.atomic
 def release_coupon(order):
@@ -286,7 +255,7 @@ def change_order_status(order, new_status, changed_by, note="", carrier="", trac
         order.shipping_carrier = carrier
         order.tracking_number = tracking_number
         order.shipped_at = timezone.now()
-    elif new_status == Order.Status.COMPLETED:
+    elif new_status == Order.Status.COMPLETED and not order.delivered_at:
         order.delivered_at = timezone.now()
     elif new_status == Order.Status.CANCELLED:
         if order.payment_status == Order.PaymentStatus.PAID:
@@ -341,4 +310,88 @@ def change_order_status(order, new_status, changed_by, note="", carrier="", trac
             notification_link,
         )
     )
+    if new_status == Order.Status.SHIPPED:
+        from .tracking import register_aftership_tracking
+
+        transaction.on_commit(lambda order_id=order.pk: register_aftership_tracking(order_id))
     return order
+
+
+@transaction.atomic
+def ship_order(order, changed_by, carrier, tracking_number):
+    """Advance a paid order to shipped in one seller action, retaining its audit trail."""
+
+    order.refresh_from_db()
+    automatic_steps = {
+        Order.Status.PAID: (Order.Status.CONFIRMED, "ผู้ขายยืนยันคำสั่งซื้อเพื่อจัดส่ง"),
+        Order.Status.CONFIRMED: (Order.Status.PREPARING, "ผู้ขายเตรียมสินค้าเพื่อจัดส่ง"),
+    }
+    while order.status in automatic_steps:
+        next_status, note = automatic_steps[order.status]
+        order = change_order_status(order, next_status, changed_by, note=note)
+
+    return change_order_status(
+        order,
+        Order.Status.SHIPPED,
+        changed_by,
+        note="ผู้ขายนำส่งพัสดุแล้ว",
+        carrier=carrier,
+        tracking_number=tracking_number,
+    )
+
+
+def complete_delivered_orders(limit=100):
+    """Complete carrier-delivered orders after the buyer's confirmation window."""
+    from payments.models import Refund
+
+    cutoff = timezone.now() - timedelta(days=settings.DELIVERY_CONFIRMATION_DAYS)
+    refundable_statuses = [
+        Refund.Status.REQUESTED,
+        Refund.Status.PROCESSING,
+        Refund.Status.FAILED,
+    ]
+    order_ids = (
+        Order.objects.filter(
+            status=Order.Status.SHIPPED,
+            shipment__status="Delivered",
+        )
+        .filter(
+            Q(delivered_at__lte=cutoff)
+            | Q(
+                delivered_at__isnull=True,
+                shipment__provider_updated_at__lte=cutoff,
+            )
+        )
+        .exclude(payment__refunds__status__in=refundable_statuses)
+        .order_by("delivered_at", "shipment__provider_updated_at")
+        .values_list("pk", flat=True)[:limit]
+    )
+    completed = 0
+    for order_id in order_ids:
+        with transaction.atomic():
+            order = Order.objects.select_for_update().get(pk=order_id)
+            shipment = Shipment.objects.select_for_update().filter(order=order).first()
+            if (
+                not shipment
+                or order.status != Order.Status.SHIPPED
+                or shipment.status != "Delivered"
+                or Refund.objects.filter(
+                    payment__order=order,
+                    status__in=refundable_statuses,
+                ).exists()
+            ):
+                continue
+            delivered_at = order.delivered_at or shipment.provider_updated_at
+            if not delivered_at or delivered_at > cutoff:
+                continue
+            if not order.delivered_at:
+                order.delivered_at = delivered_at
+                order.save(update_fields=["delivered_at", "updated_at"])
+            change_order_status(
+                order,
+                Order.Status.COMPLETED,
+                changed_by=None,
+                note="ระบบปิดคำสั่งซื้ออัตโนมัติหลังขนส่งนำจ่ายแล้ว",
+            )
+            completed += 1
+    return completed

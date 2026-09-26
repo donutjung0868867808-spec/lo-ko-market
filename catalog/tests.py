@@ -1,4 +1,6 @@
+from datetime import date
 from decimal import Decimal
+from io import BytesIO
 import tempfile
 from unittest.mock import patch
 
@@ -6,13 +8,24 @@ from django.core.management import call_command
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
+from PIL import Image
 
 
-from accounts.models import Community, FarmerProfile, Notification, User
+from accounts.models import Community, FarmerProfile, Notification, StoreCoverSlide, User
 
 from orders.models import Order, OrderItem
 
-from .models import Category, Product, ProductReview
+from .forms import ProductForm
+from .models import Category, HomeSlide, Product, ProductClick, ProductDetailImage, ProductReview, ProductReviewMedia, SellerStoreVisit
+
+
+def test_image_bytes():
+    buffer = BytesIO()
+    Image.new("RGB", (1, 1), color="green").save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
+TEST_IMAGE_BYTES = test_image_bytes()
 
 
 class ProductCatalogTests(TestCase):
@@ -85,11 +98,38 @@ class ProductCatalogTests(TestCase):
 
         self.assertContains(response, "/media/categories/category-cover.jpg")
 
+    def test_category_accepts_an_image_without_a_filename_extension(self):
+        category = Category(
+            name="extensionless category",
+            slug="extensionless-category",
+            image=SimpleUploadedFile("download", TEST_IMAGE_BYTES),
+        )
+
+        category.full_clean()
+
+    def test_active_home_slides_are_rendered_on_the_marketplace(self):
+        HomeSlide.objects.create(
+            image="home-slides/first-slide.jpg",
+            alt_text="First slide",
+            sort_order=2,
+        )
+        HomeSlide.objects.create(
+            image="home-slides/hidden-slide.jpg",
+            alt_text="Hidden slide",
+            is_active=False,
+        )
+
+        response = self.client.get(reverse("catalog:product_list"))
+
+        self.assertContains(response, "/media/home-slides/first-slide.jpg")
+        self.assertNotContains(response, "/media/home-slides/hidden-slide.jpg")
+        self.assertContains(response, "data-hero-carousel")
+
     def test_farmer_can_add_multiple_gallery_images_when_creating_a_product(self):
         self.client.force_login(self.farmer)
         files = [
-            SimpleUploadedFile("vegetable-one.jpg", b"first image", content_type="image/jpeg"),
-            SimpleUploadedFile("vegetable-two.webp", b"second image", content_type="image/webp"),
+            SimpleUploadedFile("download", TEST_IMAGE_BYTES, content_type="image/png"),
+            SimpleUploadedFile("vegetable-two.webp", TEST_IMAGE_BYTES, content_type="image/webp"),
         ]
 
         with tempfile.TemporaryDirectory() as media_root, self.settings(MEDIA_ROOT=media_root):
@@ -113,6 +153,48 @@ class ProductCatalogTests(TestCase):
         self.assertTrue(product.image)
         self.assertEqual(create_image.call_count, 1)
 
+    def test_product_form_explains_multiple_image_uploads(self):
+        self.client.force_login(self.farmer)
+
+        response = self.client.get(reverse("catalog:product_create"))
+
+        self.assertContains(response, "ลากรูปมาวางได้หลายรูป")
+        self.assertContains(response, 'data-product-detail-image-input="true"')
+        markup = response.content.decode()
+        self.assertLess(markup.index('id_description'), markup.index('data-product-detail-image-input="true"'))
+
+    def test_farmer_can_add_images_inside_product_details(self):
+        self.client.force_login(self.farmer)
+        files = [
+            SimpleUploadedFile("detail-one.png", TEST_IMAGE_BYTES, content_type="image/png"),
+            SimpleUploadedFile("detail-two.webp", TEST_IMAGE_BYTES, content_type="image/webp"),
+        ]
+
+        with tempfile.TemporaryDirectory() as media_root, self.settings(MEDIA_ROOT=media_root):
+            response = self.client.post(
+                reverse("catalog:product_create"),
+                {
+                    "name": "ผักพร้อมรูปประกอบรายละเอียด",
+                    "description": "รายละเอียดที่มีรูปประกอบ",
+                    "unit": Product.Unit.KG,
+                    "price": "35.00",
+                    "stock_quantity": "10.00",
+                    "minimum_order_quantity": "0.50",
+                    "low_stock_threshold": "5.00",
+                    "detail_images": files,
+                },
+            )
+            product = Product.objects.get(name="ผักพร้อมรูปประกอบรายละเอียด")
+            self.assertRedirects(response, product.get_absolute_url(), fetch_redirect_response=False)
+            self.assertFalse(product.image)
+            self.assertEqual(ProductDetailImage.objects.filter(product=product).count(), 2)
+            product.status = Product.Status.ACTIVE
+            product.save(update_fields=["status"])
+            detail_page = self.client.get(product.get_absolute_url())
+
+        self.assertContains(detail_page, "detail-one")
+        self.assertContains(detail_page, "detail-two")
+
     def test_farmer_can_add_multiple_images_from_product_management(self):
         product = Product.objects.create(
             seller=self.farmer,
@@ -124,8 +206,8 @@ class ProductCatalogTests(TestCase):
         )
         self.client.force_login(self.farmer)
         files = [
-            SimpleUploadedFile("management-one.jpg", b"first image", content_type="image/jpeg"),
-            SimpleUploadedFile("management-two.png", b"second image", content_type="image/png"),
+            SimpleUploadedFile("management-one.jpg", TEST_IMAGE_BYTES, content_type="image/jpeg"),
+            SimpleUploadedFile("management-two.png", TEST_IMAGE_BYTES, content_type="image/png"),
         ]
 
         with patch("catalog.views.ProductImage.objects.create") as create_image:
@@ -136,6 +218,79 @@ class ProductCatalogTests(TestCase):
 
         self.assertRedirects(response, product.get_absolute_url(), fetch_redirect_response=False)
         self.assertEqual(create_image.call_count, 2)
+
+    def test_existing_product_image_without_extension_can_be_saved(self):
+        product = Product.objects.create(
+            seller=self.farmer,
+            community=self.community,
+            name="product with extensionless image",
+            description="Existing image should not block changes.",
+            price=Decimal("35.00"),
+            stock_quantity=Decimal("10.00"),
+            image="products/download_qp0Inf",
+        )
+
+        form = ProductForm(
+            {
+                "name": product.name,
+                "description": product.description,
+                "unit": product.unit,
+                "price": product.price,
+                "stock_quantity": product.stock_quantity,
+                "minimum_order_quantity": product.minimum_order_quantity,
+                "low_stock_threshold": product.low_stock_threshold,
+            },
+            instance=product,
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
+
+    def test_adding_detail_image_keeps_existing_product_data_and_dates(self):
+        product = Product.objects.create(
+            seller=self.farmer,
+            community=self.community,
+            name="สินค้ามีข้อมูลเดิม",
+            description="รายละเอียดเดิมต้องไม่หาย",
+            price=Decimal("35.00"),
+            stock_quantity=Decimal("10.00"),
+            image="products/current-image.jpg",
+            harvest_date=date(2026, 9, 1),
+            expiry_date=date(2026, 9, 10),
+            status=Product.Status.ACTIVE,
+        )
+        self.client.force_login(self.farmer)
+
+        edit_page = self.client.get(reverse("catalog:product_update", args=[product.pk]))
+        self.assertContains(edit_page, 'value="2026-09-01"')
+        self.assertContains(edit_page, 'value="2026-09-10"')
+
+        with tempfile.TemporaryDirectory() as media_root, self.settings(MEDIA_ROOT=media_root):
+            response = self.client.post(
+                reverse("catalog:product_update", args=[product.pk]),
+                {
+                    "name": product.name,
+                    "description": product.description,
+                    "unit": product.unit,
+                    "price": product.price,
+                    "stock_quantity": product.stock_quantity,
+                    "minimum_order_quantity": product.minimum_order_quantity,
+                    "low_stock_threshold": product.low_stock_threshold,
+                    "harvest_date": "",
+                    "expiry_date": "",
+                    "detail_images": [
+                        SimpleUploadedFile("new-detail.png", TEST_IMAGE_BYTES, content_type="image/png")
+                    ],
+                },
+            )
+
+        self.assertRedirects(response, product.get_absolute_url(), fetch_redirect_response=False)
+        product.refresh_from_db()
+        self.assertEqual(product.name, "สินค้ามีข้อมูลเดิม")
+        self.assertEqual(product.description, "รายละเอียดเดิมต้องไม่หาย")
+        self.assertEqual(product.image.name, "products/current-image.jpg")
+        self.assertEqual(product.harvest_date, date(2026, 9, 1))
+        self.assertEqual(product.expiry_date, date(2026, 9, 10))
+        self.assertEqual(product.detail_images.count(), 1)
 
     def test_pending_product_is_hidden_from_public(self):
         Product.objects.create(
@@ -197,6 +352,12 @@ class ProductCatalogTests(TestCase):
         self.assertContains(response, northern_product.name)
         self.assertNotContains(response, "กาแฟตรัง")
         self.assertContains(response, "จังหวัด เชียงใหม่")
+
+    def test_province_search_suggestions_include_active_community_provinces(self):
+        response = self.client.get(reverse("catalog:product_list"))
+
+        self.assertContains(response, 'data-province-autocomplete')
+        self.assertContains(response, 'data-province-value="เชียงใหม่"')
 class ProductReviewTests(TestCase):
     def setUp(self):
         self.community = Community.objects.create(
@@ -261,6 +422,102 @@ class ProductReviewTests(TestCase):
         self.assertTrue(ProductReview.objects.filter(product=self.product, user=self.buyer).exists())
         self.assertEqual(self.product.average_rating, 5)
 
+    def test_buyer_can_attach_an_image_and_video_to_a_review(self):
+        order = Order.objects.create(
+            buyer=self.buyer,
+            seller=self.farmer,
+            community=self.community,
+            shipping_name="ผู้ซื้อ",
+            shipping_phone="0812345678",
+            shipping_address="บ้านเลขที่ 1",
+            payment_status=Order.PaymentStatus.PAID,
+            status=Order.Status.PAID,
+        )
+        OrderItem.objects.create(
+            order=order,
+            product=self.product,
+            product_name=self.product.name,
+            unit=self.product.unit,
+            quantity=Decimal("1"),
+            unit_price=self.product.price,
+        )
+        self.client.force_login(self.buyer)
+        media = [
+            SimpleUploadedFile("review-photo.jpg", TEST_IMAGE_BYTES, content_type="image/jpeg"),
+            SimpleUploadedFile("review-video.mp4", b"test video", content_type="video/mp4"),
+        ]
+
+        with tempfile.TemporaryDirectory() as media_root, self.settings(MEDIA_ROOT=media_root):
+            response = self.client.post(
+                reverse("catalog:submit_review", args=[self.product.pk]),
+                {"rating": 5, "comment": "มีทั้งรูปและวิดีโอ", "media": media},
+            )
+
+        review = ProductReview.objects.get(product=self.product, user=self.buyer)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(review.media.count(), 2)
+        self.assertSetEqual(
+            set(review.media.values_list("media_type", flat=True)),
+            {ProductReviewMedia.MediaType.IMAGE, ProductReviewMedia.MediaType.VIDEO},
+        )
+
+    def test_buyer_cannot_review_product_with_an_unpaid_order(self):
+        order = Order.objects.create(
+            buyer=self.buyer,
+            seller=self.farmer,
+            community=self.community,
+            shipping_name="ผู้ซื้อ",
+            shipping_phone="0812345678",
+            shipping_address="บ้านเลขที่ 1",
+        )
+        OrderItem.objects.create(
+            order=order,
+            product=self.product,
+            product_name=self.product.name,
+            unit=self.product.unit,
+            quantity=Decimal("1"),
+            unit_price=self.product.price,
+        )
+
+        self.client.force_login(self.buyer)
+        response = self.client.post(
+            reverse("catalog:submit_review", args=[self.product.pk]),
+            {"rating": 5, "comment": "ยังไม่ได้ชำระ"},
+            follow=True,
+        )
+
+        self.assertContains(response, "ซื้อสินค้านี้และชำระเงินเรียบร้อยแล้ว")
+        self.assertFalse(ProductReview.objects.filter(product=self.product, user=self.buyer).exists())
+
+    def test_product_detail_only_shows_review_form_for_verified_buyer(self):
+        self.client.force_login(self.buyer)
+        response = self.client.get(reverse("catalog:product_detail", args=[self.product.pk]))
+
+        self.assertContains(response, "ซื้อสินค้านี้และชำระเงินเรียบร้อยแล้ว")
+        self.assertNotContains(response, 'id="review-media"')
+
+    def test_seller_store_displays_the_seller_avatar(self):
+        self.farmer.avatar = "avatars/store-owner.jpg"
+        self.farmer.save(update_fields=["avatar"])
+        self.farmer.farmer_profile.store_cover = "store-covers/store-owner.jpg"
+        self.farmer.farmer_profile.save(update_fields=["store_cover"])
+
+        response = self.client.get(reverse("catalog:seller_store", args=[self.farmer.pk]))
+
+        self.assertContains(response, "/media/avatars/store-owner.jpg")
+        self.assertContains(response, "/media/store-covers/store-owner.jpg")
+
+    def test_seller_store_displays_cover_slides(self):
+        StoreCoverSlide.objects.create(
+            profile=self.farmer.farmer_profile,
+            image="store-cover-slides/store-owner-slide.jpg",
+        )
+
+        response = self.client.get(reverse("catalog:seller_store", args=[self.farmer.pk]))
+
+        self.assertContains(response, "/media/store-cover-slides/store-owner-slide.jpg")
+        self.assertContains(response, "data-store-cover-carousel")
+
 
 class ProductDetailInteractionTests(TestCase):
     def setUp(self):
@@ -306,6 +563,22 @@ class ProductDetailInteractionTests(TestCase):
         self.assertContains(response, reverse("catalog:report_product", args=[self.product.pk]))
         self.assertContains(response, reverse("catalog:seller_store", args=[self.farmer.pk]))
         self.assertContains(response, reverse("accounts:conversation_start", args=[self.product.pk]))
+
+    def test_store_visits_are_unique_per_day_and_product_clicks_are_recorded(self):
+        self.client.get(reverse("catalog:seller_store", args=[self.farmer.pk]))
+        self.client.get(reverse("catalog:seller_store", args=[self.farmer.pk]))
+        self.client.get(reverse("catalog:product_detail", args=[self.product.pk]))
+
+        self.assertEqual(SellerStoreVisit.objects.filter(seller=self.farmer).count(), 1)
+        self.assertEqual(ProductClick.objects.filter(product=self.product).count(), 1)
+
+    def test_product_detail_displays_the_seller_avatar(self):
+        self.farmer.avatar = "avatars/detail-seller.jpg"
+        self.farmer.save(update_fields=["avatar"])
+
+        response = self.client.get(reverse("catalog:product_detail", args=[self.product.pk]))
+
+        self.assertContains(response, "/media/avatars/detail-seller.jpg")
 
     def test_seller_store_filters_category_and_sorts_by_price(self):
         vegetables = Category.objects.create(name="ผักทดสอบ", slug="store-vegetables")

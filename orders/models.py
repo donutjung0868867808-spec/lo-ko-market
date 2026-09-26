@@ -74,6 +74,9 @@ class Shipment(models.Model):
     status = models.CharField(max_length=40, default="Pending")
     checkpoints = models.JSONField(default=list, blank=True)
     provider_updated_at = models.DateTimeField(null=True, blank=True)
+    next_sync_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    attempts = models.PositiveIntegerField(default=0)
+    last_error = models.CharField(max_length=255, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     @property
@@ -254,6 +257,13 @@ class Order(models.Model):
 
     def get_absolute_url(self):
         return reverse("orders:order_detail", args=[self.pk])
+
+    @property
+    def can_seller_mark_shipped(self):
+        return (
+            self.payment_status == self.PaymentStatus.PAID
+            and self.status in {self.Status.PAID, self.Status.CONFIRMED, self.Status.PREPARING}
+        )
 
     def refresh_total(self):
         subtotal = sum((item.line_total for item in self.items.all()), Decimal("0.00"))

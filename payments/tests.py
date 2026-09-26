@@ -56,22 +56,44 @@ class PaymentWorkflowTests(TestCase):
         )
         self.order.refresh_total()
 
-    @override_settings(DEBUG=True, STRIPE_SECRET_KEY="")
-    def test_checkout_uses_mock_payment_only_in_debug(self):
+    @override_settings(DEBUG=True, PAYMENT_MODE="test", STRIPE_SECRET_KEY="")
+    def test_checkout_uses_interactive_demo_payment_in_test_mode(self):
         self.client.force_login(self.buyer)
 
         response = self.client.get(reverse("payments:create_checkout", args=[self.order.pk]))
 
-        self.assertRedirects(response, self.order.get_absolute_url(), fetch_redirect_response=False)
+        self.assertRedirects(
+            response,
+            reverse("payments:demo_checkout", args=[self.order.pk]),
+            fetch_redirect_response=False,
+        )
         self.order.refresh_from_db()
         self.product.refresh_from_db()
         payment = Payment.objects.get(order=self.order)
-        self.assertEqual(self.order.payment_status, Order.PaymentStatus.PAID)
-        self.assertEqual(payment.status, Payment.Status.PAID)
+        self.assertEqual(self.order.payment_status, Order.PaymentStatus.PROCESSING)
+        self.assertEqual(payment.status, Payment.Status.PROCESSING)
         self.assertEqual(self.product.stock_quantity, Decimal("8.00"))
 
-    @override_settings(DEBUG=False, STRIPE_SECRET_KEY="", SECURE_SSL_REDIRECT=False)
-    def test_checkout_without_stripe_in_production_does_not_mock_payment(self):
+        response = self.client.get(reverse("payments:demo_checkout", args=[self.order.pk]))
+        self.assertContains(response, "โหมดทดลอง ไม่มีการตัดเงินจริง")
+
+        response = self.client.post(
+            reverse("payments:complete_demo_checkout", args=[self.order.pk]),
+            {"payment_method": "promptpay"},
+        )
+        self.assertRedirects(
+            response,
+            f"{reverse('payments:success')}?session_id={payment.checkout_session_id}",
+            fetch_redirect_response=False,
+        )
+        self.order.refresh_from_db()
+        payment.refresh_from_db()
+        self.assertEqual(self.order.payment_status, Order.PaymentStatus.PAID)
+        self.assertEqual(payment.status, Payment.Status.PAID)
+        self.assertEqual(payment.raw_payload["payment_method"], "promptpay")
+
+    @override_settings(DEBUG=False, PAYMENT_MODE="live", STRIPE_SECRET_KEY="", SECURE_SSL_REDIRECT=False)
+    def test_checkout_without_provider_in_live_mode_fails_safely(self):
         self.client.force_login(self.buyer)
 
         response = self.client.get(reverse("payments:create_checkout", args=[self.order.pk]))
@@ -83,6 +105,27 @@ class PaymentWorkflowTests(TestCase):
         self.assertEqual(self.order.payment_status, Order.PaymentStatus.FAILED)
         self.assertEqual(payment.status, Payment.Status.FAILED)
         self.assertEqual(self.product.stock_quantity, Decimal("10.00"))
+
+    @override_settings(
+        DEBUG=False,
+        PAYMENT_MODE="test",
+        STRIPE_SECRET_KEY="sk_live_should_not_be_used",
+        SECURE_SSL_REDIRECT=False,
+    )
+    def test_test_mode_blocks_a_live_stripe_key(self):
+        self.client.force_login(self.buyer)
+
+        response = self.client.get(reverse("payments:create_checkout", args=[self.order.pk]))
+
+        self.assertRedirects(
+            response,
+            reverse("payments:demo_checkout", args=[self.order.pk]),
+            fetch_redirect_response=False,
+        )
+        self.order.refresh_from_db()
+        payment = Payment.objects.get(order=self.order)
+        self.assertEqual(self.order.payment_status, Order.PaymentStatus.PROCESSING)
+        self.assertEqual(payment.status, Payment.Status.PROCESSING)
 
     @override_settings(DEBUG=False, STRIPE_SECRET_KEY="", STRIPE_WEBHOOK_SECRET="whsec_test", SECURE_SSL_REDIRECT=False)
     def test_webhook_rejects_unsigned_payload_in_production(self):

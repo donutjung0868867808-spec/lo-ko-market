@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}ชำระเงินทดลอง{% endblock %}
+
+{% block content %}
+<section class="mx-auto w-full max-w-5xl space-y-5">
+  <header class="flex flex-wrap items-start justify-between gap-4 border-b border-stone-200 pb-5">
+    <div>
+      <p class="text-sm font-semibold text-leaf">Secure checkout</p>
+      <h1 class="mt-1 text-2xl font-semibold text-slate-950">ชำระเงิน</h1>
+      <p class="mt-1 text-sm text-slate-600">คำสั่งซื้อ {{ order.reference }}</p>
+    </div>
+    <p class="inline-flex items-center gap-2 rounded-md bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900"><i data-lucide="flask-conical" class="h-4 w-4" aria-hidden="true"></i>โหมดทดลอง ไม่มีการตัดเงินจริง</p>
+  </header>
+
+  <div class="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+    <form method="post" action="{% url 'payments:complete_demo_checkout' order.id %}" class="space-y-6 rounded-md border border-stone-200 bg-white p-6 shadow-sm" data-demo-payment-form>
+      {% csrf_token %}
+      <div>
+        <h2 class="text-lg font-semibold text-slate-950">เลือกวิธีชำระเงิน</h2>
+        <p class="mt-1 text-sm text-slate-600">ข้อมูลที่กรอกในหน้านี้ใช้เพื่อการจำลองเท่านั้น และจะไม่ถูกบันทึก</p>
+      </div>
+
+      <div class="grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label="วิธีชำระเงิน">
+        <label class="cursor-pointer rounded-md border-2 border-leaf bg-emerald-50 p-4" data-payment-option="card">
+          <input class="sr-only" type="radio" name="payment_method" value="card" checked>
+          <span class="flex items-center gap-3"><span class="flex h-10 w-10 items-center justify-center rounded-md bg-white text-leaf"><i data-lucide="credit-card" class="h-5 w-5" aria-hidden="true"></i></span><span><span class="block font-semibold text-slate-950">บัตรเครดิต / เดบิต</span><span class="mt-0.5 block text-sm text-slate-600">จำลองการชำระด้วยบัตร</span></span></span>
+        </label>
+        <label class="cursor-pointer rounded-md border border-stone-200 bg-white p-4" data-payment-option="promptpay">
+          <input class="sr-only" type="radio" name="payment_method" value="promptpay">
+          <span class="flex items-center gap-3"><span class="flex h-10 w-10 items-center justify-center rounded-md bg-emerald-50 text-leaf"><i data-lucide="qr-code" class="h-5 w-5" aria-hidden="true"></i></span><span><span class="block font-semibold text-slate-950">PromptPay QR</span><span class="mt-0.5 block text-sm text-slate-600">จำลองการสแกน QR</span></span></span>
+        </label>
+      </div>
+
+      <div class="space-y-4" data-card-fields>
+        <div>
+          <label class="text-sm font-semibold text-slate-700" for="demo-card-number">หมายเลขบัตร</label>
+          <div class="relative mt-1.5"><i data-lucide="credit-card" class="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" aria-hidden="true"></i><input id="demo-card-number" class="h-12 w-full rounded-md border border-stone-300 bg-white pr-3 text-slate-950 outline-none focus:border-leaf focus:ring-2 focus:ring-emerald-100" style="padding-left: 3rem;" type="text" inputmode="numeric" autocomplete="cc-number" placeholder="4242 4242 4242 4242" required></div>
+        </div>
+        <div class="grid gap-4 sm:grid-cols-2">
+          <div><label class="text-sm font-semibold text-slate-700" for="demo-card-expiry">วันหมดอายุ</label><input id="demo-card-expiry" class="mt-1.5 h-12 w-full rounded-md border border-stone-300 bg-white px-3 text-slate-950 outline-none focus:border-leaf focus:ring-2 focus:ring-emerald-100" type="text" inputmode="numeric" autocomplete="cc-exp" placeholder="MM / YY" required></div>
+          <div><label class="text-sm font-semibold text-slate-700" for="demo-card-cvc">CVC</label><input id="demo-card-cvc" class="mt-1.5 h-12 w-full rounded-md border border-stone-300 bg-white px-3 text-slate-950 outline-none focus:border-leaf focus:ring-2 focus:ring-emerald-100" type="text" inputmode="numeric" autocomplete="cc-csc" placeholder="123" required></div>
+        </div>
+        <div><label class="text-sm font-semibold text-slate-700" for="demo-card-name">ชื่อบนบัตร</label><input id="demo-card-name" class="mt-1.5 h-12 w-full rounded-md border border-stone-300 bg-white px-3 text-slate-950 outline-none focus:border-leaf focus:ring-2 focus:ring-emerald-100" type="text" autocomplete="cc-name" placeholder="TEST CUSTOMER" required></div>
+      </div>
+
+      <div class="hidden rounded-md border border-emerald-200 bg-emerald-50 p-5 text-center" data-promptpay-fields>
+        <div class="mx-auto flex h-36 w-36 items-center justify-center rounded-md bg-white text-leaf shadow-sm"><i data-lucide="qr-code" class="h-24 w-24" aria-hidden="true"></i></div>
+        <p class="mt-4 font-semibold text-slate-950">สแกนเพื่อชำระเงินทดลอง</p>
+        <p class="mt-1 text-sm text-slate-600">กดยืนยันด้านล่างเพื่อจำลองว่าชำระสำเร็จ</p>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-3 border-t border-stone-100 pt-5">
+        <button class="inline-flex items-center justify-center gap-2 rounded-md bg-leaf px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-800" type="submit"><i data-lucide="lock-keyhole" class="h-4 w-4" aria-hidden="true"></i>ยืนยันการชำระเงิน ฿{{ payment.amount|floatformat:2 }}</button>
+        <a class="px-3 py-2 text-sm font-semibold text-slate-600 hover:text-slate-950" href="{% url 'payments:cancel' order.id %}">ยกเลิก</a>
+      </div>
+    </form>
+
+    <aside class="rounded-md border border-stone-200 bg-white p-5 shadow-sm">
+      <h2 class="font-semibold text-slate-950">สรุปคำสั่งซื้อ</h2>
+      <dl class="mt-4 space-y-3 text-sm">
+        <div class="flex justify-between gap-5"><dt class="text-slate-600">เลขที่คำสั่งซื้อ</dt><dd class="font-medium text-slate-950">{{ order.reference }}</dd></div>
+        <div class="flex justify-between gap-5"><dt class="text-slate-600">ค่าสินค้า</dt><dd class="font-medium text-slate-950">฿{{ order.subtotal|floatformat:2 }}</dd></div>
+        <div class="flex justify-between gap-5"><dt class="text-slate-600">ค่าจัดส่ง</dt><dd class="font-medium text-slate-950">฿{{ order.shipping_fee|floatformat:2 }}</dd></div>
+        <div class="flex items-end justify-between gap-5 border-t border-stone-200 pt-4"><dt class="font-semibold text-slate-950">ยอดชำระ</dt><dd class="text-2xl font-semibold text-leaf">฿{{ payment.amount|floatformat:2 }}</dd></div>
+      </dl>
+      <p class="mt-5 flex items-start gap-2 text-xs leading-5 text-slate-500"><i data-lucide="shield-check" class="mt-0.5 h-4 w-4 shrink-0 text-leaf" aria-hidden="true"></i>หน้าทดลองนี้ไม่ส่งข้อมูลบัตรไปยังผู้ให้บริการชำระเงินจริง</p>
+    </aside>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  (() => {
+    const form = document.querySelector('[data-demo-payment-form]');
+    if (!form) return;
+    const cardFields = form.querySelector('[data-card-fields]');
+    const promptPayFields = form.querySelector('[data-promptpay-fields]');
+    const options = form.querySelectorAll('[data-payment-option]');
+    const cardInputs = cardFields.querySelectorAll('input');
+
+    const setMethod = (method) => {
+      const isCard = method === 'card';
+      cardFields.hidden = !isCard;
+      promptPayFields.hidden = isCard;
+      cardInputs.forEach((input) => {
+        input.disabled = !isCard;
+        input.required = isCard;
+      });
+      options.forEach((option) => {
+        option.classList.toggle('border-leaf', option.dataset.paymentOption === method);
+        option.classList.toggle('border-2', option.dataset.paymentOption === method);
+        option.classList.toggle('bg-emerald-50', option.dataset.paymentOption === method);
+        option.classList.toggle('border-stone-200', option.dataset.paymentOption !== method);
+        option.classList.toggle('border', option.dataset.paymentOption !== method);
+        option.classList.toggle('bg-white', option.dataset.paymentOption !== method);
+      });
+    };
+
+    form.querySelectorAll('input[name="payment_method"]').forEach((input) => {
+      input.addEventListener('change', () => setMethod(input.value));
+    });
+    setMethod('card');
+  })();
+</script>
+{% endblock %}

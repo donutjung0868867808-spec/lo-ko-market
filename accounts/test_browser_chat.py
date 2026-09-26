@@ -1,4 +1,5 @@
 """Run explicitly with --settings=agri_market.browser_test_settings."""
+import base64
 import os
 import asyncio
 import re
@@ -12,7 +13,7 @@ from django.urls import reverse
 if os.environ.get("DJANGO_SETTINGS_MODULE") == "agri_market.browser_test_settings":
     from channels.testing import ChannelsLiveServerTestCase
     from playwright.sync_api import sync_playwright, expect
-    from .models import Community, FarmerProfile, SupportTicket, User
+    from .models import Community, Conversation, FarmerProfile, StoreCoverSlide, SupportTicket, User
 
     class ChatBrowserTests(ChannelsLiveServerTestCase):
         def setUp(self):
@@ -25,6 +26,8 @@ if os.environ.get("DJANGO_SETTINGS_MODULE") == "agri_market.browser_test_setting
             )
             community = Community.objects.create(name="Browser community", slug="browser-community", province="Nan")
             FarmerProfile.objects.create(user=self.seller, community=community, farm_name="Browser farm")
+            self.buyer = User.objects.create_user(username="browser-buyer")
+            self.conversation = Conversation.objects.create(buyer=self.buyer, seller=self.seller)
             self.ticket = SupportTicket.objects.create(seller=self.seller, community=community, subject="Browser chat")
 
         def cookie(self, user, admin=False):
@@ -37,6 +40,146 @@ if os.environ.get("DJANGO_SETTINGS_MODULE") == "agri_market.browser_test_setting
                 "name": settings.ADMIN_SESSION_COOKIE_NAME if admin else settings.SESSION_COOKIE_NAME,
                 "value": session.session_key, "url": self.live_server_url, "httpOnly": True,
             }
+
+        def test_store_slide_picker_opens_cropper_after_file_selection(self):
+            seller_cookie = self.cookie(self.seller)
+            if sys.platform == "win32":
+                previous_policy = asyncio.get_event_loop_policy()
+                asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+                self.addCleanup(asyncio.set_event_loop_policy, previous_policy)
+
+            with sync_playwright() as playwright:
+                browser = playwright.chromium.launch(channel="msedge", headless=True)
+                context = browser.new_context(viewport={"width": 1440, "height": 900})
+                context.add_cookies([seller_cookie])
+                page = context.new_page()
+                errors = []
+                page.on("pageerror", lambda error: errors.append({
+                    "message": str(error),
+                    "stack": error.stack,
+                }))
+                page.goto(
+                    self.live_server_url
+                    + reverse("accounts:farmer_shop_center")
+                    + "?section=store&mode=settings"
+                )
+
+                page.locator("[data-store-cover-slides-input]").set_input_files({
+                    "name": "store-slide.png",
+                    "mimeType": "image/png",
+                    "buffer": base64.b64decode(
+                        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL9YQAAAABJRU5ErkJggg=="
+                    ),
+                })
+
+                page.wait_for_timeout(250)
+                cropper = page.locator("[data-store-cover-cropper]")
+                expect(cropper).to_be_visible()
+                expect(cropper).to_have_class(re.compile(r"\bgrid\b"))
+                self.assertEqual(errors, [])
+                browser.close()
+
+        def test_store_slide_is_saved_after_crop_and_submit(self):
+            seller_cookie = self.cookie(self.seller)
+            if sys.platform == "win32":
+                previous_policy = asyncio.get_event_loop_policy()
+                asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+                self.addCleanup(asyncio.set_event_loop_policy, previous_policy)
+
+            with sync_playwright() as playwright:
+                browser = playwright.chromium.launch(channel="msedge", headless=True)
+                context = browser.new_context(viewport={"width": 1440, "height": 900})
+                context.add_cookies([seller_cookie])
+                page = context.new_page()
+                page.goto(
+                    self.live_server_url
+                    + reverse("accounts:farmer_shop_center")
+                    + "?section=store&mode=settings"
+                )
+                page.locator("[data-store-cover-slides-input]").set_input_files({
+                    "name": "saved-slide.png",
+                    "mimeType": "image/png",
+                    "buffer": base64.b64decode(
+                        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL9YQAAAABJRU5ErkJggg=="
+                    ),
+                })
+                page.locator("[data-store-cover-crop-save]").click()
+                expect(page.locator("[data-store-cover-slides-preview]")).to_be_visible()
+                page.locator('[data-store-settings-form] button[type="submit"]').click()
+                expect(page).to_have_url(re.compile(r"section=store&mode=settings"))
+                expect(page.locator("text=สไลด์ 1")).to_be_visible()
+                browser.close()
+
+        def test_store_cover_arrows_are_outside_the_image_and_text(self):
+            profile = self.seller.farmer_profile
+            StoreCoverSlide.objects.create(
+                profile=profile,
+                image="store-cover-slides/first.jpg",
+                sort_order=1,
+            )
+            StoreCoverSlide.objects.create(
+                profile=profile,
+                image="store-cover-slides/second.jpg",
+                sort_order=2,
+            )
+            if sys.platform == "win32":
+                previous_policy = asyncio.get_event_loop_policy()
+                asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+                self.addCleanup(asyncio.set_event_loop_policy, previous_policy)
+
+            with sync_playwright() as playwright:
+                browser = playwright.chromium.launch(channel="msedge", headless=True)
+                page = browser.new_page(viewport={"width": 1440, "height": 900})
+                page.goto(self.live_server_url + reverse("catalog:seller_store", args=[self.seller.pk]))
+                carousel = page.locator("[data-store-cover-carousel]")
+                hero = carousel.locator(":scope > div")
+                left_button = carousel.locator('[data-store-cover-slide-step="-1"]')
+                right_button = carousel.locator('[data-store-cover-slide-step="1"]')
+                expect(left_button).to_be_visible()
+                expect(right_button).to_be_visible()
+                hero_box = hero.bounding_box()
+                left_box = left_button.bounding_box()
+                right_box = right_button.bounding_box()
+                text_box = hero.locator("h2").bounding_box()
+                header_box = page.locator("header").bounding_box()
+                self.assertLessEqual(left_box["x"] + left_box["width"], hero_box["x"])
+                self.assertGreaterEqual(right_box["x"], hero_box["x"] + hero_box["width"])
+                self.assertGreaterEqual(text_box["x"], hero_box["x"] + 64)
+                self.assertEqual(header_box["height"], 84)
+                browser.close()
+
+        def test_direct_chat_can_preview_and_send_an_image(self):
+            buyer_cookie = self.cookie(self.buyer)
+            if sys.platform == "win32":
+                previous_policy = asyncio.get_event_loop_policy()
+                asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+                self.addCleanup(asyncio.set_event_loop_policy, previous_policy)
+
+            with sync_playwright() as playwright:
+                browser = playwright.chromium.launch(channel="msedge", headless=True)
+                context = browser.new_context(viewport={"width": 390, "height": 844})
+                context.add_cookies([buyer_cookie])
+                page = context.new_page()
+                errors = []
+                page.on("pageerror", lambda error: errors.append(str(error)))
+                page.goto(self.live_server_url + reverse("accounts:conversation_detail", args=[self.conversation.pk]))
+                media_menu = page.locator("[data-chat-menu]")
+                expect(media_menu).to_be_hidden()
+                page.locator("[data-chat-menu-toggle]").click()
+                expect(media_menu).to_be_visible()
+                image_input = page.locator("[data-chat-image-input]")
+                image_input.set_input_files({
+                    "name": "chat-image.png",
+                    "mimeType": "image/png",
+                    "buffer": base64.b64decode(
+                        "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAE0lEQVR4nGNkaGBgYGBgAhEMDAAGKgCE2O/yUgAAAABJRU5ErkJggg=="
+                    ),
+                })
+                expect(page.locator("[data-chat-media-preview]")).to_be_visible()
+                page.locator(".chat-composer__send").click()
+                expect(page.locator(".live-chat-media").last).to_be_visible()
+                self.assertEqual(errors, [])
+                browser.close()
 
         def test_desktop_and_mobile_two_way_chat(self):
             artifacts = Path(settings.BASE_DIR) / ".artifacts"

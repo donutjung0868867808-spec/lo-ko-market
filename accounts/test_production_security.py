@@ -9,6 +9,7 @@ from django.core.management import call_command
 from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 
+from .forms import FarmerProfileForm
 from .models import Community, EmailDelivery, FarmerProfile, User
 from .services import client_ip
 
@@ -104,6 +105,25 @@ class PrivateDocumentAccessTests(TestCase):
         self.assertTrue(b"private test document" in b"".join(response.streaming_content))
         response.close()
 
+    def test_existing_cloudinary_document_without_extension_does_not_block_profile_save(self):
+        self.profile.verification_document.name = "media/farmer-verification/existing-document"
+        self.profile.save(update_fields=["verification_document"])
+
+        form = FarmerProfileForm(
+            {
+                "farm_name": self.profile.farm_name,
+                "community": self.community.pk,
+                "province": self.profile.province,
+                "district": self.profile.district,
+                "address": self.profile.address,
+                "bio": self.profile.bio,
+                "document_type": self.profile.document_type,
+            },
+            instance=self.profile,
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
+
 
 class ProxyIpTests(TestCase):
     def test_forwarded_ip_is_used_only_when_proxy_is_trusted(self):
@@ -140,7 +160,7 @@ class ProductionReadinessCommandTests(SimpleTestCase):
         os.environ,
         {
             "DATABASE_URL": "postgresql://example",
-            "CLOUDINARY_URL": "cloudinary://example",
+            "CLOUDINARY_URL": "cloudinary://123456:example-secret@example-cloud",
             "STRIPE_SECRET_KEY": "sk_test_example",
             "STRIPE_PUBLISHABLE_KEY": "pk_test_example",
             "STRIPE_WEBHOOK_SECRET": "whsec_example",

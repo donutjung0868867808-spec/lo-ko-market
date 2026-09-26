@@ -1,11 +1,11 @@
 import logging
 import mimetypes
-from datetime import timedelta
+from datetime import date, timedelta
 import uuid
 from pathlib import Path
 
 from django.conf import settings
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.contrib.auth.hashers import make_password
@@ -13,7 +13,7 @@ from django.contrib.auth.tokens import default_token_generator
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm
 from django.db import transaction
-from django.db.models import Avg, Count, F, OuterRef, Prefetch, Q, Subquery, Sum
+from django.db.models import Avg, Count, F, Max, OuterRef, Prefetch, Q, Subquery, Sum
 from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -23,9 +23,9 @@ from django.utils.http import url_has_allowed_host_and_scheme, urlsafe_base64_de
 from django.views.decorators.http import require_POST
 
 from catalog.forms import ProductForm
-from catalog.models import Product, ProductFavorite, ProductImage, ProductReview, SellerFavorite
+from catalog.models import Product, ProductClick, ProductDetailImage, ProductFavorite, ProductImage, ProductReview, SellerFavorite, SellerStoreVisit
 from orders.models import Order
-from payments.models import CustomerPaymentProfile, SavedPaymentMethod, SellerPaymentAccount, SellerSettlement
+from payments.models import CustomerPaymentProfile, Refund, SavedPaymentMethod, SellerPaymentAccount, SellerSettlement
 
 from .decorators import role_required, user_community
 from .forms import (
@@ -40,13 +40,16 @@ from .forms import (
     ReportMessageForm,
     ReportResolutionForm,
     StaffFarmerProfileForm,
+    SellerStoreDetailsForm,
     SellerStoreProfileForm,
     SupportMessageForm,
     SupportTicketCreateForm,
     StaffSellerAccountForm,
     UserProfileForm,
+    split_display_name,
 )
-from .models import AuditEvent, ChatBlock, Conversation, DeliveryAddress, DirectMessage, FarmerProfile, NewsPost, Notification, Report, ReportMessage, SupportMessage, SupportTicket, User
+from .models import AuditEvent, ChatBlock, Conversation, DeliveryAddress, DirectMessage, FarmerProfile, NewsPost, Notification, Report, ReportMessage, StoreCoverSlide, SupportMessage, SupportTicket, User, chat_media_type_for_upload
+from .realtime import serialize_message
 from .services import (
     clear_login_failures,
     is_login_blocked,
@@ -197,16 +200,36 @@ def consumer_signup(request):
 
 
 def farmer_signup(request):
-    return render(request, "accounts/signup_farmer_intro.html")
+    if request.user.is_authenticated:
+        if request.user.is_farmer:
+            return redirect("accounts:farmer_shop_center")
+        if not request.user.is_consumer:
+            messages.error(request, "บัญชีนี้ไม่สามารถสมัครเป็นผู้ขายได้")
+            return redirect("accounts:dashboard")
+    return render(
+        request,
+        "accounts/signup_farmer_intro.html",
+        {"upgrade_existing_account": request.user.is_authenticated},
+    )
 
 
 def farmer_signup_create(request):
+    if request.user.is_authenticated:
+        if request.user.is_farmer:
+            return redirect("accounts:farmer_shop_center")
+        if request.user.is_consumer:
+            return redirect("accounts:farmer_signup_profile")
+        messages.error(request, "บัญชีนี้ไม่สามารถสมัครเป็นผู้ขายได้")
+        return redirect("accounts:dashboard")
+
     if request.method == "POST":
         form = FarmerSignupForm(request.POST)
         if form.is_valid():
             request.session["farmer_signup_account"] = {
                 "username": form.cleaned_data["username"],
-                "display_name": form.cleaned_data["display_name"],
+                "first_name": form.cleaned_data["first_name"],
+                "last_name": form.cleaned_data["last_name"],
+                "birth_date": form.cleaned_data["birth_date"].isoformat(),
                 "email": form.cleaned_data["email"],
                 "phone": form.cleaned_data["phone"],
                 "password_hash": make_password(form.cleaned_data["password1"]),
@@ -220,39 +243,67 @@ def farmer_signup_create(request):
 
 
 def farmer_signup_profile(request):
-    account_data = request.session.get("farmer_signup_account")
-    if not account_data:
+    upgrading_user = None
+    if request.user.is_authenticated:
+        if request.user.is_farmer:
+            return redirect("accounts:farmer_shop_center")
+        if not request.user.is_consumer:
+            messages.error(request, "บัญชีนี้ไม่สามารถสมัครเป็นผู้ขายได้")
+            return redirect("accounts:dashboard")
+        upgrading_user = request.user
+
+    account_data = request.session.get("farmer_signup_account") if not upgrading_user else None
+    if not upgrading_user and not account_data:
         return redirect("accounts:farmer_signup_create")
 
+    existing_profile = getattr(upgrading_user, "farmer_profile", None) if upgrading_user else None
     if request.method == "POST":
-        profile_form = FarmerProfileForm(request.POST, request.FILES)
+        profile_form = FarmerProfileForm(request.POST, request.FILES, instance=existing_profile)
         if profile_form.is_valid():
-            if User.objects.filter(username=account_data["username"]).exists() or User.objects.filter(
-                email__iexact=account_data["email"]
-            ).exists():
+            if not upgrading_user and (
+                User.objects.filter(username=account_data["username"]).exists()
+                or User.objects.filter(email__iexact=account_data["email"]).exists()
+            ):
                 request.session.pop("farmer_signup_account", None)
                 request.session.modified = True
                 messages.error(request, "ชื่อผู้ใช้หรืออีเมลนี้ถูกใช้งานแล้ว กรุณาสมัครใหม่")
                 return redirect("accounts:farmer_signup_create")
 
             with transaction.atomic():
-                accepted_at = timezone.now()
-                user = User(
-                    username=account_data["username"],
-                    display_name=account_data["display_name"],
-                    email=account_data["email"],
-                    phone=account_data["phone"],
-                    password=account_data["password_hash"],
-                    role=User.Roles.FARMER,
-                    terms_accepted_at=accepted_at,
-                    privacy_accepted_at=accepted_at,
-                    terms_version=settings.TERMS_VERSION,
-                    privacy_version=settings.PRIVACY_VERSION,
-                )
-                user.save()
+                if upgrading_user:
+                    user = upgrading_user
+                    user.role = User.Roles.FARMER
+                    user.save(update_fields=["role"])
+                else:
+                    accepted_at = timezone.now()
+                    first_name = account_data.get("first_name", "")
+                    last_name = account_data.get("last_name", "")
+                    if not first_name and not last_name:
+                        first_name, last_name = split_display_name(account_data.get("display_name", ""))
+                    display_name = " ".join(part for part in [first_name, last_name] if part)
+                    user = User(
+                        username=account_data["username"],
+                        display_name=display_name or account_data["username"],
+                        first_name=first_name,
+                        last_name=last_name,
+                        birth_date=account_data.get("birth_date") or None,
+                        email=account_data["email"],
+                        phone=account_data["phone"],
+                        password=account_data["password_hash"],
+                        role=User.Roles.FARMER,
+                        terms_accepted_at=accepted_at,
+                        privacy_accepted_at=accepted_at,
+                        terms_version=settings.TERMS_VERSION,
+                        privacy_version=settings.PRIVACY_VERSION,
+                    )
+                    user.save()
                 profile = profile_form.save(commit=False)
                 profile.user = user
                 profile.save()
+
+            if upgrading_user:
+                messages.success(request, "ส่งข้อมูลสมัครผู้ขายแล้ว บัญชีเดิมของคุณยังใช้ซื้อสินค้าได้ตามปกติ")
+                return redirect("accounts:farmer_shop_center")
 
             request.session.pop("farmer_signup_account", None)
             request.session.modified = True
@@ -260,9 +311,14 @@ def farmer_signup_profile(request):
             messages.success(request, "สมัครบัญชีเกษตรกรเรียบร้อย กรุณาเข้าสู่ระบบเพื่อรอการยืนยัน")
             return redirect("login")
     else:
-        profile_form = FarmerProfileForm(initial={"farm_name": account_data["username"]})
+        initial_name = upgrading_user.username if upgrading_user else account_data["username"]
+        profile_form = FarmerProfileForm(instance=existing_profile, initial={"farm_name": initial_name})
 
-    return render(request, "accounts/signup_farmer_profile.html", {"profile_form": profile_form})
+    return render(
+        request,
+        "accounts/signup_farmer_profile.html",
+        {"profile_form": profile_form, "upgrade_existing_account": bool(upgrading_user)},
+    )
 
 @login_required
 def profile(request):
@@ -324,7 +380,15 @@ def farmer_shop_center(request):
         )
     )
     farmer_profile = getattr(request.user, "farmer_profile", None)
-    store_form = SellerStoreProfileForm(request.POST or None, instance=farmer_profile) if farmer_profile else None
+    store_form = SellerStoreProfileForm(
+        request.POST or None,
+        request.FILES or None,
+        instance=farmer_profile,
+    ) if farmer_profile else None
+    store_details_form = SellerStoreDetailsForm(
+        request.POST or None,
+        instance=farmer_profile,
+    ) if farmer_profile else None
     product_form = ProductForm(request.POST or None, request.FILES or None)
     if request.method == "POST" and request.POST.get("shop_action") == "create_product":
         if not farmer_profile or not farmer_profile.community or not farmer_profile.is_verified:
@@ -332,6 +396,7 @@ def farmer_shop_center(request):
         elif product_form.is_valid():
             product = product_form.save(commit=False)
             gallery_images = list(product_form.cleaned_data["image"])
+            detail_images = product_form.cleaned_data["detail_images"]
             if not product.image and gallery_images:
                 product.image = gallery_images.pop(0)
             product.seller = request.user
@@ -340,13 +405,44 @@ def farmer_shop_center(request):
             product.save()
             for image in gallery_images:
                 ProductImage.objects.create(product=product, image=image)
+            for sort_order, image in enumerate(detail_images, start=1):
+                ProductDetailImage.objects.create(product=product, image=image, sort_order=sort_order)
             messages.success(request, "ส่งสินค้าให้เจ้าหน้าที่ตรวจสอบแล้ว")
             return redirect(f"{reverse('accounts:farmer_shop_center')}?section=products")
     elif request.method == "POST" and request.POST.get("shop_action") == "update_store":
-        if store_form and store_form.is_valid():
-            store_form.save()
-            messages.success(request, "บันทึกข้อมูลหน้าร้านแล้ว")
-            return redirect(f"{reverse('accounts:farmer_shop_center')}?section=store&mode=settings")
+        if store_details_form and store_details_form.is_valid():
+            store_profile = store_details_form.save(commit=False)
+            if store_form and store_form.is_valid():
+                previous_cover_name = store_profile.store_cover.name if store_profile.store_cover else ""
+                remove_store_cover = request.POST.get("remove_store_cover") == "1"
+                if remove_store_cover and not request.FILES.get("store_cover"):
+                    store_profile.store_cover = ""
+                store_profile.save()
+                if remove_store_cover and previous_cover_name:
+                    store_profile.store_cover.storage.delete(previous_cover_name)
+                next_sort_order = (
+                    store_profile.store_cover_slides.aggregate(last=Max("sort_order"))["last"] or 0
+                )
+                for image in store_form.cleaned_data["store_cover_slides"]:
+                    next_sort_order += 1
+                    StoreCoverSlide.objects.create(
+                        profile=store_profile,
+                        image=image,
+                        sort_order=next_sort_order,
+                    )
+                messages.success(request, f"บันทึกข้อมูลหน้าร้านแล้ว ชื่อร้าน: {store_profile.farm_name}")
+                return redirect(f"{reverse('accounts:farmer_shop_center')}?section=store&mode=settings")
+            store_profile.save()
+            media_errors = []
+            for field_name in ("store_cover", "store_cover_slides"):
+                media_errors.extend(store_form.errors.get(field_name, []))
+            detail = f" สาเหตุ: {' '.join(media_errors)}" if media_errors else ""
+            messages.warning(
+                request,
+                f"บันทึกชื่อและข้อมูลร้านแล้ว แต่รูปปกหรือรูปสไลด์ไม่ผ่านการตรวจสอบ{detail}",
+            )
+        elif store_form:
+            messages.error(request, "บันทึกข้อมูลร้านค้าไม่สำเร็จ กรุณาตรวจสอบข้อมูลที่ทำเครื่องหมายไว้")
     sales = Order.objects.filter(seller=request.user).select_related("buyer").prefetch_related("items").order_by("-created_at")
     paid_sales = sales.filter(payment_status=Order.PaymentStatus.PAID)
     gross_sales = paid_sales.aggregate(total=Sum("total_amount"))["total"] or 0
@@ -369,6 +465,12 @@ def farmer_shop_center(request):
         filtered_sales = filtered_sales.filter(status__in=status_groups[order_status])
     else:
         order_status = "all"
+
+    order_menu = request.GET.get("order_menu", order_status)
+    if order_menu not in {"all", "batch", "preparing", "cancelled"}:
+        order_menu = order_status
+    if order_status == "all":
+        order_menu = "all"
 
     order_query = request.GET.get("q", "").strip()
     order_search_by = request.GET.get("search_by", "reference")
@@ -396,21 +498,187 @@ def farmer_shop_center(request):
 
     reviews = ProductReview.objects.filter(product__seller=request.user).select_related("product", "user")
     settlements = SellerSettlement.objects.filter(seller=request.user).select_related("payment__order")
+    pending_settlement_statuses = [
+        SellerSettlement.Status.PENDING,
+        SellerSettlement.Status.READY,
+        SellerSettlement.Status.PROCESSING,
+        SellerSettlement.Status.HELD,
+    ]
     settlement_totals = settlements.aggregate(
         pending=Sum(
             "net_amount",
-            filter=Q(
-                status__in=[
-                    SellerSettlement.Status.PENDING,
-                    SellerSettlement.Status.READY,
-                    SellerSettlement.Status.PROCESSING,
-                    SellerSettlement.Status.HELD,
-                ]
-            ),
+            filter=Q(status__in=pending_settlement_statuses),
         ),
         transferred=Sum("net_amount", filter=Q(status=SellerSettlement.Status.TRANSFERRED)),
     )
+    today = timezone.localdate()
+    transferred_settlements = settlements.filter(status=SellerSettlement.Status.TRANSFERRED)
+    transferred_this_week_total = transferred_settlements.filter(
+        transferred_at__date__gte=today - timedelta(days=today.weekday())
+    ).aggregate(total=Sum("net_amount"))["total"] or 0
+    transferred_this_month_total = transferred_settlements.filter(
+        transferred_at__date__gte=today.replace(day=1)
+    ).aggregate(total=Sum("net_amount"))["total"] or 0
+
+    income_status = request.GET.get("income_status", "transferred")
+    if income_status == "transferred":
+        income_settlements = transferred_settlements
+        income_date_field = "transferred_at"
+    else:
+        income_status = "pending"
+        income_settlements = settlements.filter(status__in=pending_settlement_statuses)
+        income_date_field = "created_at"
+
+    income_period = request.GET.get("income_period", "week")
+    income_period_options = {
+        "week": (today - timedelta(days=today.weekday()), today, "สัปดาห์นี้"),
+        "month": (today.replace(day=1), today, "เดือนนี้"),
+        "quarter": (today - timedelta(days=89), today, "3 เดือนล่าสุด"),
+        "all": (None, None, "ทั้งหมด"),
+    }
+    income_start = None
+    income_end = None
+    if income_period == "custom":
+        try:
+            income_start = date.fromisoformat(request.GET.get("income_start", ""))
+            income_end = date.fromisoformat(request.GET.get("income_end", ""))
+        except ValueError:
+            income_period = "week"
+        else:
+            if income_start > income_end:
+                income_period = "week"
+    if income_period == "custom":
+        income_period_label = "เลือกวัน"
+    else:
+        if income_period not in income_period_options:
+            income_period = "week"
+        income_start, income_end, income_period_label = income_period_options[income_period]
+    if income_start:
+        income_settlements = income_settlements.filter(
+            **{f"{income_date_field}__date__gte": income_start}
+        )
+    if income_end:
+        income_settlements = income_settlements.filter(
+            **{f"{income_date_field}__date__lte": income_end}
+        )
+
+    income_query = request.GET.get("income_q", "").strip()
+    if income_query:
+        income_settlements = income_settlements.filter(
+            payment__order__reference__icontains=income_query
+        )
+
+    balance_activity_type = request.GET.get("balance_activity", "all")
+    if balance_activity_type not in {"all", "incoming", "transferred"}:
+        balance_activity_type = "all"
+    balance_transactions = settlements
+    if balance_activity_type == "incoming":
+        balance_transactions = balance_transactions.filter(status__in=pending_settlement_statuses)
+    elif balance_activity_type == "transferred":
+        balance_transactions = balance_transactions.filter(
+            status=SellerSettlement.Status.TRANSFERRED
+        )
+
+    balance_period = request.GET.get("balance_period", "week")
+    balance_period_options = {
+        "week": (
+            today - timedelta(days=today.weekday()),
+            today,
+            "สัปดาห์นี้",
+        ),
+        "month": (today.replace(day=1), today, "เดือนนี้"),
+        "quarter": (today - timedelta(days=89), today, "3 เดือนล่าสุด"),
+        "all": (None, None, "ทั้งหมด"),
+    }
+    balance_start = None
+    balance_end = None
+    if balance_period == "custom":
+        try:
+            balance_start = date.fromisoformat(request.GET.get("balance_start", ""))
+            balance_end = date.fromisoformat(request.GET.get("balance_end", ""))
+        except ValueError:
+            balance_period = "week"
+        else:
+            if balance_start > balance_end:
+                balance_period = "week"
+    if balance_period == "custom":
+        balance_period_label = "เลือกวัน"
+    else:
+        if balance_period not in balance_period_options:
+            balance_period = "week"
+        balance_start, balance_end, balance_period_label = balance_period_options[balance_period]
+    if balance_start:
+        balance_transactions = balance_transactions.filter(created_at__date__gte=balance_start)
+    if balance_end:
+        balance_transactions = balance_transactions.filter(created_at__date__lte=balance_end)
+    balance_transaction_total = balance_transactions.aggregate(total=Sum("net_amount"))["total"] or 0
+
     review_summary = reviews.aggregate(average=Avg("rating"), total=Count("id"))
+    refund_or_cancel_total = (
+        sales.filter(status__in=[Order.Status.CANCELLED, Order.Status.REFUNDED]).count()
+        + Refund.objects.filter(
+            payment__order__seller=request.user,
+            status__in=[Refund.Status.REQUESTED, Refund.Status.PROCESSING],
+        ).count()
+    )
+    policy_issue_total = products.filter(
+        status__in=[Product.Status.REJECTED, Product.Status.BLOCKED]
+    ).count()
+    today_sales = paid_sales.filter(created_at__date=today)
+    yesterday = today - timedelta(days=1)
+    yesterday_sales = paid_sales.filter(created_at__date=yesterday)
+    today_sales_total = today_sales.aggregate(total=Sum("total_amount"))["total"] or 0
+    yesterday_sales_total = yesterday_sales.aggregate(total=Sum("total_amount"))["total"] or 0
+    today_product_sales_total = today_sales.aggregate(
+        total=Sum(F("total_amount") - F("shipping_fee"))
+    )["total"] or 0
+    today_order_total = today_sales.count()
+    yesterday_order_total = yesterday_sales.count()
+    today_total_orders = sales.filter(created_at__date=today).count()
+    today_payment_success_rate = (
+        today_order_total * 100 / today_total_orders if today_total_orders else 0
+    )
+    today_store_visitor_total = SellerStoreVisit.objects.filter(
+        seller=request.user,
+        visited_on=today,
+    ).count()
+    today_product_click_total = ProductClick.objects.filter(
+        seller=request.user,
+        created_at__date=today,
+    ).count()
+
+    def percent_change(current_value, previous_value):
+        if not previous_value:
+            return 0
+        return (current_value - previous_value) * 100 / previous_value
+
+    trend_start = today - timedelta(days=6)
+    trend_totals = {
+        row["created_at__date"]: row["total"]
+        for row in paid_sales.filter(created_at__date__gte=trend_start)
+        .values("created_at__date")
+        .annotate(total=Sum("total_amount"))
+    }
+    daily_sales_trend = [
+        {
+            "label": (trend_start + timedelta(days=offset)).strftime("%d/%m"),
+            "total": trend_totals.get(trend_start + timedelta(days=offset), 0),
+        }
+        for offset in range(7)
+    ]
+    trend_maximum = max((point["total"] for point in daily_sales_trend), default=0)
+    for index, point in enumerate(daily_sales_trend):
+        point["height"] = (
+            max(8, round(point["total"] * 100 / trend_maximum))
+            if trend_maximum
+            else 0
+        )
+        point["chart_x"] = round(40 + index * (620 / 6), 2)
+        point["chart_y"] = round(156 - point["height"] * 1.36, 2)
+    weekly_sales_total = sum(point["total"] for point in daily_sales_trend)
+    daily_sales_chart_points = " ".join(
+        f'{point["chart_x"]},{point["chart_y"]}' for point in daily_sales_trend
+    )
 
     context = {
         "farmer_profile": farmer_profile,
@@ -424,6 +692,7 @@ def farmer_shop_center(request):
         "shop_orders": filtered_sales,
         "shop_order_count": filtered_sales.count(),
         "order_status": order_status,
+        "order_menu": order_menu,
         "order_query": order_query,
         "order_search_by": order_search_by,
         "order_payment": order_payment,
@@ -437,16 +706,126 @@ def farmer_shop_center(request):
         ).count(),
         "shipped_total": sales.filter(status=Order.Status.SHIPPED).count(),
         "gross_sales": gross_sales,
+        "refund_or_cancel_total": refund_or_cancel_total,
+        "policy_issue_total": policy_issue_total,
+        "today_sales_total": today_sales_total,
+        "today_store_visitor_total": today_store_visitor_total,
+        "today_product_click_total": today_product_click_total,
+        "today_product_sales_total": today_product_sales_total,
+        "today_order_total": today_order_total,
+        "today_payment_success_rate": today_payment_success_rate,
+        "today_sales_change": percent_change(today_sales_total, yesterday_sales_total),
+        "today_order_change": percent_change(today_order_total, yesterday_order_total),
+        "daily_sales_trend": daily_sales_trend,
+        "daily_sales_trend_has_data": bool(trend_maximum),
+        "daily_sales_chart_points": daily_sales_chart_points,
+        "weekly_sales_total": weekly_sales_total,
         "support_open_count": SupportTicket.objects.filter(seller=request.user, status__in=[SupportTicket.Status.OPEN, SupportTicket.Status.IN_PROGRESS]).count(),
         "shop_reviews": reviews,
         "review_average": review_summary["average"] or 0,
         "review_total": review_summary["total"] or 0,
         "settlements": settlements,
+        "income_settlements": income_settlements,
+        "income_status": income_status,
+        "income_period": income_period,
+        "income_period_label": income_period_label,
+        "income_start": income_start,
+        "income_end": income_end,
+        "income_query": income_query,
         "pending_settlement_total": settlement_totals["pending"] or 0,
         "transferred_settlement_total": settlement_totals["transferred"] or 0,
+        "transferred_this_week_total": transferred_this_week_total,
+        "transferred_this_month_total": transferred_this_month_total,
+        "balance_activity_type": balance_activity_type,
+        "balance_period": balance_period,
+        "balance_period_label": balance_period_label,
+        "balance_start": balance_start,
+        "balance_end": balance_end,
+        "balance_transactions": balance_transactions,
+        "balance_transaction_total": balance_transaction_total,
         "seller_payment_account": SellerPaymentAccount.objects.filter(seller=request.user).first(),
     }
     return render(request, "accounts/farmer_shop_center.html", context)
+
+
+@role_required(User.Roles.FARMER)
+def income_statement(request):
+    today = timezone.localdate()
+    pending_statuses = [
+        SellerSettlement.Status.PENDING,
+        SellerSettlement.Status.READY,
+        SellerSettlement.Status.PROCESSING,
+        SellerSettlement.Status.HELD,
+    ]
+    income_status = request.GET.get("income_status", "transferred")
+    settlements = SellerSettlement.objects.filter(seller=request.user).select_related(
+        "payment__order"
+    )
+    if income_status == "transferred":
+        income_settlements = settlements.filter(status=SellerSettlement.Status.TRANSFERRED)
+        income_date_field = "transferred_at"
+        status_label = "โอนเงินแล้ว"
+    else:
+        income_status = "pending"
+        income_settlements = settlements.filter(status__in=pending_statuses)
+        income_date_field = "created_at"
+        status_label = "รอดำเนินการ"
+
+    income_period = request.GET.get("income_period", "week")
+    periods = {
+        "week": (today - timedelta(days=today.weekday()), today, "สัปดาห์นี้"),
+        "month": (today.replace(day=1), today, "เดือนนี้"),
+        "quarter": (today - timedelta(days=89), today, "3 เดือนล่าสุด"),
+        "all": (None, None, "ทั้งหมด"),
+    }
+    period_start = None
+    period_end = None
+    if income_period == "custom":
+        try:
+            period_start = date.fromisoformat(request.GET.get("income_start", ""))
+            period_end = date.fromisoformat(request.GET.get("income_end", ""))
+        except ValueError:
+            income_period = "week"
+        else:
+            if period_start > period_end:
+                income_period = "week"
+    if income_period == "custom":
+        period_label = "เลือกวัน"
+    else:
+        if income_period not in periods:
+            income_period = "week"
+        period_start, period_end, period_label = periods[income_period]
+    if period_start:
+        income_settlements = income_settlements.filter(
+            **{f"{income_date_field}__date__gte": period_start}
+        )
+    if period_end:
+        income_settlements = income_settlements.filter(
+            **{f"{income_date_field}__date__lte": period_end}
+        )
+
+    income_query = request.GET.get("income_q", "").strip()
+    if income_query:
+        income_settlements = income_settlements.filter(
+            payment__order__reference__icontains=income_query
+        )
+    statement_total = income_settlements.aggregate(total=Sum("net_amount"))["total"] or 0
+
+    return render(
+        request,
+        "accounts/income_statement.html",
+        {
+            "farmer_profile": getattr(request.user, "farmer_profile", None),
+            "income_settlements": income_settlements,
+            "income_status": income_status,
+            "income_query": income_query,
+            "period_label": period_label,
+            "period_start": period_start,
+            "statement_total": statement_total,
+            "statement_date": today,
+            "status_label": status_label,
+        },
+    )
 
 @login_required
 @role_required(User.Roles.FARMER)
@@ -615,6 +994,23 @@ def support_ticket_detail(request, pk):
         {"ticket": ticket, "form": form, "can_manage": can_manage},
     )
 
+
+@role_required(User.Roles.FARMER)
+@require_POST
+def store_cover_slide_delete(request, slide_id):
+    slide = get_object_or_404(
+        StoreCoverSlide.objects.select_related("profile"),
+        pk=slide_id,
+        profile__user=request.user,
+    )
+    image_name = slide.image.name
+    storage = slide.image.storage
+    slide.delete()
+    if image_name:
+        storage.delete(image_name)
+    messages.success(request, "ลบรูปสไลด์หน้าร้านแล้ว")
+    return redirect(f"{reverse('accounts:farmer_shop_center')}?section=store&mode=settings")
+
 @login_required
 def addresses_list(request):
     return render(
@@ -740,24 +1136,6 @@ def staff_dashboard(request):
     active_reports = reports.filter(
         status__in=[Report.Status.OPEN, Report.Status.REVIEWING]
     )
-    reviews = ProductReview.objects.filter(product__seller=request.user).select_related("product", "user")
-    settlements = SellerSettlement.objects.filter(seller=request.user).select_related("payment__order")
-    settlement_totals = settlements.aggregate(
-        pending=Sum(
-            "net_amount",
-            filter=Q(
-                status__in=[
-                    SellerSettlement.Status.PENDING,
-                    SellerSettlement.Status.READY,
-                    SellerSettlement.Status.PROCESSING,
-                    SellerSettlement.Status.HELD,
-                ]
-            ),
-        ),
-        transferred=Sum("net_amount", filter=Q(status=SellerSettlement.Status.TRANSFERRED)),
-    )
-    review_summary = reviews.aggregate(average=Avg("rating"), total=Count("id"))
-
     context = {
         "community": community,
         "farmer_count": farmers.count(),
@@ -850,6 +1228,25 @@ def dashboard(request):
     return render(request, "accounts/dashboard.html", context)
 
 
+@login_required
+@require_POST
+def switch_market_mode(request, mode):
+    if not request.user.is_farmer:
+        raise PermissionDenied
+
+    if mode == "buyer":
+        request.session["active_market_mode"] = "buyer"
+        messages.success(request, "สลับเป็นโหมดผู้ซื้อแล้ว")
+        return redirect("catalog:product_list")
+
+    if mode == "seller":
+        request.session["active_market_mode"] = "seller"
+        messages.success(request, "สลับเป็นโหมดผู้ขายแล้ว")
+        return redirect("accounts:farmer_shop_center")
+
+    raise Http404
+
+
 @role_required(User.Roles.COOPERATIVE_STAFF)
 def farmer_verification(request, profile_id, action):
     profile = get_object_or_404(FarmerProfile, pk=profile_id)
@@ -859,6 +1256,13 @@ def farmer_verification(request, profile_id, action):
         return redirect("accounts:staff_dashboard")
     if not request.user.is_owner and community and profile.community_id != community.id:
         messages.error(request, "ตรวจสอบได้เฉพาะเกษตรกรในชุมชนของคุณ")
+        return redirect("accounts:staff_dashboard")
+
+    if (
+        request.user.is_cooperative_staff
+        and profile.verification_status != FarmerProfile.VerificationStatus.PENDING
+    ):
+        messages.error(request, "ตรวจสอบได้เฉพาะบัญชีที่รอการตรวจสอบ")
         return redirect("accounts:staff_dashboard")
 
     if request.method == "POST":
@@ -1090,23 +1494,6 @@ def staff_seller_detail(request, user_id):
         seller=seller,
         community=profile.community,
     )
-    reviews = ProductReview.objects.filter(product__seller=request.user).select_related("product", "user")
-    settlements = SellerSettlement.objects.filter(seller=request.user).select_related("payment__order")
-    settlement_totals = settlements.aggregate(
-        pending=Sum(
-            "net_amount",
-            filter=Q(
-                status__in=[
-                    SellerSettlement.Status.PENDING,
-                    SellerSettlement.Status.READY,
-                    SellerSettlement.Status.PROCESSING,
-                    SellerSettlement.Status.HELD,
-                ]
-            ),
-        ),
-        transferred=Sum("net_amount", filter=Q(status=SellerSettlement.Status.TRANSFERRED)),
-    )
-    review_summary = reviews.aggregate(average=Avg("rating"), total=Count("id"))
 
     context = {
         "seller": seller,
@@ -1157,15 +1544,11 @@ def staff_seller_edit(request, user_id):
             seller.save()
 
             profile = profile_form.save(commit=False)
-            if "verification_status" in profile_form.changed_data:
-                profile.verified_by = request.user
-                profile.verified_at = timezone.now()
-                if profile.verification_status == FarmerProfile.VerificationStatus.VERIFIED:
-                    profile.rejection_reason = ""
-                elif profile.verification_status == FarmerProfile.VerificationStatus.PENDING:
-                    profile.verified_by = None
-                    profile.verified_at = None
-                    profile.rejection_reason = ""
+            if "verification_document" in profile_form.changed_data:
+                profile.verification_status = FarmerProfile.VerificationStatus.PENDING
+                profile.verified_by = None
+                profile.verified_at = None
+                profile.rejection_reason = ""
             profile.save()
             record_audit(
                 request,
@@ -1201,6 +1584,12 @@ def staff_seller_edit(request, user_id):
             "profile": profile,
             "account_form": account_form,
             "profile_form": profile_form,
+            "document_is_image": bool(
+                profile.verification_document
+                and profile.verification_document.name.lower().endswith(
+                    (".jpg", ".jpeg", ".png", ".webp")
+                )
+            ),
         },
     )
 
@@ -1274,14 +1663,14 @@ def send_notification(request, user_id=None):
     )
 
 
-def _private_file_response(field_file):
+def _private_file_response(field_file, *, as_attachment=True):
     if not field_file or not field_file.name:
         raise Http404
     filename = Path(field_file.name).name
     content_type, _ = mimetypes.guess_type(filename)
     response = FileResponse(
         field_file.open("rb"),
-        as_attachment=True,
+        as_attachment=as_attachment,
         filename=filename,
         content_type=content_type or "application/octet-stream",
     )
@@ -1305,7 +1694,10 @@ def farmer_document_download(request, profile_id):
     if not allowed:
         raise Http404
     record_audit(request, AuditEvent.Action.DOWNLOAD, profile, description="ดาวน์โหลดเอกสารยืนยันเกษตรกร", community=profile.community)
-    return _private_file_response(profile.verification_document)
+    return _private_file_response(
+        profile.verification_document,
+        as_attachment=request.GET.get("inline") != "1",
+    )
 
 
 @login_required
@@ -1448,6 +1840,7 @@ def conversations_list(request):
                 filter=Q(messages__read_at__isnull=True) & ~Q(messages__sender=request.user),
             ),
             last_message_body=Subquery(latest_message.values("body")[:1]),
+            last_message_media_type=Subquery(latest_message.values("media_type")[:1]),
             last_message_at=Subquery(latest_message.values("created_at")[:1]),
         )
         .order_by("-updated_at")
@@ -1500,7 +1893,7 @@ def conversation_start(request, product_id):
     if product.seller_id == request.user.id:
         messages.info(request, "นี่คือสินค้าของคุณ")
         return redirect(product)
-    if not request.user.is_consumer:
+    if not request.user.can_buy:
         messages.error(request, "การเริ่มแชทจากหน้าสินค้าเปิดให้บัญชีผู้บริโภค")
         return redirect(product)
 
@@ -1527,7 +1920,7 @@ def conversation_start_seller(request, seller_id):
     if seller.pk == request.user.pk:
         messages.info(request, "นี่คือร้านค้าของคุณ")
         return redirect("catalog:seller_store", seller_id=seller.pk)
-    if not request.user.is_consumer:
+    if not request.user.can_buy:
         messages.error(request, "การเริ่มแชทกับร้านค้าเปิดให้บัญชีผู้บริโภค")
         return redirect("catalog:seller_store", seller_id=seller.pk)
 
@@ -1641,7 +2034,7 @@ def conversation_detail(request, pk):
         read_at__isnull=True,
     ).exclude(sender=request.user).update(read_at=timezone.now())
 
-    form = DirectMessageForm(request.POST or None)
+    form = DirectMessageForm(request.POST or None, request.FILES or None)
     if request.method == "POST":
         if not can_send:
             messages.error(request, "ไม่สามารถส่งข้อความในบทสนทนานี้ได้")
@@ -1658,6 +2051,8 @@ def conversation_detail(request, pk):
                 direct_message = form.save(commit=False)
                 direct_message.conversation = conversation
                 direct_message.sender = request.user
+                if direct_message.attachment:
+                    direct_message.media_type = chat_media_type_for_upload(direct_message.attachment)
                 direct_message.full_clean()
                 direct_message.save()
                 Conversation.objects.filter(pk=conversation.pk).update(updated_at=timezone.now())
@@ -1687,3 +2082,76 @@ def conversation_detail(request, pk):
             "form": form,
         },
     )
+
+
+@login_required
+@require_POST
+@transaction.atomic
+def conversation_media_upload(request, pk):
+    """Upload one piece of chat media and publish it to the live conversation."""
+    conversation = _conversation_for_user(request, pk)
+    other_participant = conversation.other_participant(request.user)
+    blocked = ChatBlock.objects.filter(
+        Q(blocker=request.user, blocked=other_participant)
+        | Q(blocker=other_participant, blocked=request.user)
+    ).exists()
+    if blocked:
+        return JsonResponse({"error": "ไม่สามารถส่งข้อความในบทสนทนานี้ได้"}, status=403)
+
+    attachment = request.FILES.get("attachment")
+    body = (request.POST.get("body") or "").strip()
+    if not attachment:
+        return JsonResponse({"error": "กรุณาเลือกไฟล์รูปภาพหรือวิดีโอ"}, status=400)
+    if len(body) > 2000:
+        return JsonResponse({"error": "ข้อความต้องไม่เกิน 2,000 ตัวอักษร"}, status=400)
+
+    try:
+        client_id = uuid.UUID(request.POST.get("client_id", ""))
+    except (ValueError, AttributeError):
+        return JsonResponse({"error": "ไม่พบรหัสการส่งไฟล์ กรุณาลองใหม่"}, status=400)
+
+    existing = DirectMessage.objects.filter(sender=request.user, client_id=client_id).first()
+    if existing:
+        if existing.conversation_id != conversation.pk:
+            return JsonResponse({"error": "รหัสการส่งไฟล์นี้ถูกใช้งานแล้ว"}, status=409)
+        return JsonResponse({"message": serialize_message(existing, conversation)})
+
+    if DirectMessage.objects.filter(
+        conversation=conversation,
+        sender=request.user,
+        created_at__gte=timezone.now() - timedelta(minutes=1),
+    ).count() >= 12:
+        return JsonResponse({"error": "คุณส่งข้อความเร็วเกินไป กรุณารอประมาณ 1 นาทีแล้วลองใหม่"}, status=429)
+
+    try:
+        media_type = chat_media_type_for_upload(attachment)
+        message = DirectMessage(
+            conversation=conversation,
+            sender=request.user,
+            client_id=client_id,
+            body=body,
+            attachment=attachment,
+            media_type=media_type,
+        )
+        message.full_clean()
+        message.save()
+    except ValidationError as error:
+        return JsonResponse({"error": error.messages[0]}, status=400)
+
+    Conversation.objects.filter(pk=conversation.pk).update(updated_at=message.created_at)
+    notify_user(
+        other_participant,
+        title=f"ข้อความใหม่จาก {request.user}",
+        message=(f"เกี่ยวกับสินค้า {conversation.product.name}" if conversation.product_id else "เกี่ยวกับร้านค้าของคุณ"),
+        link=reverse("accounts:conversation_detail", args=[conversation.pk]),
+        send_email_message=False,
+    )
+    return JsonResponse({"message": serialize_message(message, conversation)}, status=201)
+
+
+@login_required
+def conversation_media(request, message_id):
+    message = get_object_or_404(DirectMessage.objects.select_related("conversation"), pk=message_id)
+    if request.user.pk not in {message.conversation.buyer_id, message.conversation.seller_id}:
+        raise Http404
+    return _private_file_response(message.attachment, as_attachment=False)

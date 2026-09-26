@@ -9,6 +9,32 @@
   #id_gender label { display: inline-flex; align-items: center; gap: .45rem; cursor: pointer; }
   #id_gender input { width: 1rem; height: 1rem; accent-color: #2f6f1d; }
   #id_avatar { position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip: rect(0, 0, 0, 0) !important; white-space: nowrap !important; border: 0 !important; }
+  .avatar-cropper[hidden] { display: none; }
+  .avatar-cropper { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 1rem; background: rgba(15, 23, 42, .58); }
+  .avatar-cropper__dialog { width: min(100%, 31rem); border: 1px solid #bbd0be; border-radius: .5rem; background: #fff; padding: 1.25rem; box-shadow: 0 24px 60px rgba(15, 23, 42, .3); }
+  .avatar-cropper__stage { position: relative; width: min(100%, 22.5rem); margin: 1rem auto; }
+  .avatar-cropper__canvas { display: block; width: 100%; aspect-ratio: 1; border: 3px solid #2f6f1d; border-radius: 50%; touch-action: none; cursor: grab; background: #eef4ef; box-shadow: 0 0 0 8px #f1f5f1; }
+  .avatar-cropper__canvas:active { cursor: grabbing; }
+  .avatar-cropper__actions { display: flex; justify-content: flex-end; gap: .75rem; margin-top: 1.25rem; }
+  .birth-calendar { position: relative; }
+  .birth-calendar__trigger { display: flex; width: 100%; min-height: 2.75rem; align-items: center; justify-content: space-between; gap: .75rem; border: 1px solid #cbd5e1; border-radius: .375rem; background: #fff; padding: .625rem .75rem; color: #0f172a; text-align: left; }
+  .birth-calendar__trigger:hover { border-color: #2f6f1d; }
+  .birth-calendar__trigger:focus-visible { outline: 2px solid #ccebd1; outline-offset: 1px; border-color: #2f6f1d; }
+  .birth-calendar__placeholder { color: #64748b; }
+  .birth-calendar__popover { position: absolute; z-index: 30; top: calc(100% + .5rem); left: 0; width: min(21rem, calc(100vw - 3rem)); border: 1px solid #cbd5e1; border-radius: .5rem; background: #fff; padding: .75rem; box-shadow: 0 16px 32px rgba(15, 23, 42, .16); }
+  .birth-calendar__head { display: grid; grid-template-columns: 2.5rem minmax(0, 1fr) 6.5rem 2.5rem; align-items: center; gap: .35rem; }
+  .birth-calendar__head select { height: 2.5rem; min-width: 0; border: 1px solid #cbd5e1; border-radius: .375rem; background: #fff; padding: 0 .45rem; font-size: .875rem; }
+  .birth-calendar__nav { display: grid; width: 2.5rem; height: 2.5rem; place-items: center; border: 1px solid #cbd5e1; border-radius: .375rem; background: #fff; color: #334155; font-size: 1.5rem; line-height: 1; }
+  .birth-calendar__nav:hover { border-color: #2f6f1d; color: #2f6f1d; }
+  .birth-calendar__week, .birth-calendar__days { display: grid; grid-template-columns: repeat(7, 1fr); gap: .15rem; margin-top: .75rem; }
+  .birth-calendar__week span { padding: .25rem 0; color: #64748b; font-size: .75rem; font-weight: 600; text-align: center; }
+  .birth-calendar__day { display: grid; width: 2.3rem; height: 2.3rem; place-items: center; border: 0; border-radius: .375rem; background: transparent; color: #1e293b; font-size: .875rem; }
+  .birth-calendar__day:hover:not(:disabled) { background: #e9f8ef; color: #1f6c2d; }
+  .birth-calendar__day[aria-current="date"] { border: 1px solid #76bc83; }
+  .birth-calendar__day.is-selected { background: #2f7a32; color: #fff; font-weight: 700; }
+  .birth-calendar__day:disabled { color: #cbd5e1; cursor: not-allowed; }
+  .birth-calendar__footer { display: flex; justify-content: flex-end; margin-top: .75rem; border-top: 1px solid #e2e8f0; padding-top: .65rem; }
+  .birth-calendar__clear { border: 0; background: transparent; color: #2f6f1d; font-size: .875rem; font-weight: 600; }
 </style>
 {% endblock %}
 
@@ -44,7 +70,7 @@
           <label for="{{ user_form.avatar.id_for_label }}" class="mt-5 inline-flex h-11 cursor-pointer items-center rounded-md border border-stone-300 bg-white px-5 text-sm font-semibold text-slate-800 hover:border-leaf hover:text-leaf">
             เลือกรูป
           </label>
-          <p class="mt-4 text-sm leading-6 text-slate-500">ขนาดไฟล์: สูงสุด 1 MB<br>ไฟล์ที่รองรับ: .JPG, .JPEG, .PNG</p>
+          <p class="mt-4 text-sm leading-6 text-slate-500">ขนาดไฟล์: สูงสุด 5 MB<br>ไฟล์ที่รองรับ: .JPG, .JPEG, .PNG</p>
         </div>
         <div class="sr-only">{{ user_form.avatar }}</div>
         <p id="avatar-client-error" class="hidden text-sm text-red-700 md:col-span-2" role="alert"></p>
@@ -52,11 +78,6 @@
         <div>
           <label class="block text-sm font-semibold text-slate-700">ชื่อผู้ใช้</label>
           <div class="mt-2 flex min-h-11 items-center rounded-md border border-stone-200 bg-stone-100 px-3 text-sm text-slate-600">{{ request.user.username }}</div>
-        </div>
-        <div>
-          <label class="block text-sm font-semibold text-slate-700" for="{{ user_form.display_name.id_for_label }}">{{ user_form.display_name.label }}</label>
-          <div class="mt-2">{{ user_form.display_name }}</div>
-          {% for error in user_form.display_name.errors %}<p class="mt-1 text-sm text-red-700">{{ error }}</p>{% endfor %}
         </div>
         <div>
           <label class="block text-sm font-semibold text-slate-700" for="{{ user_form.first_name.id_for_label }}">{{ user_form.first_name.label }}</label>
@@ -85,7 +106,24 @@
         </div>
         <div>
           <label class="block text-sm font-semibold text-slate-700" for="{{ user_form.birth_date.id_for_label }}">{{ user_form.birth_date.label }}</label>
-          <div class="mt-2">{{ user_form.birth_date }}</div>
+          <div class="birth-calendar mt-2" data-birth-calendar-picker data-value="{{ user_form.birth_date.value|default:'' }}">
+            {{ user_form.birth_date }}
+            <button type="button" class="birth-calendar__trigger" data-birth-calendar-toggle aria-expanded="false">
+              <span class="birth-calendar__placeholder" data-birth-calendar-label>เลือกวันเกิด</span>
+              <i data-lucide="calendar-days" class="h-5 w-5 shrink-0 text-leaf" aria-hidden="true"></i>
+            </button>
+            <div class="birth-calendar__popover" data-birth-calendar-popover hidden>
+              <div class="birth-calendar__head">
+                <button type="button" class="birth-calendar__nav" data-birth-calendar-previous aria-label="เดือนก่อนหน้า">‹</button>
+                <select data-birth-calendar-month aria-label="เดือนเกิด"></select>
+                <select data-birth-calendar-year aria-label="ปีเกิด"></select>
+                <button type="button" class="birth-calendar__nav" data-birth-calendar-next aria-label="เดือนถัดไป">›</button>
+              </div>
+              <div class="birth-calendar__week" aria-hidden="true"><span>อา</span><span>จ</span><span>อ</span><span>พ</span><span>พฤ</span><span>ศ</span><span>ส</span></div>
+              <div class="birth-calendar__days" data-birth-calendar-days></div>
+              <div class="birth-calendar__footer"><button type="button" class="birth-calendar__clear" data-birth-calendar-clear>ล้างวันที่</button></div>
+            </div>
+          </div>
           {% for error in user_form.birth_date.errors %}<p class="mt-1 text-sm text-red-700">{{ error }}</p>{% endfor %}
         </div>
       </div>
@@ -119,13 +157,258 @@
     </form>
   </div>
 </section>
+<div class="avatar-cropper" data-avatar-cropper hidden>
+  <section class="avatar-cropper__dialog" role="dialog" aria-modal="true" aria-labelledby="avatar-cropper-title">
+    <h2 id="avatar-cropper-title" class="text-lg font-semibold text-slate-950">จัดตำแหน่งรูปโปรไฟล์</h2>
+    <p class="mt-1 text-sm text-slate-600">ลากภาพ ซูมด้วยสองนิ้วหรือล้อเมาส์บนวงกลม</p>
+    <div class="avatar-cropper__stage">
+      <canvas class="avatar-cropper__canvas" data-avatar-crop-canvas width="360" height="360" aria-label="ตัวอย่างรูปโปรไฟล์ในกรอบวงกลม"></canvas>
+    </div>
+    <div class="avatar-cropper__actions">
+      <button type="button" data-avatar-crop-cancel class="inline-flex h-10 items-center rounded-md border border-stone-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-stone-50">ยกเลิก</button>
+      <button type="button" data-avatar-crop-save class="inline-flex h-10 items-center rounded-md bg-leaf px-4 text-sm font-semibold text-white hover:bg-emerald-800">ใช้รูปนี้</button>
+    </div>
+  </section>
+</div>
 {% endblock %}
 {% block extra_scripts %}
 <script>
   (() => {
+    const picker = document.querySelector("[data-birth-calendar-picker]");
+    if (!picker) return;
+
+    const input = picker.querySelector("input[name='birth_date']");
+    const toggle = picker.querySelector("[data-birth-calendar-toggle]");
+    const popover = picker.querySelector("[data-birth-calendar-popover]");
+    const label = picker.querySelector("[data-birth-calendar-label]");
+    const monthSelect = picker.querySelector("[data-birth-calendar-month]");
+    const yearSelect = picker.querySelector("[data-birth-calendar-year]");
+    const days = picker.querySelector("[data-birth-calendar-days]");
+    const previous = picker.querySelector("[data-birth-calendar-previous]");
+    const next = picker.querySelector("[data-birth-calendar-next]");
+    const clear = picker.querySelector("[data-birth-calendar-clear]");
+    const months = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const currentYear = today.getFullYear();
+    const parsed = /^\d{4}-\d{2}-\d{2}$/.test(picker.dataset.value || "") ? picker.dataset.value.split("-").map(Number) : null;
+    let selected = parsed ? { year: parsed[0], month: parsed[1] - 1, day: parsed[2] } : null;
+    let displayedYear = selected ? selected.year : currentYear;
+    let displayedMonth = selected ? selected.month : today.getMonth();
+
+    const option = (value, label) => {
+      const element = document.createElement("option");
+      element.value = value;
+      element.textContent = label;
+      return element;
+    };
+
+    months.forEach((month, index) => monthSelect.append(option(String(index), month)));
+    for (let year = currentYear; year >= currentYear - 120; year -= 1) {
+      yearSelect.append(option(String(year), String(year + 543)));
+    }
+
+    const updateLabel = () => {
+      if (!selected) {
+        label.textContent = "เลือกวันเกิด";
+        label.classList.add("birth-calendar__placeholder");
+        return;
+      }
+      label.textContent = `${selected.day} ${months[selected.month]} ${selected.year + 543}`;
+      label.classList.remove("birth-calendar__placeholder");
+    };
+
+    const render = () => {
+      monthSelect.value = String(displayedMonth);
+      yearSelect.value = String(displayedYear);
+      days.replaceChildren();
+      const firstDay = new Date(displayedYear, displayedMonth, 1).getDay();
+      const lastDay = new Date(displayedYear, displayedMonth + 1, 0).getDate();
+      for (let index = 0; index < firstDay; index += 1) {
+        days.append(document.createElement("span"));
+      }
+      for (let day = 1; day <= lastDay; day += 1) {
+        const date = new Date(displayedYear, displayedMonth, day);
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "birth-calendar__day";
+        button.textContent = String(day);
+        button.disabled = date > today;
+        button.setAttribute("aria-label", `${day} ${months[displayedMonth]} ${displayedYear + 543}`);
+        if (date.getTime() === today.getTime()) button.setAttribute("aria-current", "date");
+        if (selected && selected.year === displayedYear && selected.month === displayedMonth && selected.day === day) {
+          button.classList.add("is-selected");
+        }
+        button.addEventListener("click", () => {
+          selected = { year: displayedYear, month: displayedMonth, day };
+          input.value = `${displayedYear}-${String(displayedMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+          updateLabel();
+          popover.hidden = true;
+          toggle.setAttribute("aria-expanded", "false");
+        });
+        days.append(button);
+      }
+      previous.disabled = displayedYear <= currentYear - 120 && displayedMonth === 0;
+      next.disabled = displayedYear >= currentYear && displayedMonth === today.getMonth();
+    };
+
+    monthSelect.addEventListener("change", () => {
+      displayedMonth = Number(monthSelect.value);
+      render();
+    });
+    yearSelect.addEventListener("change", () => {
+      displayedYear = Number(yearSelect.value);
+      if (displayedYear === currentYear && displayedMonth > today.getMonth()) displayedMonth = today.getMonth();
+      render();
+    });
+    previous.addEventListener("click", () => {
+      if (displayedMonth === 0) {
+        displayedMonth = 11;
+        displayedYear -= 1;
+      } else displayedMonth -= 1;
+      render();
+    });
+    next.addEventListener("click", () => {
+      if (displayedMonth === 11) {
+        displayedMonth = 0;
+        displayedYear += 1;
+      } else displayedMonth += 1;
+      render();
+    });
+    clear.addEventListener("click", () => {
+      selected = null;
+      input.value = "";
+      updateLabel();
+      popover.hidden = true;
+      toggle.setAttribute("aria-expanded", "false");
+    });
+    toggle.addEventListener("click", () => {
+      const willOpen = popover.hidden;
+      popover.hidden = !willOpen;
+      toggle.setAttribute("aria-expanded", String(willOpen));
+      if (willOpen) render();
+    });
+    document.addEventListener("click", (event) => {
+      if (!picker.contains(event.target)) {
+        popover.hidden = true;
+        toggle.setAttribute("aria-expanded", "false");
+      }
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        popover.hidden = true;
+        toggle.setAttribute("aria-expanded", "false");
+        toggle.focus();
+      }
+    });
+    updateLabel();
+    render();
+  })();
+
+  (() => {
     const input = document.getElementById("id_avatar");
     const error = document.getElementById("avatar-client-error");
-    if (!input) return;
+    const cropper = document.querySelector("[data-avatar-cropper]");
+    const canvas = document.querySelector("[data-avatar-crop-canvas]");
+    const cancel = document.querySelector("[data-avatar-crop-cancel]");
+    const save = document.querySelector("[data-avatar-crop-save]");
+    if (!input || !cropper || !canvas || !cancel || !save) return;
+
+    const maxAvatarSize = 5 * 1024 * 1024;
+    const context = canvas.getContext("2d");
+    const canvasSize = canvas.width;
+    let image = null;
+    let sourceFile = null;
+    let baseScale = 1;
+    let scale = 1;
+    let offsetX = 0;
+    let offsetY = 0;
+    let dragStart = null;
+    let pinchStart = null;
+    const activePointers = new Map();
+
+    const closeCropper = () => {
+      cropper.hidden = true;
+      document.body.style.overflow = "";
+      dragStart = null;
+      pinchStart = null;
+      activePointers.clear();
+    };
+
+    const updatePreview = (file) => {
+      const previewUrl = URL.createObjectURL(file);
+      document.querySelectorAll("[data-avatar-preview]").forEach((preview) => {
+        preview.src = previewUrl;
+        preview.classList.remove("hidden");
+      });
+      document.querySelectorAll("[data-avatar-fallback]").forEach((fallback) => {
+        fallback.classList.add("hidden");
+        fallback.classList.remove("flex");
+      });
+    };
+
+    const constrainPosition = () => {
+      const imageWidth = image.naturalWidth * scale;
+      const imageHeight = image.naturalHeight * scale;
+      offsetX = Math.min(0, Math.max(canvasSize - imageWidth, offsetX));
+      offsetY = Math.min(0, Math.max(canvasSize - imageHeight, offsetY));
+    };
+
+    const renderCrop = () => {
+      if (!image) return;
+      constrainPosition();
+      context.clearRect(0, 0, canvasSize, canvasSize);
+      context.drawImage(
+        image,
+        offsetX,
+        offsetY,
+        image.naturalWidth * scale,
+        image.naturalHeight * scale,
+      );
+    };
+
+    const clampScale = (value) => Math.min(baseScale * 3, Math.max(baseScale, value));
+
+    const zoomAt = (nextScale, pointX = canvasSize / 2, pointY = canvasSize / 2) => {
+      if (!image) return;
+      const limitedScale = clampScale(nextScale);
+      const ratio = limitedScale / scale;
+      offsetX = pointX - (pointX - offsetX) * ratio;
+      offsetY = pointY - (pointY - offsetY) * ratio;
+      scale = limitedScale;
+      renderCrop();
+    };
+
+    const canvasPoint = (event) => {
+      const bounds = canvas.getBoundingClientRect();
+      const ratio = canvasSize / bounds.width;
+      return {
+        x: (event.clientX - bounds.left) * ratio,
+        y: (event.clientY - bounds.top) * ratio,
+      };
+    };
+
+    const pointerDistance = (first, second) => Math.hypot(first.x - second.x, first.y - second.y);
+
+    const pointerCenter = (first, second) => ({
+      x: (first.x + second.x) / 2,
+      y: (first.y + second.y) / 2,
+    });
+
+    const openCropper = (file) => {
+      sourceFile = file;
+      image = new Image();
+      image.onload = () => {
+        baseScale = Math.max(canvasSize / image.naturalWidth, canvasSize / image.naturalHeight);
+        scale = baseScale;
+        offsetX = (canvasSize - image.naturalWidth * scale) / 2;
+        offsetY = (canvasSize - image.naturalHeight * scale) / 2;
+        cropper.hidden = false;
+        document.body.style.overflow = "hidden";
+        renderCrop();
+      };
+      image.src = URL.createObjectURL(file);
+    };
 
     document.querySelectorAll("[data-avatar-trigger]").forEach((trigger) => {
       trigger.addEventListener("click", () => input.click());
@@ -143,24 +426,102 @@
         error.classList.remove("hidden");
         return;
       }
-      if (file.size > 1024 * 1024) {
+      if (file.size > maxAvatarSize) {
         input.value = "";
-        error.textContent = "รูปโปรไฟล์ต้องมีขนาดไม่เกิน 1 MB";
+        error.textContent = "รูปโปรไฟล์ต้องมีขนาดไม่เกิน 5 MB";
         error.classList.remove("hidden");
         return;
       }
 
       error.textContent = "";
       error.classList.add("hidden");
-      const previewUrl = URL.createObjectURL(file);
-      document.querySelectorAll("[data-avatar-preview]").forEach((preview) => {
-        preview.src = previewUrl;
-        preview.classList.remove("hidden");
-      });
-      document.querySelectorAll("[data-avatar-fallback]").forEach((fallback) => {
-        fallback.classList.add("hidden");
-        fallback.classList.remove("flex");
-      });
+      openCropper(file);
+    });
+
+    canvas.addEventListener("wheel", (event) => {
+      if (!image) return;
+      event.preventDefault();
+      const point = canvasPoint(event);
+      zoomAt(scale * (event.deltaY < 0 ? 1.12 : 1 / 1.12), point.x, point.y);
+    }, { passive: false });
+
+    canvas.addEventListener("pointerdown", (event) => {
+      if (!image) return;
+      canvas.setPointerCapture(event.pointerId);
+      activePointers.set(event.pointerId, canvasPoint(event));
+      if (activePointers.size === 1) {
+        dragStart = { x: event.clientX, y: event.clientY, offsetX, offsetY };
+        return;
+      }
+      if (activePointers.size === 2) {
+        const [first, second] = activePointers.values();
+        pinchStart = {
+          distance: pointerDistance(first, second),
+          center: pointerCenter(first, second),
+          scale,
+          offsetX,
+          offsetY,
+        };
+        dragStart = null;
+      }
+    });
+
+    canvas.addEventListener("pointermove", (event) => {
+      if (!activePointers.has(event.pointerId)) return;
+      activePointers.set(event.pointerId, canvasPoint(event));
+      if (activePointers.size === 2 && pinchStart) {
+        const [first, second] = activePointers.values();
+        const nextScale = clampScale(pinchStart.scale * (pointerDistance(first, second) / pinchStart.distance));
+        const center = pointerCenter(first, second);
+        const ratio = nextScale / pinchStart.scale;
+        offsetX = center.x - (pinchStart.center.x - pinchStart.offsetX) * ratio;
+        offsetY = center.y - (pinchStart.center.y - pinchStart.offsetY) * ratio;
+        scale = nextScale;
+        renderCrop();
+        return;
+      }
+      if (dragStart) {
+        const ratio = canvasSize / canvas.getBoundingClientRect().width;
+        offsetX = dragStart.offsetX + (event.clientX - dragStart.x) * ratio;
+        offsetY = dragStart.offsetY + (event.clientY - dragStart.y) * ratio;
+        renderCrop();
+      }
+    });
+
+    const finishPointer = (event) => {
+      activePointers.delete(event.pointerId);
+      dragStart = null;
+      pinchStart = null;
+    };
+    canvas.addEventListener("pointerup", finishPointer);
+    canvas.addEventListener("pointercancel", finishPointer);
+
+    cancel.addEventListener("click", () => {
+      input.value = "";
+      closeCropper();
+    });
+
+    save.addEventListener("click", () => {
+      canvas.toBlob((blob) => {
+        if (!blob || !sourceFile) return;
+        const croppedFile = new File(
+          [blob],
+          `avatar-${Date.now()}.jpg`,
+          { type: "image/jpeg" },
+        );
+        if (croppedFile.size > maxAvatarSize) {
+          input.value = "";
+          error.textContent = "รูปที่จัดแล้วมีขนาดเกิน 5 MB กรุณาเลือกภาพอื่น";
+          error.classList.remove("hidden");
+          closeCropper();
+          return;
+        }
+        const transfer = new DataTransfer();
+        transfer.items.add(croppedFile);
+        input.files = transfer.files;
+        updatePreview(croppedFile);
+        closeCropper();
+      }, "image/jpeg", 0.9);
     });
   })();
 </script>

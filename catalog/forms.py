@@ -3,7 +3,7 @@ from decimal import Decimal
 from django import forms
 from django.conf import settings
 
-from .models import Product, ProductImage
+from .models import Product, ProductDetailImage, ProductImage
 
 
 class StyledFormMixin:
@@ -35,9 +35,27 @@ class MultipleImageField(forms.FileField):
 
 
 class ProductForm(StyledFormMixin, forms.ModelForm):
+    detail_images = MultipleImageField(
+        label="รูปประกอบรายละเอียดสินค้า",
+        required=False,
+        help_text="เพิ่มรูปที่ต้องการให้แสดงภายในส่วนรายละเอียดสินค้าได้หลายรูป",
+        validators=ProductDetailImage._meta.get_field("image").validators,
+        widget=MultipleImageInput(
+            attrs={
+                "accept": "image/jpeg,image/png,image/webp",
+                "data-product-gallery-input": "true",
+                "data-product-detail-image-input": "true",
+                "data-product-gallery-title": "เลือกรูปประกอบรายละเอียด",
+                "data-product-gallery-hint": "รูปเหล่านี้จะแสดงในส่วนรายละเอียดสินค้า",
+                "multiple": True,
+            }
+        ),
+    )
+
     image = MultipleImageField(
         label="รูปสินค้า",
         required=False,
+        help_text="กดเลือกหรือลากรูปมาวางได้หลายรูป รูปแรกจะใช้เป็นรูปหลัก",
         validators=ProductImage._meta.get_field("image").validators,
         widget=MultipleImageInput(
             attrs={
@@ -52,6 +70,7 @@ class ProductForm(StyledFormMixin, forms.ModelForm):
         "category",
         "name",
         "description",
+        "detail_images",
         "unit",
         "price",
         "stock_quantity",
@@ -102,12 +121,15 @@ class ProductForm(StyledFormMixin, forms.ModelForm):
         }
         widgets = {
             "description": forms.Textarea(attrs={"rows": 4}),
-            "harvest_date": forms.DateInput(attrs={"type": "date"}),
-            "expiry_date": forms.DateInput(attrs={"type": "date"}),
+            "harvest_date": forms.DateInput(format="%Y-%m-%d", attrs={"type": "date"}),
+            "expiry_date": forms.DateInput(format="%Y-%m-%d", attrs={"type": "date"}),
         }
 
     def clean_image(self):
         return self.cleaned_data.get("image", [])
+
+    def clean_detail_images(self):
+        return self.cleaned_data.get("detail_images", [])
 
     def clean(self):
         cleaned = super().clean()
@@ -129,6 +151,7 @@ class ProductForm(StyledFormMixin, forms.ModelForm):
 class ProductImageForm(StyledFormMixin, forms.Form):
     image = MultipleImageField(
         label="รูปสินค้า",
+        help_text="กดเลือกหรือลากรูปมาวางได้หลายรูป",
         validators=ProductImage._meta.get_field("image").validators,
         widget=MultipleImageInput(
             attrs={

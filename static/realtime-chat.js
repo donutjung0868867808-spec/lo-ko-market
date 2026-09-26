@@ -106,6 +106,197 @@
     const hex = [...bytes].map(byte => byte.toString(16).padStart(2, "0")).join("");
     return [hex.slice(0,8), hex.slice(8,12), hex.slice(12,16), hex.slice(16,20), hex.slice(20)].join("-");
   };
+  const mediaUploadUrl = form?.dataset.mediaUploadUrl;
+  const mediaPreview = form?.querySelector("[data-chat-media-preview]");
+  const menuToggle = form?.querySelector("[data-chat-menu-toggle]");
+  const mediaMenu = form?.querySelector("[data-chat-menu]");
+  const cameraDialog = document.querySelector("[data-chat-camera-dialog]");
+  const cameraPreview = cameraDialog?.querySelector("[data-chat-camera-preview]");
+  const cameraOpen = form?.querySelector("[data-chat-camera-open]");
+  const cameraClose = cameraDialog?.querySelector("[data-chat-camera-close]");
+  const cameraCapture = cameraDialog?.querySelector("[data-chat-camera-capture]");
+  const cameraRecord = cameraDialog?.querySelector("[data-chat-camera-record]");
+  let mediaQueue = [];
+  let mediaSending = false;
+  let cameraStream = null;
+  let mediaRecorder = null;
+  let recordedChunks = [];
+
+  const mediaError = value => {
+    if (!info) return;
+    info.classList.add("live-chat-error");
+    info.textContent = value;
+  };
+  const refreshMediaPreview = () => {
+    if (!mediaPreview) return;
+    mediaPreview.replaceChildren();
+    mediaPreview.hidden = mediaQueue.length === 0;
+    mediaQueue.forEach((item, index) => {
+      const card = document.createElement("div");
+      card.className = "chat-composer__media-card";
+      const preview = document.createElement(item.file.type.startsWith("video/") ? "video" : "img");
+      preview.src = item.previewUrl;
+      if (preview.tagName === "VIDEO") {
+        preview.muted = true;
+        preview.preload = "metadata";
+      } else preview.alt = "ตัวอย่างรูปภาพที่เลือก";
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.title = "ยกเลิกไฟล์นี้";
+      remove.setAttribute("aria-label", "ยกเลิกไฟล์นี้");
+      remove.innerHTML = '<i data-lucide="x" aria-hidden="true"></i>';
+      remove.addEventListener("click", () => {
+        URL.revokeObjectURL(item.previewUrl);
+        mediaQueue.splice(index, 1);
+        refreshMediaPreview();
+      });
+      card.append(preview, remove);
+      mediaPreview.append(card);
+    });
+    window.lucide?.createIcons({attrs: {"stroke-width": 2}});
+  };
+  const queueMedia = files => {
+    const additions = Array.from(files || []).filter(file => {
+      const supported = ["image/jpeg", "image/png", "image/webp", "video/mp4", "video/quicktime", "video/webm"].includes(file.type);
+      if (!supported) mediaError("รองรับเฉพาะรูป JPG, PNG, WEBP และวิดีโอ MP4, MOV, WEBM");
+      return supported;
+    }).map(file => ({file, previewUrl: URL.createObjectURL(file)}));
+    if (!additions.length) return;
+    mediaQueue.push(...additions);
+    if (info) { info.classList.remove("live-chat-error"); info.textContent = ""; }
+    refreshMediaPreview();
+  };
+  form?.querySelectorAll("[data-chat-image-input], [data-chat-video-input]").forEach(fileInput => {
+    fileInput.addEventListener("change", () => {
+      queueMedia(fileInput.files);
+      fileInput.value = "";
+      mediaMenu?.setAttribute("hidden", "");
+      menuToggle?.setAttribute("aria-expanded", "false");
+    });
+  });
+  menuToggle?.addEventListener("click", () => {
+    const open = mediaMenu?.hasAttribute("hidden");
+    if (open) mediaMenu.removeAttribute("hidden");
+    else mediaMenu?.setAttribute("hidden", "");
+    menuToggle.setAttribute("aria-expanded", String(Boolean(open)));
+  });
+  document.addEventListener("pointerdown", event => {
+    if (mediaMenu && !mediaMenu.hasAttribute("hidden") && !event.target.closest(".chat-composer__attachment")) {
+      mediaMenu.setAttribute("hidden", "");
+      menuToggle?.setAttribute("aria-expanded", "false");
+    }
+  });
+  const stopCamera = () => {
+    if (mediaRecorder?.state === "recording") mediaRecorder.stop();
+    cameraStream?.getTracks().forEach(track => track.stop());
+    cameraStream = null;
+    if (cameraPreview) cameraPreview.srcObject = null;
+    if (cameraRecord) {
+      cameraRecord.dataset.recording = "false";
+      cameraRecord.title = "เริ่มบันทึกวิดีโอ";
+      cameraRecord.setAttribute("aria-label", "เริ่มบันทึกวิดีโอ");
+    }
+  };
+  cameraOpen?.addEventListener("click", async () => {
+    if (!cameraDialog?.showModal || !navigator.mediaDevices?.getUserMedia) {
+      mediaError("เบราว์เซอร์นี้ไม่รองรับการเปิดกล้อง");
+      return;
+    }
+    try {
+      cameraStream = await navigator.mediaDevices.getUserMedia({video: {facingMode: {ideal: "environment"}}, audio: true});
+      cameraPreview.srcObject = cameraStream;
+      cameraDialog.showModal();
+      await cameraPreview.play();
+    } catch (_) {
+      stopCamera();
+      mediaError("ไม่สามารถเปิดกล้องได้ กรุณาอนุญาตสิทธิ์กล้องและไมโครโฟน");
+    }
+  });
+  const closeCameraDialog = () => {
+    stopCamera();
+    if (cameraDialog?.open) cameraDialog.close();
+  };
+  cameraClose?.addEventListener("click", closeCameraDialog);
+  cameraDialog?.addEventListener("cancel", event => { event.preventDefault(); closeCameraDialog(); });
+  cameraCapture?.addEventListener("click", () => {
+    if (!cameraPreview?.videoWidth) return;
+    const canvas = document.createElement("canvas");
+    canvas.width = cameraPreview.videoWidth;
+    canvas.height = cameraPreview.videoHeight;
+    canvas.getContext("2d").drawImage(cameraPreview, 0, 0);
+    canvas.toBlob(blob => {
+      if (!blob) return;
+      queueMedia([new File([blob], `camera-${Date.now()}.jpg`, {type: "image/jpeg"})]);
+      closeCameraDialog();
+    }, "image/jpeg", 0.9);
+  });
+  cameraRecord?.addEventListener("click", () => {
+    if (!cameraStream || typeof MediaRecorder === "undefined") {
+      mediaError("เบราว์เซอร์นี้ไม่รองรับการบันทึกวิดีโอจากกล้อง");
+      return;
+    }
+    if (mediaRecorder?.state === "recording") {
+      mediaRecorder.stop();
+      return;
+    }
+    recordedChunks = [];
+    try {
+      mediaRecorder = new MediaRecorder(cameraStream, {mimeType: "video/webm"});
+    } catch (_) {
+      mediaRecorder = new MediaRecorder(cameraStream);
+    }
+    mediaRecorder.addEventListener("dataavailable", event => { if (event.data.size) recordedChunks.push(event.data); });
+    mediaRecorder.addEventListener("stop", () => {
+      if (!recordedChunks.length) return;
+      const type = mediaRecorder.mimeType || "video/webm";
+      queueMedia([new File([new Blob(recordedChunks, {type})], `camera-${Date.now()}.webm`, {type})]);
+      closeCameraDialog();
+    }, {once: true});
+    mediaRecorder.start();
+    cameraRecord.dataset.recording = "true";
+    cameraRecord.title = "หยุดบันทึกวิดีโอ";
+    cameraRecord.setAttribute("aria-label", "หยุดบันทึกวิดีโอ");
+  });
+  const uploadQueuedMedia = async () => {
+    if (!mediaUploadUrl || mediaSending || !mediaQueue.length) return;
+    mediaSending = true;
+    const uploads = mediaQueue.splice(0);
+    refreshMediaPreview();
+    if (button) button.disabled = true;
+    for (let index = 0; index < uploads.length; index += 1) {
+      const payload = new FormData();
+      payload.append("attachment", uploads[index].file);
+      payload.append("body", index === 0 ? input.value.trim() : "");
+      payload.append("client_id", newClientId());
+      try {
+        const response = await fetch(mediaUploadUrl, {
+          method: "POST",
+          headers: {"X-CSRFToken": form.querySelector("[name=csrfmiddlewaretoken]")?.value || ""},
+          body: payload,
+          credentials: "same-origin",
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "ส่งไฟล์ไม่สำเร็จ");
+        if (result.message) {
+          messages.set(result.message.id, result.message);
+          render(true);
+        }
+        URL.revokeObjectURL(uploads[index].previewUrl);
+      } catch (error) {
+        mediaQueue.unshift(...uploads.slice(index));
+        refreshMediaPreview();
+        mediaError(error.message || "ส่งไฟล์ไม่สำเร็จ");
+        break;
+      }
+    }
+    if (!mediaQueue.length) {
+      input.value = "";
+      resizeInput();
+      storeDraft();
+    }
+    mediaSending = false;
+    if (button) button.disabled = !allowed;
+  };
   const latest = () => Math.max(0, ...messages.keys());
   const oldest = () => Math.min(...messages.keys());
   const read = () => {
@@ -158,13 +349,38 @@
       row.dataset.messageId = message.id;
       const bubble = document.createElement("div");
       bubble.className = "live-chat-bubble";
-      const body = document.createElement("p");
-      body.textContent = message.body;
+      let body = null;
+      if (message.attachment_url) {
+        const link = document.createElement("a");
+        link.className = "live-chat-media-link";
+        link.href = message.attachment_url;
+        link.target = "_blank";
+        link.rel = "noopener";
+        link.setAttribute("aria-label", message.media_type === "video" ? "เปิดวิดีโอแบบเต็ม" : "เปิดรูปภาพแบบเต็ม");
+        const media = document.createElement(message.media_type === "video" ? "video" : "img");
+        media.className = "live-chat-media";
+        media.src = message.attachment_url;
+        if (message.media_type === "video") {
+          media.controls = true;
+          media.preload = "metadata";
+          media.controlsList = "nodownload";
+        } else {
+          media.alt = "รูปภาพที่ส่งในแชท";
+          media.loading = "lazy";
+        }
+        link.append(media);
+        bubble.append(link);
+      }
+      if (message.body) {
+        body = document.createElement("p");
+        body.textContent = message.body;
+        bubble.append(body);
+      }
       const time = document.createElement("time");
       time.dateTime = message.created_at;
       time.textContent = new Date(message.created_at).toLocaleString("th-TH", {day:"numeric", month:"short", hour:"2-digit", minute:"2-digit"})
         + (row.classList.contains("is-own") ? (message.read_at ? " · อ่านแล้ว" : " · ส่งแล้ว") : "");
-      bubble.append(body,time);
+      bubble.append(time);
       const content = document.createElement("div");
       content.className = "live-chat-content";
       content.append(bubble);
@@ -200,16 +416,18 @@
         row.append(avatar);
       }
       row.append(content); list.append(row);
-      const longestLine = String(message.body).split("\n").reduce(
-        (widest, line) => textWidth(body, line) > widest.width ? {width: textWidth(body, line), text: line} : widest,
-        {width: 0, text: ""},
-      );
-      const contentWidth = Math.max(longestLine.width, textWidth(time, time.textContent));
-      const bubbleStyle = getComputedStyle(bubble);
-      const horizontalSpace = parseFloat(bubbleStyle.paddingLeft) + parseFloat(bubbleStyle.paddingRight)
-        + parseFloat(bubbleStyle.borderLeftWidth) + parseFloat(bubbleStyle.borderRightWidth);
-      const maximum = Math.min(window.innerWidth * (window.matchMedia("(max-width: 600px)").matches ? 0.88 : 0.78), 620);
-      bubble.style.width = `${Math.max(76, Math.min(maximum, Math.ceil(contentWidth + horizontalSpace)))}px`;
+      if (!message.attachment_url && body) {
+        const longestLine = String(message.body).split("\n").reduce(
+          (widest, line) => textWidth(body, line) > widest.width ? {width: textWidth(body, line), text: line} : widest,
+          {width: 0, text: ""},
+        );
+        const contentWidth = Math.max(longestLine.width, textWidth(time, time.textContent));
+        const bubbleStyle = getComputedStyle(bubble);
+        const horizontalSpace = parseFloat(bubbleStyle.paddingLeft) + parseFloat(bubbleStyle.paddingRight)
+          + parseFloat(bubbleStyle.borderLeftWidth) + parseFloat(bubbleStyle.borderRightWidth);
+        const maximum = Math.min(window.innerWidth * (window.matchMedia("(max-width: 600px)").matches ? 0.88 : 0.78), 620);
+        bubble.style.width = `${Math.max(76, Math.min(maximum, Math.ceil(contentWidth + horizontalSpace)))}px`;
+      }
     });
     if (scroll || atBottom) list.scrollTop = list.scrollHeight;
     else list.scrollTop = top + (prepend ? list.scrollHeight - height : 0);
@@ -288,7 +506,19 @@
     };
   }
   form?.addEventListener("submit", event => {
-    if (!input.value.trim() || pending) return;
+    if (mediaQueue.length) {
+      event.preventDefault();
+      if (!allowed) {
+        mediaError("ไม่สามารถส่งข้อความในบทสนทนานี้ได้");
+        return;
+      }
+      uploadQueuedMedia();
+      return;
+    }
+    if (!input.value.trim() || pending) {
+      event.preventDefault();
+      return;
+    }
     if (!allowed) {
       event.preventDefault();
       info.textContent = "ไม่สามารถส่งข้อความในบทสนทนานี้ได้";

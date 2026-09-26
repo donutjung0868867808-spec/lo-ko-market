@@ -2,7 +2,7 @@ import importlib.util
 import os
 import sys
 from pathlib import Path
-from urllib.parse import parse_qsl, urlparse
+from urllib.parse import parse_qsl, unquote, urlparse
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -61,6 +61,27 @@ def database_from_url(url):
     }
 
 
+def cloudinary_storage_config(value):
+    """Return a normalized Cloudinary URL and Django storage settings."""
+    url = (value or "").strip()
+    if url.startswith("CLOUDINARY_URL="):
+        url = url.split("=", 1)[1].strip()
+    parsed = urlparse(url)
+    if not (
+        parsed.scheme == "cloudinary"
+        and parsed.hostname
+        and parsed.username
+        and parsed.password
+    ):
+        return url, {}
+    return url, {
+        "CLOUD_NAME": parsed.hostname,
+        "API_KEY": unquote(parsed.username),
+        "API_SECRET": unquote(parsed.password),
+        "SECURE": True,
+    }
+
+
 def package_exists(package_name):
     return importlib.util.find_spec(package_name) is not None
 
@@ -71,6 +92,11 @@ SECRET_KEY = os.environ.get(
 )
 DEBUG = env_bool("DEBUG", default=True)
 IS_TESTING = "test" in sys.argv
+CLOUDINARY_URL, CLOUDINARY_STORAGE = cloudinary_storage_config(
+    os.environ.get("CLOUDINARY_URL")
+)
+if CLOUDINARY_URL:
+    os.environ["CLOUDINARY_URL"] = CLOUDINARY_URL
 ALLOWED_HOSTS = env_list(
     "ALLOWED_HOSTS",
     default=["127.0.0.1", "localhost", "172.29.71.169", ".onrender.com"],
@@ -89,6 +115,9 @@ LOGIN_LOCKOUT_MINUTES = int(os.environ.get("LOGIN_LOCKOUT_MINUTES", "15"))
 TRUST_X_FORWARDED_FOR = env_bool("TRUST_X_FORWARDED_FOR", default=not DEBUG and not IS_TESTING)
 ORDER_RESERVATION_MINUTES = int(os.environ.get("ORDER_RESERVATION_MINUTES", "30"))
 REFUND_REQUEST_DAYS = int(os.environ.get("REFUND_REQUEST_DAYS", "7"))
+PAYMENT_MODE = os.environ.get("PAYMENT_MODE", "test").strip().lower()
+if PAYMENT_MODE not in {"test", "live"}:
+    raise ValueError("PAYMENT_MODE must be either 'test' or 'live'.")
 FLAT_SHIPPING_FEE = os.environ.get("FLAT_SHIPPING_FEE", "50.00")
 FREE_SHIPPING_THRESHOLD = os.environ.get("FREE_SHIPPING_THRESHOLD", "500.00")
 MAX_UPLOAD_SIZE = int(os.environ.get("MAX_UPLOAD_SIZE", str(5 * 1024 * 1024)))
@@ -127,7 +156,7 @@ INSTALLED_APPS = [
     "api",
 ]
 
-if package_exists("cloudinary_storage") and os.environ.get("CLOUDINARY_URL"):
+if package_exists("cloudinary_storage") and CLOUDINARY_STORAGE:
     INSTALLED_APPS.insert(0, "cloudinary_storage")
     INSTALLED_APPS.insert(1, "cloudinary")
 
@@ -159,6 +188,8 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "accounts.context_processors.notification_summary",
+                "catalog.context_processors.search_provinces",
+                "payments.context_processors.payment_mode",
             ],
         },
     },
@@ -167,6 +198,8 @@ TEMPLATES = [
 WSGI_APPLICATION = "agri_market.wsgi.application"
 ASGI_APPLICATION = "agri_market.asgi.application"
 REDIS_URL = os.environ.get("REDIS_URL", "")
+AFTERSHIP_API_KEY = os.environ.get("AFTERSHIP_API_KEY", "")
+AFTERSHIP_REQUEST_TIMEOUT_SECONDS = int(os.environ.get("AFTERSHIP_REQUEST_TIMEOUT_SECONDS", "10"))
 CHANNEL_LAYERS = {"default": (
     {"BACKEND": "channels_redis.core.RedisChannelLayer", "CONFIG": {"hosts": [REDIS_URL]}}
     if REDIS_URL and not IS_TESTING else {"BACKEND": "channels.layers.InMemoryChannelLayer"}
@@ -206,16 +239,16 @@ MEDIA_ROOT = BASE_DIR / "media"
 PRIVATE_MEDIA_ROOT = BASE_DIR / "private_media"
 
 static_backend = "django.contrib.staticfiles.storage.StaticFilesStorage"
-if (
-    not DEBUG
-    and "runserver" not in sys.argv
-    and not IS_TESTING
-    and package_exists("whitenoise")
-):
-    static_backend = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+# WhiteNoise middleware serves these files in deployment. Avoid manifest and
+# compression storage here because Django admin's static assets can collide
+# during parallel post-processing in clean deployment builds.
 
-if package_exists("cloudinary_storage") and os.environ.get("CLOUDINARY_URL"):
-    default_storage = "cloudinary_storage.storage.MediaCloudinaryStorage"
+# django-cloudinary-storage still reads this legacy setting in its
+# collectstatic command. Django 6 uses STORAGES above for actual resolution.
+STATICFILES_STORAGE = static_backend
+
+if package_exists("cloudinary_storage") and CLOUDINARY_STORAGE:
+    default_storage = "agri_market.storage_backends.PublicCloudinaryStorage"
     private_storage_backend = "agri_market.storage_backends.PrivateCloudinaryStorage"
     private_storage_options = {}
 else:
@@ -281,10 +314,13 @@ STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
 STRIPE_CONNECT_WEBHOOK_SECRET = os.environ.get("STRIPE_CONNECT_WEBHOOK_SECRET", "")
 DEFAULT_CURRENCY = os.environ.get("DEFAULT_CURRENCY", "thb")
 PLATFORM_FEE_PERCENT = os.environ.get("PLATFORM_FEE_PERCENT", "5.00")
-SETTLEMENT_HOLD_DAYS = int(os.environ.get("SETTLEMENT_HOLD_DAYS", "2"))
+# Keep seller funds on hold for one week before automatic transfer.
+SETTLEMENT_HOLD_DAYS = int(os.environ.get("SETTLEMENT_HOLD_DAYS", "7"))
 STRIPE_CONNECT_TRANSFERS_ENABLED = env_bool("STRIPE_CONNECT_TRANSFERS_ENABLED", default=False)
 SETTLEMENT_MAX_ATTEMPTS = int(os.environ.get("SETTLEMENT_MAX_ATTEMPTS", "5"))
+DELIVERY_CONFIRMATION_DAYS = int(os.environ.get("DELIVERY_CONFIRMATION_DAYS", "7"))
 AFTERSHIP_WEBHOOK_SECRET = os.environ.get("AFTERSHIP_WEBHOOK_SECRET", "")
+AFTERSHIP_MAX_ATTEMPTS = int(os.environ.get("AFTERSHIP_MAX_ATTEMPTS", "8"))
 
 
 SENTRY_DSN = os.environ.get("SENTRY_DSN", "")

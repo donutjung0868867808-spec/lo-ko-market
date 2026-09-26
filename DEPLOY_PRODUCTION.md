@@ -78,7 +78,15 @@ INITIAL_OWNER_USERNAME, INITIAL_OWNER_EMAIL, INITIAL_OWNER_PASSWORD ใช้ส
 
 ## 4. Stripe และการโอนผู้ขาย
 
-เริ่มทดสอบด้วย Test mode และบัญชีทดสอบก่อน ไม่ใช้ธุรกรรมจริงเพื่อทดสอบโค้ด
+โปรเจกต์นี้ตั้ง `PAYMENT_MODE=test` เป็นค่าเริ่มต้น: หน้าชำระเงินและสถานะคำสั่งซื้อทำงานเหมือนจริง แต่จะไม่ตัดหรือโอนเงินจริง ระบบจะปฏิเสธ `sk_live_...` หากค่านี้ยังเป็น `test` หากตั้ง Stripe Test key ระบบจะใช้หน้า Stripe Test mode; หากไม่ตั้งคีย์ ระบบจะใช้หน้าชำระเงินจำลองภายในแทน
+
+1. สร้างหรือเปิด Stripe Dashboard ใน Test mode แล้วนำเฉพาะ `sk_test_...`, `pk_test_...` และ webhook signing secret ของ Test mode มาใส่ใน environment
+2. ใช้บัตรทดสอบ `4242 4242 4242 4242`, วันหมดอายุในอนาคต และ CVC สามหลัก เพื่อทดสอบรายการสำเร็จ
+3. ใช้บัตร `4000 0000 0000 9995` เพื่อทดสอบกรณีถูกปฏิเสธ
+4. คง `STRIPE_CONNECT_TRANSFERS_ENABLED=False` ไว้ระหว่างทำเดโม เพื่อไม่ให้ระบบสร้าง transfer แม้ในบัญชีทดสอบ
+
+เมื่อจะรับเงินจริงในอนาคต ให้เปลี่ยน `PAYMENT_MODE=live` พร้อมแทนที่คีย์และ webhook secret ทุกตัวด้วยค่า Live mode หลังทดสอบครบแล้วเท่านั้น
+
 ตั้ง webhook URL:
 
     https://your-domain/payments/stripe/webhook/
@@ -121,15 +129,13 @@ Cron ใช้ค่านี้จากเว็บ ตรวจว่าก�
 
 ## 5. ติดตามพัสดุ
 
-รุ่นนี้รับข้อมูลจาก AfterShip ผ่าน webhook เท่านั้น ยังไม่ส่งเลขพัสดุไปลงทะเบียนกับผู้ให้บริการอัตโนมัติ
-การเชื่อม API ขาออกต้องได้รับอนุญาตให้ส่งเลขพัสดุไปยัง AfterShip ก่อน
+เมื่อตั้ง `AFTERSHIP_API_KEY` ระบบจะส่งเลขพัสดุของคำสั่งซื้อที่ผู้ขายเปลี่ยนเป็น “จัดส่งแล้ว” ไปลงทะเบียนกับ AfterShip อัตโนมัติ โดยส่งเฉพาะเลขพัสดุ ชื่อออเดอร์ และเลขอ้างอิงคำสั่งซื้อ ไม่มีข้อมูลส่วนตัวผู้ซื้อ
 
-เมื่อยืนยันใช้บริการ:
-1. ตั้ง AFTERSHIP_WEBHOOK_SECRET ให้ตรงบัญชีผู้ให้บริการ
+เมื่อตั้งค่า AfterShip:
+1. ตั้ง AFTERSHIP_API_KEY และ AFTERSHIP_WEBHOOK_SECRET ให้ตรงบัญชีผู้ให้บริการ
 2. ตั้ง webhook URL https://your-domain/orders/tracking/aftership/webhook/
-3. ลงทะเบียนเลขพัสดุในบัญชีผู้ให้บริการด้วยตนเอง โดย order_id ต้องเป็นเลขอ้างอิงคำสั่งซื้อ เช่น AG-... และ tracking_number ต้องตรงกับคำสั่งซื้อ
-4. ส่ง tracking_update ทดสอบที่มี event_id, msg.id, msg.order_id, msg.tracking_number, msg.updated_at และ header aftership-hmac-sha256
-5. ตรวจหน้าคำสั่งซื้อว่ามีสถานะและประวัติการเคลื่อนย้าย
+3. ส่ง tracking_update ทดสอบที่มี event_id, msg.id, msg.order_id, msg.tracking_number, msg.updated_at และ header aftership-hmac-sha256
+4. ตรวจหน้าคำสั่งซื้อว่ามีสถานะและประวัติการเคลื่อนย้าย
 
 Webhook ไม่รับข้อมูลที่ไม่ลงลายเซ็น ไม่เปลี่ยนคำสั่งซื้อเป็น completed และไม่ปล่อยยอดผู้ขายเพียงเพราะขนส่งแจ้ง Delivered
 ยังต้องยืนยันรับสินค้าตามระบบคำสั่งซื้อเดิม

@@ -32,6 +32,19 @@
               </label>
               {% for error in field.errors %}<p class="mt-1 text-sm font-medium text-red-700">{{ error }}</p>{% endfor %}
             </div>
+          {% elif field.name == "gender" %}
+            <div>
+              <span class="text-sm font-semibold text-slate-900">{{ field.label }}</span>
+              <div class="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {% for choice in field %}
+                  <label class="flex min-h-10 cursor-pointer items-center gap-2 rounded-md border border-stone-300 bg-white px-3 text-sm font-medium text-slate-800 transition hover:border-emerald-400 hover:bg-emerald-50">
+                    {{ choice.tag }}
+                    <span>{{ choice.choice_label }}</span>
+                  </label>
+                {% endfor %}
+              </div>
+              {% for error in field.errors %}<p class="mt-1 text-sm font-medium text-red-700">{{ error }}</p>{% endfor %}
+            </div>
           {% else %}
             <div>
               <label class="text-sm font-semibold text-slate-900" for="{{ field.id_for_label }}">{{ field.label }}</label>
@@ -50,9 +63,31 @@
       </div>
       <div class="mt-6 grid gap-6 sm:grid-cols-2">
         {% for field in profile_form %}
-          <div class="{% if field.name == 'address' or field.name == 'bio' or field.name == 'rejection_reason' %}sm:col-span-2{% endif %}">
+          <div class="{% if field.name == 'address' or field.name == 'bio' or field.name == 'rejection_reason' or field.name == 'verification_document' %}sm:col-span-2{% endif %}">
             <label class="text-sm font-semibold text-slate-900" for="{{ field.id_for_label }}">{{ field.label }}</label>
-            <div class="mt-2">{{ field }}</div>
+            {% if field.name == "verification_document" %}
+              <div class="mt-2 rounded-md border border-stone-200 bg-slate-50 p-4">
+                {% if profile.verification_document %}
+                  <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+                    {% if document_is_image %}
+                      <a class="shrink-0" href="{% url 'accounts:farmer_document' profile.id %}?inline=1" target="_blank" rel="noopener">
+                        <img class="h-28 w-40 rounded-md border border-stone-200 bg-white object-contain" src="{% url 'accounts:farmer_document' profile.id %}?inline=1" alt="เอกสารยืนยันของ {{ seller.display_name|default:seller.username }}">
+                      </a>
+                    {% endif %}
+                    <div>
+                      <p class="text-sm font-semibold text-slate-900">มีเอกสารยืนยันแล้ว</p>
+                      <a class="mt-1 inline-block text-sm font-semibold text-leaf hover:underline" href="{% url 'accounts:farmer_document' profile.id %}?inline=1" target="_blank" rel="noopener">เปิดดูเอกสารปัจจุบัน</a>
+                      <p class="mt-1 text-xs text-slate-600">เลือกไฟล์ใหม่ด้านล่างเมื่อต้องการแทนที่เอกสารเดิม</p>
+                    </div>
+                  </div>
+                {% else %}
+                  <p class="text-sm text-amber-800">ยังไม่มีเอกสารยืนยัน โปรดแนบเอกสารสำหรับการตรวจสอบ</p>
+                {% endif %}
+                <div class="mt-3">{{ field }}</div>
+              </div>
+            {% else %}
+              <div class="mt-2">{{ field }}</div>
+            {% endif %}
             {% if field.help_text %}<p class="mt-1 text-xs text-slate-600">{{ field.help_text }}</p>{% endif %}
             {% for error in field.errors %}<p class="mt-1 text-sm font-medium text-red-700">{{ error }}</p>{% endfor %}
           </div>

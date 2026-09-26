@@ -84,6 +84,55 @@ class AccountCenterTests(TestCase):
         self.assertContains(farmer_page, reverse("accounts:farmer_shop_center"))
         self.assertContains(farmer_page, "เพิ่มสินค้า")
         self.assertContains(farmer_page, reverse("catalog:product_create"))
+        self.assertContains(farmer_page, "สลับเป็นผู้ซื้อ")
+
+    def test_farmer_can_switch_between_buyer_and_seller_modes(self):
+        farmer = User.objects.create_user(
+            username="mode-switcher",
+            password="pass12345",
+            role=User.Roles.FARMER,
+        )
+        self.client.force_login(farmer)
+
+        buyer_response = self.client.post(
+            reverse("accounts:switch_market_mode", args=["buyer"])
+        )
+        self.assertRedirects(buyer_response, reverse("catalog:product_list"))
+
+        buyer_page = self.client.get(reverse("catalog:product_list"))
+        self.assertContains(buyer_page, "โหมดผู้ซื้อ")
+        self.assertContains(buyer_page, "สลับเป็นผู้ขาย")
+        self.assertNotContains(buyer_page, "หน้าร้านค้าของฉัน")
+        self.assertNotContains(buyer_page, "เพิ่มสินค้า")
+
+        seller_response = self.client.post(
+            reverse("accounts:switch_market_mode", args=["seller"])
+        )
+        self.assertRedirects(seller_response, reverse("accounts:farmer_shop_center"))
+
+        seller_page = self.client.get(reverse("catalog:product_list"))
+        self.assertContains(seller_page, "สลับเป็นผู้ซื้อ")
+        self.assertContains(seller_page, "หน้าร้านค้าของฉัน")
+        self.assertContains(seller_page, "เพิ่มสินค้า")
+
+    def test_account_sidebar_links_consumer_to_seller_signup_and_farmer_to_shop(self):
+        consumer_page = self.client.get(reverse("accounts:account_history"))
+        self.assertContains(consumer_page, "สมัครเป็นผู้ขาย")
+        self.assertContains(consumer_page, reverse("accounts:farmer_signup"))
+
+        farmer = User.objects.create_user(
+            username="account-shop-shortcut",
+            password="pass12345",
+            role=User.Roles.FARMER,
+        )
+        self.client.force_login(farmer)
+
+        farmer_page = self.client.get(reverse("accounts:account_history"))
+        self.assertContains(farmer_page, "ร้านค้าของฉัน")
+        self.assertContains(farmer_page, reverse("accounts:farmer_shop_center"))
+        self.assertContains(farmer_page, "สลับเป็นผู้ซื้อ")
+        self.assertContains(farmer_page, reverse("catalog:product_list"))
+        self.assertContains(farmer_page, 'data-lucide="shopping-bag"')
 
     def test_staff_center_menu_is_visible_only_to_community_staff(self):
         consumer_page = self.client.get(reverse("catalog:product_list"))
@@ -128,15 +177,35 @@ class AccountCenterTests(TestCase):
         self.assertEqual(self.user.gender, User.Gender.FEMALE)
         self.assertEqual(self.user.birth_date.isoformat(), "1995-04-12")
 
-    def test_avatar_picker_is_rendered_and_rejects_files_over_one_mb(self):
+    def test_profile_uses_selectable_birth_date_and_rejects_future_dates(self):
+        page = self.client.get(reverse("accounts:account_history"))
+        self.assertContains(page, "data-birth-calendar-picker")
+
+        response = self.client.post(
+            reverse("accounts:account_history"),
+            {
+                "display_name": self.user.display_name,
+                "email": self.user.email,
+                "phone": self.user.phone,
+                "first_name": "",
+                "last_name": "",
+                "gender": User.Gender.UNSPECIFIED,
+                "birth_date": "2099-01-01",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "วันเกิดต้องไม่เป็นวันในอนาคต")
+
+    def test_avatar_picker_is_rendered_and_rejects_files_over_five_mb(self):
         page = self.client.get(reverse("accounts:account_history"))
         self.assertContains(page, "data-avatar-trigger")
         self.assertContains(page, "เลือก รูป".replace(" ", ""))
-        self.assertContains(page, "สูงสุด 1 MB")
+        self.assertContains(page, "สูงสุด 5 MB")
 
         oversized_avatar = SimpleUploadedFile(
             "avatar.jpg",
-            b"x" * (1024 * 1024 + 1),
+            b"x" * (5 * 1024 * 1024 + 1),
             content_type="image/jpeg",
         )
         response = self.client.post(
@@ -154,9 +223,35 @@ class AccountCenterTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "รูปโปรไฟล์ต้องมีขนาดไม่เกิน 1 MB")
+        self.assertContains(response, "รูปโปรไฟล์ต้องมีขนาดไม่เกิน 5 MB")
         self.user.refresh_from_db()
         self.assertFalse(self.user.avatar)
+
+    def test_avatar_under_five_mb_is_saved(self):
+        avatar = SimpleUploadedFile(
+            "avatar.jpg",
+            b"avatar image",
+            content_type="image/jpeg",
+        )
+
+        response = self.client.post(
+            reverse("accounts:account_history"),
+            {
+                "avatar": avatar,
+                "display_name": self.user.display_name,
+                "email": self.user.email,
+                "phone": self.user.phone,
+                "first_name": "",
+                "last_name": "",
+                "gender": User.Gender.UNSPECIFIED,
+                "birth_date": "",
+            },
+        )
+
+        self.assertRedirects(response, reverse("accounts:account_history"))
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.avatar)
+        self.user.avatar.delete(save=False)
     def test_address_crud_keeps_one_default_and_prefills_checkout(self):
         first_response = self.client.post(
             reverse("accounts:address_create"),

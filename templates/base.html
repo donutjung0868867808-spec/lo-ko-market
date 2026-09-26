@@ -34,9 +34,9 @@
 </head>
 <body class="flex min-h-screen flex-col bg-white text-ink">
   <header class="sticky top-0 z-40 bg-leaf text-white shadow-sm">
-    <div class="relative mx-auto grid min-h-[68px] w-full max-w-[1500px] grid-cols-1 items-center gap-x-3 gap-y-2 px-4 py-2 sm:px-6 lg:grid-cols-[220px_minmax(420px,1fr)_auto] lg:px-8">
+    <div class="relative mx-auto grid w-full max-w-[1500px] grid-cols-1 items-center gap-x-3 gap-y-2 px-4 py-2 sm:px-6 lg:grid-cols-[220px_minmax(420px,1fr)_auto] lg:px-8" style="min-height: 84px;">
       <a href="{% url 'catalog:product_list' %}" class="flex min-w-0 items-center gap-2.5" aria-label="หน้าหลักตลาดเกษตรชุมชน">
-        <span class="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-md bg-white p-0.5">
+        <span class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-md bg-white p-0.5">
           <img src="{% static 'images/market-logo.png' %}" alt="โลโก้ตลาดเกษตรชุมชน" class="h-full w-full object-contain">
         </span>
         <span class="hidden min-w-0 sm:block">
@@ -46,13 +46,16 @@
       </a>
 
       <form method="get" action="{% url 'catalog:product_list' %}" class="order-3 col-span-1 grid w-full grid-cols-[minmax(105px,0.72fr)_minmax(0,1.6fr)] gap-2 lg:order-none lg:grid-cols-[180px_minmax(280px,1fr)]">
-        <div class="relative min-w-0">
+        <div class="relative min-w-0" data-province-autocomplete>
           <label class="sr-only" for="province-search">ค้นหาจังหวัด</label>
           <i data-lucide="map-pin" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-leaf" aria-hidden="true"></i>
-          <input id="province-search" class="h-10 w-full rounded-md border-0 bg-white pl-9 pr-3 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-rice" type="search" name="province" value="{{ request.GET.province }}" placeholder="ค้นหาจังหวัด" list="province-options" autocomplete="off">
-          <datalist id="province-options">
-            {% for province in provinces %}<option value="{{ province }}">{% endfor %}
-          </datalist>
+          <input id="province-search" class="h-10 w-full rounded-md border-0 bg-white pl-9 pr-3 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-rice" type="search" name="province" value="{{ request.GET.province }}" placeholder="ค้นหาจังหวัด" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="province-suggestions">
+          <div id="province-suggestions" class="absolute left-0 right-0 top-[calc(100%+0.35rem)] z-50 hidden max-h-56 overflow-y-auto rounded-md border border-stone-200 bg-white py-1 text-sm text-slate-800 shadow-lg" role="listbox" aria-label="รายการจังหวัด">
+            {% for province in search_provinces %}
+              <button type="button" class="block w-full px-3 py-2 text-left hover:bg-emerald-50 hover:text-leaf" role="option" data-province-option data-province-value="{{ province }}">{{ province }}</button>
+            {% endfor %}
+            <p class="hidden px-3 py-2 text-slate-500" data-province-empty>ไม่พบจังหวัดที่ตรงกัน</p>
+          </div>
         </div>
         <div class="relative min-w-0">
           <label class="sr-only" for="global-product-search">ค้นหาสินค้า</label>
@@ -66,9 +69,9 @@
 
       <nav class="absolute right-4 top-2 flex shrink-0 items-center justify-end gap-1 sm:right-6 sm:gap-2 lg:static" aria-label="เมนูผู้ใช้">
         {% if user.is_authenticated %}
-          <a data-notification-bell class="relative flex h-11 w-11 items-center justify-center rounded-md hover:bg-white/10" href="{% url 'accounts:notifications' %}" title="การแจ้งเตือน">
+          <a data-notification-bell class="relative flex h-10 w-10 items-center justify-center rounded-md hover:bg-white/10" href="{% url 'accounts:notifications' %}" title="การแจ้งเตือน">
         {% else %}
-          <a data-notification-bell class="relative flex h-11 w-11 items-center justify-center rounded-md hover:bg-white/10" href="{% url 'login' %}?next={% url 'accounts:notifications' %}" title="การแจ้งเตือน">
+          <a data-notification-bell class="relative flex h-10 w-10 items-center justify-center rounded-md hover:bg-white/10" href="{% url 'login' %}?next={% url 'accounts:notifications' %}" title="การแจ้งเตือน">
         {% endif %}
             <i data-lucide="bell" class="h-7 w-7" aria-hidden="true"></i><span class="icon-fallback">แจ้งเตือน</span>
             {% if unread_notification_count %}
@@ -80,27 +83,32 @@
           </a>
 
         {% if user.is_authenticated %}
-          <a class="flex h-11 w-11 items-center justify-center rounded-md hover:bg-white/10" href="{% url 'accounts:favorites' %}" title="สินค้าที่ถูกใจ">
+          <a class="flex h-10 w-10 items-center justify-center rounded-md hover:bg-white/10" href="{% url 'accounts:favorites' %}" title="สินค้าที่ถูกใจ">
         {% else %}
-          <a class="flex h-11 w-11 items-center justify-center rounded-md hover:bg-white/10" href="{% url 'login' %}?next={% url 'accounts:favorites' %}" title="สินค้าที่ถูกใจ">
+          <a class="flex h-10 w-10 items-center justify-center rounded-md hover:bg-white/10" href="{% url 'login' %}?next={% url 'accounts:favorites' %}" title="สินค้าที่ถูกใจ">
         {% endif %}
             <i data-lucide="heart" class="h-7 w-7" aria-hidden="true"></i><span class="icon-fallback text-lg">♡</span>
             <span class="sr-only">สินค้าที่ถูกใจ</span>
           </a>
 
         {% if user.is_authenticated %}
-          <a class="flex h-11 w-11 items-center justify-center rounded-md hover:bg-white/10" href="{% url 'orders:cart' %}" title="ตะกร้าสินค้า">
+          <a class="relative flex h-10 w-10 items-center justify-center rounded-md hover:bg-white/10" href="{% url 'orders:cart' %}" title="ตะกร้าสินค้า">
         {% else %}
-          <a class="flex h-11 w-11 items-center justify-center rounded-md hover:bg-white/10" href="{% url 'login' %}?next={% url 'orders:cart' %}" title="ตะกร้าสินค้า">
+          <a class="relative flex h-10 w-10 items-center justify-center rounded-md hover:bg-white/10" href="{% url 'login' %}?next={% url 'orders:cart' %}" title="ตะกร้าสินค้า">
         {% endif %}
             <i data-lucide="shopping-cart" class="h-7 w-7" aria-hidden="true"></i><span class="icon-fallback">ตะกร้า</span>
+            {% if cart_item_count %}
+              <span data-cart-count="{{ cart_item_count }}" class="absolute right-0 top-0 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-leaf bg-rice px-1 text-[10px] font-bold leading-none text-emerald-950" aria-label="สินค้าในตะกร้า {{ cart_item_count }} รายการ">
+                {% if cart_item_count > 99 %}99+{% else %}{{ cart_item_count }}{% endif %}
+              </span>
+            {% endif %}
             <span class="sr-only">ตะกร้าสินค้า</span>
           </a>
 
         <details class="group relative">
-          <summary class="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-md hover:bg-white/10" title="โปรไฟล์">
+          <summary class="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-md hover:bg-white/10" title="โปรไฟล์">
             {% if user.is_authenticated and user.avatar %}
-              <img src="{{ user.avatar.url }}" alt="รูปโปรไฟล์ของ {{ user.display_name|default:user.username }}" class="h-9 w-9 rounded-full border-2 border-white/80 object-cover shadow-sm">
+              <img src="{{ user.avatar.url }}" alt="รูปโปรไฟล์ของ {{ user.username }}" class="h-9 w-9 rounded-full border-2 border-white/80 object-cover shadow-sm">
             {% else %}
               <i data-lucide="user-round" class="h-7 w-7" aria-hidden="true"></i><span class="icon-fallback">โปรไฟล์</span>
             {% endif %}
@@ -109,25 +117,44 @@
           <div class="absolute right-0 mt-2 w-64 overflow-hidden rounded-md border border-stone-200 bg-white py-2 text-sm text-slate-800 shadow-xl">
             {% if user.is_authenticated %}
               <div class="border-b border-stone-100 px-4 py-3">
-                <p class="truncate font-semibold">{{ user.display_name|default:user.username }}</p>
-                <p class="mt-0.5 text-xs text-slate-500">{{ user.get_role_display }}</p>
+                <p class="truncate font-semibold">{{ user.username }}</p>
+                <p class="mt-0.5 text-xs text-slate-500">{% if user.is_farmer and active_market_mode == "buyer" %}โหมดผู้ซื้อ{% else %}{{ user.get_role_display }}{% endif %}</p>
               </div>
-              <a class="block px-4 py-3 font-medium text-slate-800 hover:bg-stone-50" href="{% url 'accounts:account_history' %}">บัญชีของฉัน</a>
+              <a class="flex items-center gap-2 px-4 py-3 font-medium {% if request.resolver_match.url_name == 'account_history' %}text-leaf hover:bg-emerald-50{% else %}text-slate-800 hover:bg-stone-50{% endif %}" href="{% url 'accounts:account_history' %}"><i data-lucide="user-round" class="h-4 w-4" aria-hidden="true"></i>บัญชีของฉัน</a>
+              {% if user.is_farmer %}
+                {% if active_market_mode == "buyer" %}
+                  {% url "accounts:switch_market_mode" "seller" as switch_mode_url %}
+                {% else %}
+                  {% url "accounts:switch_market_mode" "buyer" as switch_mode_url %}
+                {% endif %}
+                <form method="post" action="{{ switch_mode_url }}">
+                  {% csrf_token %}
+                  <button type="submit" class="flex w-full items-center gap-2 px-4 py-3 text-left font-medium text-slate-800 hover:bg-stone-50">
+                    {% if active_market_mode == "buyer" %}
+                      <i data-lucide="store" class="h-4 w-4" aria-hidden="true"></i>สลับเป็นผู้ขาย
+                    {% else %}
+                      <i data-lucide="shopping-bag" class="h-4 w-4" aria-hidden="true"></i>สลับเป็นผู้ซื้อ
+                    {% endif %}
+                  </button>
+                </form>
+              {% endif %}
               {% if user.is_cooperative_staff %}
-                <a class="block px-4 py-3 font-medium text-leaf hover:bg-emerald-50" href="{% url 'accounts:staff_dashboard' %}">ศูนย์เจ้าหน้าที่วิสาหกิจชุมชน</a>
+                <a class="flex items-center gap-2 px-4 py-3 font-medium {% if request.resolver_match.url_name == 'staff_dashboard' %}text-leaf hover:bg-emerald-50{% else %}text-slate-800 hover:bg-stone-50{% endif %}" href="{% url 'accounts:staff_dashboard' %}"><i data-lucide="badge-check" class="h-4 w-4" aria-hidden="true"></i>ศูนย์เจ้าหน้าที่วิสาหกิจชุมชน</a>
               {% endif %}
-              {% if user.is_farmer %}
-                <a class="block px-4 py-3 font-medium text-slate-800 hover:bg-stone-50" href="{% url 'catalog:seller_store' user.pk %}">หน้าร้านค้าของฉัน</a>
-                <a class="block px-4 py-3 font-medium text-slate-800 hover:bg-stone-50" href="{% url 'accounts:farmer_shop_center' %}">ร้านค้าของฉัน</a>
+              {% if user.is_farmer and active_market_mode != "buyer" %}
+                <a class="flex items-center gap-2 px-4 py-3 font-medium {% if request.resolver_match.url_name == 'seller_store' %}text-leaf hover:bg-emerald-50{% else %}text-slate-800 hover:bg-stone-50{% endif %}" href="{% url 'catalog:seller_store' user.pk %}"><i data-lucide="store" class="h-4 w-4" aria-hidden="true"></i>หน้าร้านค้าของฉัน</a>
+                <a class="flex items-center gap-2 px-4 py-3 font-medium {% if request.resolver_match.url_name == 'farmer_shop_center' %}text-leaf hover:bg-emerald-50{% else %}text-slate-800 hover:bg-stone-50{% endif %}" href="{% url 'accounts:farmer_shop_center' %}"><i data-lucide="store" class="h-4 w-4" aria-hidden="true"></i>ร้านค้าของฉัน</a>
+              {% elif user.is_consumer %}
+                <a class="flex items-center gap-2 px-4 py-3 font-medium {% if request.resolver_match.url_name == 'farmer_signup' %}text-leaf hover:bg-emerald-50{% else %}text-slate-800 hover:bg-stone-50{% endif %}" href="{% url 'accounts:farmer_signup' %}"><i data-lucide="store" class="h-4 w-4" aria-hidden="true"></i>สมัครเป็นผู้ขาย</a>
               {% endif %}
-              <a class="block px-4 py-3 font-medium text-slate-800 hover:bg-stone-50" href="{% url 'orders:order_list' %}">การซื้อของฉัน</a>
-              {% if user.is_farmer %}
-                <a class="block px-4 py-3 font-medium text-leaf hover:bg-emerald-50" href="{% url 'catalog:product_create' %}">เพิ่มสินค้า</a>
+              <a class="flex items-center gap-2 px-4 py-3 font-medium {% if request.resolver_match.url_name == 'order_list' %}text-leaf hover:bg-emerald-50{% else %}text-slate-800 hover:bg-stone-50{% endif %}" href="{% url 'orders:order_list' %}"><i data-lucide="package-check" class="h-4 w-4" aria-hidden="true"></i>การซื้อของฉัน</a>
+              {% if user.is_farmer and active_market_mode != "buyer" %}
+                <a class="flex items-center gap-2 px-4 py-3 font-medium {% if request.resolver_match.url_name == 'product_create' %}text-leaf hover:bg-emerald-50{% else %}text-slate-800 hover:bg-stone-50{% endif %}" href="{% url 'catalog:product_create' %}"><i data-lucide="package-plus" class="h-4 w-4" aria-hidden="true"></i>เพิ่มสินค้า</a>
               {% endif %}
               {% if not request.admin_preview %}
                 <form method="post" action="{% url 'logout' %}" class="border-t border-stone-100 pt-1">
                   {% csrf_token %}
-                  <button class="w-full px-4 py-2.5 text-left font-medium text-red-700 hover:bg-red-50" type="submit">ออกจากระบบ</button>
+                  <button class="flex w-full items-center gap-2 px-4 py-2.5 text-left font-medium text-red-700 hover:bg-red-50" type="submit"><i data-lucide="log-out" class="h-4 w-4" aria-hidden="true"></i>ออกจากระบบ</button>
                 </form>
               {% endif %}
             {% else %}
@@ -172,13 +199,15 @@
         </button>
       </nav>
     {% endif %}
-    {% if messages %}
-      <div class="mx-auto mb-5 w-full max-w-[1500px] space-y-2 px-4 pt-4 sm:px-6 lg:px-8">
-        {% for message in messages %}
-          <div class="rounded-md border border-stone-200 bg-white px-4 py-3 text-sm shadow-soft">{{ message }}</div>
-        {% endfor %}
-      </div>
-    {% endif %}
+    {% block flash_messages %}
+      {% if messages %}
+        <div class="mx-auto mb-5 w-full max-w-[1500px] space-y-2 px-4 pt-4 sm:px-6 lg:px-8">
+          {% for message in messages %}
+            <div class="rounded-md border border-stone-200 bg-white px-4 py-3 text-sm shadow-soft">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endblock %}
     {% block content %}{% endblock %}
   </main>
 
@@ -192,6 +221,91 @@
     if (window.lucide) {
       window.lucide.createIcons();
     }
+
+    document.querySelectorAll("[data-province-autocomplete]").forEach(function (container) {
+      const input = container.querySelector("input");
+      const suggestions = container.querySelector("#province-suggestions");
+      const options = Array.from(container.querySelectorAll("[data-province-option]"));
+      const emptyMessage = container.querySelector("[data-province-empty]");
+      let activeIndex = -1;
+
+      function updateSuggestions() {
+        const query = input.value.trim().toLocaleLowerCase();
+        let visibleCount = 0;
+
+        options.forEach(function (option) {
+          const matches = !query || option.dataset.provinceValue.toLocaleLowerCase().includes(query);
+          option.hidden = !matches;
+          if (matches) visibleCount += 1;
+        });
+
+        emptyMessage.hidden = visibleCount > 0;
+        suggestions.hidden = false;
+        input.setAttribute("aria-expanded", "true");
+        activeIndex = -1;
+      }
+
+      function closeSuggestions() {
+        suggestions.hidden = true;
+        input.setAttribute("aria-expanded", "false");
+        activeIndex = -1;
+        options.forEach(function (option) {
+          option.removeAttribute("aria-selected");
+        });
+      }
+
+      function selectOption(option) {
+        input.value = option.dataset.provinceValue;
+        closeSuggestions();
+        input.focus();
+      }
+
+      function highlightOption(index) {
+        const visibleOptions = options.filter(function (option) { return !option.hidden; });
+        if (!visibleOptions.length) return;
+
+        activeIndex = (index + visibleOptions.length) % visibleOptions.length;
+        visibleOptions.forEach(function (option, optionIndex) {
+          option.setAttribute("aria-selected", String(optionIndex === activeIndex));
+          option.classList.toggle("bg-emerald-50", optionIndex === activeIndex);
+          option.classList.toggle("text-leaf", optionIndex === activeIndex);
+        });
+        visibleOptions[activeIndex].scrollIntoView({ block: "nearest" });
+      }
+
+      input.addEventListener("focus", updateSuggestions);
+      input.addEventListener("input", updateSuggestions);
+      input.addEventListener("keydown", function (event) {
+        const visibleOptions = options.filter(function (option) { return !option.hidden; });
+        if (event.key === "ArrowDown") {
+          event.preventDefault();
+          const nextIndex = activeIndex + 1;
+          updateSuggestions();
+          highlightOption(nextIndex);
+        } else if (event.key === "ArrowUp") {
+          event.preventDefault();
+          const previousIndex = activeIndex - 1;
+          updateSuggestions();
+          highlightOption(previousIndex);
+        } else if (event.key === "Enter" && activeIndex >= 0 && visibleOptions[activeIndex]) {
+          event.preventDefault();
+          selectOption(visibleOptions[activeIndex]);
+        } else if (event.key === "Escape") {
+          closeSuggestions();
+        }
+      });
+
+      options.forEach(function (option) {
+        option.addEventListener("mousedown", function (event) {
+          event.preventDefault();
+          selectOption(option);
+        });
+      });
+
+      document.addEventListener("click", function (event) {
+        if (!container.contains(event.target)) closeSuggestions();
+      });
+    });
 
     document.addEventListener("click", function (event) {
       const toggle = event.target.closest("[data-password-toggle]");
@@ -286,6 +400,10 @@
     document.querySelectorAll("[data-product-gallery-input]").forEach(function (input) {
       const preview = document.createElement("div");
       const clearButton = document.createElement("button");
+      const uploadArea = document.createElement("button");
+      const uploadIcon = document.createElement("i");
+      const uploadTitle = document.createElement("span");
+      const uploadHint = document.createElement("span");
       let previewUrls = [];
       let selectedFiles = [];
 
@@ -293,7 +411,20 @@
       clearButton.type = "button";
       clearButton.className = "mt-3 rounded-md border border-red-200 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50";
       clearButton.textContent = "ยกเลิกรูปที่เลือกทั้งหมด";
+      uploadArea.type = "button";
+      uploadArea.className = "mt-2 flex min-h-32 w-full flex-col items-center justify-center gap-1.5 rounded-md border-2 border-dashed border-emerald-700/35 bg-emerald-50/40 px-4 py-5 text-center text-leaf transition hover:border-leaf hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-200";
+      uploadIcon.setAttribute("data-lucide", "images");
+      uploadIcon.className = "h-7 w-7";
+      uploadIcon.setAttribute("aria-hidden", "true");
+      uploadTitle.className = "text-sm font-semibold";
+      uploadTitle.textContent = input.dataset.productGalleryTitle || "เลือกรูปสินค้า";
+      uploadHint.className = "text-xs text-slate-500";
+      uploadHint.textContent = input.dataset.productGalleryHint || "ลากรูปมาวางที่นี่ หรือกดเพื่อเลือกหลายรูป";
+      uploadArea.append(uploadIcon, uploadTitle, uploadHint);
+      input.classList.add("sr-only");
+      input.insertAdjacentElement("beforebegin", uploadArea);
       input.insertAdjacentElement("beforebegin", preview);
+      if (window.lucide) window.lucide.createIcons();
 
       function clearPreviewUrls() {
         previewUrls.forEach(function (url) { URL.revokeObjectURL(url); });
@@ -308,6 +439,17 @@
         const transfer = new DataTransfer();
         selectedFiles.forEach(function (file) { transfer.items.add(file); });
         input.files = transfer.files;
+      }
+
+      function addFiles(files) {
+        Array.from(files || []).forEach(function (file) {
+          if (!file.type.startsWith("image/")) return;
+          if (!selectedFiles.some(function (selected) { return fileKey(selected) === fileKey(file); })) {
+            selectedFiles.push(file);
+          }
+        });
+        syncSelectedFiles();
+        renderPreviews();
       }
 
       function renderPreviews() {
@@ -327,7 +469,7 @@
           const removeButton = document.createElement("button");
           previewUrls.push(url);
           image.src = url;
-          image.alt = file.name;
+          image.alt = "ตัวอย่าง " + file.name;
           image.className = "h-20 w-20 rounded-md border border-stone-200 bg-white object-cover";
           item.className = "relative h-20 w-20";
           removeButton.type = "button";
@@ -347,13 +489,22 @@
       }
 
       input.addEventListener("change", function () {
-        Array.from(input.files || []).forEach(function (file) {
-          if (!selectedFiles.some(function (selected) { return fileKey(selected) === fileKey(file); })) {
-            selectedFiles.push(file);
-          }
-        });
-        syncSelectedFiles();
-        renderPreviews();
+        addFiles(input.files);
+      });
+      uploadArea.addEventListener("click", function () {
+        input.click();
+      });
+      uploadArea.addEventListener("dragover", function (event) {
+        event.preventDefault();
+        uploadArea.classList.add("border-leaf", "bg-emerald-100");
+      });
+      uploadArea.addEventListener("dragleave", function () {
+        uploadArea.classList.remove("border-leaf", "bg-emerald-100");
+      });
+      uploadArea.addEventListener("drop", function (event) {
+        event.preventDefault();
+        uploadArea.classList.remove("border-leaf", "bg-emerald-100");
+        addFiles(event.dataTransfer.files);
       });
       clearButton.addEventListener("click", function () {
         selectedFiles = [];
@@ -365,7 +516,7 @@
   </script>
   {% block extra_scripts %}{% endblock %}
   {% if user.is_authenticated %}
-    <link rel="stylesheet" href="{% static 'realtime-chat.css' %}?v=20260910-16">
+    <link rel="stylesheet" href="{% static 'realtime-chat.css' %}?v=20260924-17">
     <script src="{% static 'realtime-notifications.js' %}"></script>
   {% endif %}
 </body>
