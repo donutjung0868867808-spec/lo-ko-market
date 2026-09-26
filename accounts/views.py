@@ -531,19 +531,35 @@ def farmer_shop_center(request):
 
     income_period = request.GET.get("income_period", "week")
     income_period_options = {
-        "week": (
-            today - timedelta(days=today.weekday()),
-            "สัปดาห์นี้",
-        ),
-        "month": (today.replace(day=1), "เดือนนี้"),
-        "all": (None, "ทั้งหมด"),
+        "week": (today - timedelta(days=today.weekday()), today, "สัปดาห์นี้"),
+        "month": (today.replace(day=1), today, "เดือนนี้"),
+        "quarter": (today - timedelta(days=89), today, "3 เดือนล่าสุด"),
+        "all": (None, None, "ทั้งหมด"),
     }
-    if income_period not in income_period_options:
-        income_period = "week"
-    income_period_start, income_period_label = income_period_options[income_period]
-    if income_period_start:
+    income_start = None
+    income_end = None
+    if income_period == "custom":
+        try:
+            income_start = date.fromisoformat(request.GET.get("income_start", ""))
+            income_end = date.fromisoformat(request.GET.get("income_end", ""))
+        except ValueError:
+            income_period = "week"
+        else:
+            if income_start > income_end:
+                income_period = "week"
+    if income_period == "custom":
+        income_period_label = "เลือกวัน"
+    else:
+        if income_period not in income_period_options:
+            income_period = "week"
+        income_start, income_end, income_period_label = income_period_options[income_period]
+    if income_start:
         income_settlements = income_settlements.filter(
-            **{f"{income_date_field}__date__gte": income_period_start}
+            **{f"{income_date_field}__date__gte": income_start}
+        )
+    if income_end:
+        income_settlements = income_settlements.filter(
+            **{f"{income_date_field}__date__lte": income_end}
         )
 
     income_query = request.GET.get("income_q", "").strip()
@@ -713,6 +729,8 @@ def farmer_shop_center(request):
         "income_status": income_status,
         "income_period": income_period,
         "income_period_label": income_period_label,
+        "income_start": income_start,
+        "income_end": income_end,
         "income_query": income_query,
         "pending_settlement_total": settlement_totals["pending"] or 0,
         "transferred_settlement_total": settlement_totals["transferred"] or 0,
@@ -755,16 +773,35 @@ def income_statement(request):
 
     income_period = request.GET.get("income_period", "week")
     periods = {
-        "week": (today - timedelta(days=today.weekday()), "สัปดาห์นี้"),
-        "month": (today.replace(day=1), "เดือนนี้"),
-        "all": (None, "ทั้งหมด"),
+        "week": (today - timedelta(days=today.weekday()), today, "สัปดาห์นี้"),
+        "month": (today.replace(day=1), today, "เดือนนี้"),
+        "quarter": (today - timedelta(days=89), today, "3 เดือนล่าสุด"),
+        "all": (None, None, "ทั้งหมด"),
     }
-    if income_period not in periods:
-        income_period = "week"
-    period_start, period_label = periods[income_period]
+    period_start = None
+    period_end = None
+    if income_period == "custom":
+        try:
+            period_start = date.fromisoformat(request.GET.get("income_start", ""))
+            period_end = date.fromisoformat(request.GET.get("income_end", ""))
+        except ValueError:
+            income_period = "week"
+        else:
+            if period_start > period_end:
+                income_period = "week"
+    if income_period == "custom":
+        period_label = "เลือกวัน"
+    else:
+        if income_period not in periods:
+            income_period = "week"
+        period_start, period_end, period_label = periods[income_period]
     if period_start:
         income_settlements = income_settlements.filter(
             **{f"{income_date_field}__date__gte": period_start}
+        )
+    if period_end:
+        income_settlements = income_settlements.filter(
+            **{f"{income_date_field}__date__lte": period_end}
         )
 
     income_query = request.GET.get("income_q", "").strip()

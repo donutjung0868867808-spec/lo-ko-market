@@ -85,17 +85,23 @@ class FarmerShopCenterTests(TestCase):
         response = self.client.get(reverse("accounts:farmer_shop_center"))
 
         self.assertContains(response, "ตัวชี้วัดหลัก")
+        self.assertContains(response, reverse("accounts:farmer_shop_center"))
         self.assertContains(response, "ยอดขายไม่รวมค่าจัดส่ง")
         self.assertContains(response, "จำนวนผู้เยี่ยมชม")
         self.assertContains(response, "จำนวนการคลิกสินค้า")
-        self.assertContains(response, "แนวโน้มยอดขาย 7 วันล่าสุด")
-        self.assertContains(response, "ยังไม่มียอดขายที่ชำระสำเร็จในช่วง 7 วันที่ผ่านมา")
+        self.assertNotContains(response, "กราฟแสดงยอดขายที่ชำระสำเร็จในแต่ละวัน")
+        self.assertContains(response, "ภาพรวมร้านค้า")
+        self.assertContains(response, "คะแนนรีวิว")
         self.assertContains(response, "ที่ต้องจัดส่ง")
         self.assertContains(response, "คำขอคืนเงิน / คืนสินค้า / ยกเลิก")
         self.assertContains(response, "สินค้าที่ละเมิดนโยบาย")
         self.assertEqual(response.context["policy_issue_total"], 0)
         self.assertEqual(len(response.context["daily_sales_trend"]), 7)
         self.assertFalse(response.context["daily_sales_trend_has_data"])
+
+        analytics = self.client.get(f"{reverse('accounts:farmer_shop_center')}?section=marketing")
+        self.assertContains(analytics, "แนวโน้มยอดขาย 7 วันล่าสุด")
+        self.assertContains(analytics, "ยังไม่มียอดขายที่ชำระสำเร็จในช่วง 7 วันที่ผ่านมา")
 
     def test_finance_income_tabs_and_transferred_period_totals(self):
         buyer = User.objects.create_user(
@@ -136,12 +142,27 @@ class FarmerShopCenterTests(TestCase):
         self.assertEqual(response.context["income_status"], "transferred")
         self.assertEqual(response.context["income_period"], "week")
         self.assertContains(response, "รอดำเนินการ")
+        self.assertContains(response, "ยอดขายที่ชำระแล้ว")
         self.assertContains(response, "สัปดาห์นี้")
         self.assertContains(response, "เดือนนี้")
         self.assertContains(response, "FINANCE-TRANSFERRED")
         self.assertContains(response, "ช่องทางการรับเงิน")
+        self.assertContains(response, "เลือกช่วงวันที่")
         self.assertEqual(response.context["transferred_this_week_total"], Decimal("100.00"))
         self.assertEqual(response.context["transferred_this_month_total"], Decimal("100.00"))
+
+        selected_income_date = timezone.localdate() - timedelta(days=1)
+        custom_income = self.client.get(
+            f"{reverse('accounts:farmer_shop_center')}?section=finance"
+            f"&income_status=transferred&income_period=custom"
+            f"&income_start={selected_income_date.isoformat()}"
+            f"&income_end={selected_income_date.isoformat()}"
+        )
+        self.assertEqual(custom_income.context["income_period"], "custom")
+        self.assertEqual(custom_income.context["income_start"], selected_income_date)
+        self.assertEqual(custom_income.context["income_end"], selected_income_date)
+        self.assertContains(custom_income, "เลือกช่วงวันที่")
+        self.assertContains(custom_income, "FINANCE-TRANSFERRED")
 
         selected_date = timezone.localdate()
         custom_balance = self.client.get(

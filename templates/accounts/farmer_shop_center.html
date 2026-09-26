@@ -106,6 +106,7 @@
     <aside class="self-start overflow-hidden rounded-lg border border-emerald-900/25 bg-white shadow-sm xl:sticky xl:top-5">
       <p class="border-b border-stone-200 px-4 py-4 text-sm font-semibold text-slate-950">เมนูจัดการร้าน</p>
       <nav aria-label="เมนูศูนย์จัดการร้านค้า" class="divide-y divide-emerald-900/15">
+        <a href="{% url 'accounts:farmer_shop_center' %}" class="flex min-h-11 items-center gap-2 px-4 py-2.5 text-sm font-semibold {% if shop_section == 'overview' %}bg-emerald-50 text-leaf{% else %}text-slate-800 hover:bg-emerald-50 hover:text-leaf{% endif %}"><i data-lucide="layout-dashboard" class="h-4 w-4" aria-hidden="true"></i>ภาพรวมร้านค้า</a>
         <details data-shop-menu="orders" {% if shop_section == 'orders' %}open{% endif %}>
           <summary class="flex min-h-11 cursor-pointer list-none items-center justify-between px-4 py-2.5 text-sm font-semibold text-slate-800"><span>คำสั่งซื้อ</span><i data-lucide="chevron-down" class="h-4 w-4 text-leaf"></i></summary>
           <div class="border-t border-emerald-900/10 bg-stone-50 py-1 text-sm"><a href="?section=orders" class="block px-6 py-2 {% if shop_section == 'orders' and order_menu == 'all' %}bg-emerald-50 font-semibold text-leaf{% else %}text-slate-700 hover:bg-emerald-50 hover:text-leaf{% endif %}">คำสั่งซื้อของฉัน</a><a href="?section=orders&status=preparing&order_menu=batch" class="block px-6 py-2 {% if shop_section == 'orders' and order_menu == 'batch' %}bg-emerald-50 font-semibold text-leaf{% else %}text-slate-700 hover:bg-emerald-50 hover:text-leaf{% endif %}">จัดส่งแบบชุด</a><a href="?section=orders&status=preparing&order_menu=preparing" class="block px-6 py-2 {% if shop_section == 'orders' and order_menu == 'preparing' %}bg-emerald-50 font-semibold text-leaf{% else %}text-slate-700 hover:bg-emerald-50 hover:text-leaf{% endif %}">พัสดุเตรียมส่ง</a><a href="?section=orders&status=cancelled&order_menu=cancelled" class="block px-6 py-2 {% if shop_section == 'orders' and order_menu == 'cancelled' %}bg-emerald-50 font-semibold text-leaf{% else %}text-slate-700 hover:bg-emerald-50 hover:text-leaf{% endif %}">ยกเลิก / คืนเงิน / คืนสินค้า</a></div>
@@ -274,15 +275,17 @@
                 <div class="income-overview-summary mt-5 divide-y divide-stone-200 sm:divide-x sm:divide-y-0">
                   <div class="pb-5 sm:pr-5 sm:pb-0">
                     <h3 class="text-base font-semibold text-slate-950">รอดำเนินการ</h3>
-                    <p class="mt-4 text-sm text-slate-500">รวม</p>
-                    <p class="mt-1 text-3xl font-semibold text-amber-800">฿{{ pending_settlement_total|floatformat:2 }}</p>
+                    <div class="mt-4 grid gap-4 sm:grid-cols-2">
+                      <div><p class="text-sm text-slate-500">ยอดรอรับรวม</p><p class="mt-1 text-3xl font-semibold text-amber-800">฿{{ pending_settlement_total|floatformat:2 }}</p><p class="mt-2 text-sm text-slate-500">ระบบจะดำเนินการโอนเมื่อคำสั่งซื้อเข้าเงื่อนไข</p></div>
+                      <div class="border-t border-stone-200 pt-4 sm:border-l sm:border-t-0 sm:pl-4 sm:pt-0"><p class="text-sm text-slate-500">ยอดขายที่ชำระแล้ว</p><p class="mt-1 text-3xl font-semibold text-leaf">฿{{ gross_sales|floatformat:2 }}</p><p class="mt-2 text-sm text-slate-500">ยอดชำระสำเร็จสะสม</p></div>
+                    </div>
                   </div>
                   <div class="pt-5 sm:pl-5 sm:pt-0">
                     <h3 class="text-base font-semibold text-slate-950">โอนเงินแล้ว</h3>
-                    <div class="income-transfer-metrics mt-4 gap-4">
-                      <div><p class="text-sm text-slate-500">สัปดาห์นี้</p><p class="mt-1 text-xl font-semibold text-leaf">฿{{ transferred_this_week_total|floatformat:2 }}</p></div>
-                      <div><p class="text-sm text-slate-500">เดือนนี้</p><p class="mt-1 text-xl font-semibold text-leaf">฿{{ transferred_this_month_total|floatformat:2 }}</p></div>
-                      <div><p class="text-sm text-slate-500">รวม</p><p class="mt-1 text-xl font-semibold text-leaf">฿{{ transferred_settlement_total|floatformat:2 }}</p></div>
+                    <div class="income-transfer-metrics mt-4 gap-3">
+                      <div class="rounded-md border border-stone-200 bg-white p-3"><p class="text-sm text-slate-500">สัปดาห์นี้</p><p class="mt-1 text-xl font-semibold text-leaf">฿{{ transferred_this_week_total|floatformat:2 }}</p></div>
+                      <div class="rounded-md border border-stone-200 bg-white p-3"><p class="text-sm text-slate-500">เดือนนี้</p><p class="mt-1 text-xl font-semibold text-leaf">฿{{ transferred_this_month_total|floatformat:2 }}</p></div>
+                      <div class="rounded-md border border-stone-200 bg-white p-3"><p class="text-sm text-slate-500">รวม</p><p class="mt-1 text-xl font-semibold text-leaf">฿{{ transferred_settlement_total|floatformat:2 }}</p></div>
                     </div>
                   </div>
                 </div>
@@ -293,7 +296,7 @@
               </div>
             </section>
 
-            <section class="overflow-hidden rounded-lg border border-stone-200 bg-white">
+            <section class="rounded-lg border border-stone-200 bg-white">
               <div class="border-b border-stone-200 px-5 pt-5">
                 <div class="flex flex-wrap items-center justify-between gap-4">
                   <h2 class="text-lg font-semibold text-slate-950">รายละเอียดรายรับของฉัน</h2>
@@ -301,31 +304,50 @@
                     <input type="hidden" name="section" value="finance">
                     <input type="hidden" name="income_status" value="{{ income_status }}">
                     <input type="hidden" name="income_period" value="{{ income_period }}">
+                    <input type="hidden" name="income_start" value="{{ income_start|date:"Y-m-d" }}">
+                    <input type="hidden" name="income_end" value="{{ income_end|date:"Y-m-d" }}">
                     <label class="sr-only" for="income-search">ค้นหาคำสั่งซื้อ</label>
                     <input id="income-search" type="search" name="income_q" value="{{ income_query }}" placeholder="ค้นหาคำสั่งซื้อ" class="h-10 w-full rounded-md border border-stone-300 bg-white py-2 pl-3 pr-10 text-sm text-slate-900 placeholder:text-slate-400 focus:border-leaf focus:outline-none focus:ring-2 focus:ring-emerald-100">
                     <button type="submit" class="absolute inset-y-0 right-0 grid w-10 place-items-center text-slate-500 hover:text-leaf" aria-label="ค้นหา"><i data-lucide="search" class="h-4 w-4" aria-hidden="true"></i></button>
                   </form>
                 </div>
                 <nav class="mt-4 flex overflow-x-auto" aria-label="สถานะรายรับ">
-                  <a href="?section=finance&income_status=pending&income_period={{ income_period }}" class="min-h-11 whitespace-nowrap border-b-2 px-4 py-3 text-sm font-semibold {% if income_status == 'pending' %}border-leaf text-leaf{% else %}border-transparent text-slate-500 hover:border-emerald-200 hover:text-leaf{% endif %}">รอดำเนินการ</a>
-                  <a href="?section=finance&income_status=transferred&income_period={{ income_period }}" class="min-h-11 whitespace-nowrap border-b-2 px-4 py-3 text-sm font-semibold {% if income_status == 'transferred' %}border-leaf text-leaf{% else %}border-transparent text-slate-500 hover:border-emerald-200 hover:text-leaf{% endif %}">โอนเงินแล้ว</a>
+                  <a href="?section=finance&income_status=pending&income_period={{ income_period }}&income_start={{ income_start|date:"Y-m-d" }}&income_end={{ income_end|date:"Y-m-d" }}" class="min-h-11 whitespace-nowrap border-b-2 px-4 py-3 text-sm font-semibold {% if income_status == 'pending' %}border-leaf text-leaf{% else %}border-transparent text-slate-500 hover:border-emerald-200 hover:text-leaf{% endif %}">รอดำเนินการ</a>
+                  <a href="?section=finance&income_status=transferred&income_period={{ income_period }}&income_start={{ income_start|date:"Y-m-d" }}&income_end={{ income_end|date:"Y-m-d" }}" class="min-h-11 whitespace-nowrap border-b-2 px-4 py-3 text-sm font-semibold {% if income_status == 'transferred' %}border-leaf text-leaf{% else %}border-transparent text-slate-500 hover:border-emerald-200 hover:text-leaf{% endif %}">โอนเงินแล้ว</a>
                 </nav>
               </div>
-              <form method="get" class="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 px-5 py-4">
-                <input type="hidden" name="section" value="finance">
-                <input type="hidden" name="income_status" value="{{ income_status }}">
-                <input type="hidden" name="income_q" value="{{ income_query }}">
-                <label class="inline-flex h-10 items-center gap-2 rounded-md border border-stone-300 bg-white px-3 text-sm font-semibold text-slate-700">
-                  <i data-lucide="calendar-days" class="h-4 w-4 text-leaf" aria-hidden="true"></i>
-                  <span class="sr-only">ช่วงเวลารายรับ</span>
-                  <select name="income_period" onchange="this.form.submit()" class="border-0 bg-transparent pr-7 text-sm font-semibold text-slate-700 outline-none">
-                    <option value="week" {% if income_period == 'week' %}selected{% endif %}>สัปดาห์นี้</option>
-                    <option value="month" {% if income_period == 'month' %}selected{% endif %}>เดือนนี้</option>
-                    <option value="all" {% if income_period == 'all' %}selected{% endif %}>ทั้งหมด</option>
-                  </select>
-                </label>
-                <a href="{% url 'accounts:income_statement' %}?income_status={{ income_status }}&income_period={{ income_period }}&income_q={{ income_query }}" target="_blank" rel="noopener" class="inline-flex h-10 items-center gap-2 rounded-md border border-stone-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:border-leaf hover:text-leaf"><i data-lucide="file-text" class="h-4 w-4" aria-hidden="true"></i>ใบสรุปรายรับ</a>
-              </form>
+              <div class="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 px-5 py-4">
+                <details class="balance-period-picker">
+                  <summary class="inline-flex h-10 cursor-pointer items-center gap-2 rounded-md border border-stone-300 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-stone-50">
+                    <i data-lucide="calendar-days" class="h-4 w-4 text-leaf" aria-hidden="true"></i>
+                    <span>{{ income_period_label }}{% if income_period == "custom" %}: {{ income_start|date:"d/m/Y" }} - {{ income_end|date:"d/m/Y" }}{% endif %}</span>
+                    <i data-lucide="chevron-down" class="h-4 w-4" aria-hidden="true"></i>
+                  </summary>
+                  <div class="balance-period-panel overflow-hidden rounded-lg border border-stone-200 bg-white shadow-lg">
+                    <div class="balance-period-panel-content">
+                      <nav class="balance-period-presets bg-stone-50 p-3 text-sm font-semibold" aria-label="ช่วงเวลารายรับที่เลือกได้">
+                        <a href="?section=finance&income_status={{ income_status }}&income_period=week" class="rounded-md px-3 py-2 {% if income_period == "week" %}bg-amber-100 text-amber-900{% else %}text-slate-700 hover:bg-stone-200{% endif %}">สัปดาห์นี้</a>
+                        <a href="?section=finance&income_status={{ income_status }}&income_period=month" class="rounded-md px-3 py-2 {% if income_period == "month" %}bg-amber-100 text-amber-900{% else %}text-slate-700 hover:bg-stone-200{% endif %}">เดือนนี้</a>
+                        <a href="?section=finance&income_status={{ income_status }}&income_period=quarter" class="rounded-md px-3 py-2 {% if income_period == "quarter" %}bg-amber-100 text-amber-900{% else %}text-slate-700 hover:bg-stone-200{% endif %}">3 เดือนล่าสุด</a>
+                        <a href="?section=finance&income_status={{ income_status }}&income_period=all" class="rounded-md px-3 py-2 {% if income_period == "all" %}bg-amber-100 text-amber-900{% else %}text-slate-700 hover:bg-stone-200{% endif %}">ทั้งหมด</a>
+                      </nav>
+                      <form method="get" class="space-y-4 p-4">
+                        <input type="hidden" name="section" value="finance">
+                        <input type="hidden" name="income_status" value="{{ income_status }}">
+                        <input type="hidden" name="income_q" value="{{ income_query }}">
+                        <input type="hidden" name="income_period" value="custom">
+                        <div><p class="text-sm font-semibold text-slate-950">เลือกช่วงวันที่</p><p class="mt-1 text-sm text-slate-500">เลือกวันเริ่มต้นและวันสิ้นสุดของรายรับ</p></div>
+                        <div class="grid gap-3 sm:grid-cols-2">
+                          <label class="grid gap-1.5 text-sm font-medium text-slate-700">ตั้งแต่วันที่<input type="date" name="income_start" value="{{ income_start|date:"Y-m-d" }}" required class="h-10 rounded-md border border-stone-300 px-3 text-slate-800"></label>
+                          <label class="grid gap-1.5 text-sm font-medium text-slate-700">ถึงวันที่<input type="date" name="income_end" value="{{ income_end|date:"Y-m-d" }}" required class="h-10 rounded-md border border-stone-300 px-3 text-slate-800"></label>
+                        </div>
+                        <div class="flex justify-end"><button type="submit" class="inline-flex h-10 items-center rounded-md bg-leaf px-4 text-sm font-semibold text-white hover:bg-emerald-800">ยืนยันช่วงวันที่</button></div>
+                      </form>
+                    </div>
+                  </div>
+                </details>
+                <a href="{% url 'accounts:income_statement' %}?income_status={{ income_status }}&income_period={{ income_period }}&income_start={{ income_start|date:"Y-m-d" }}&income_end={{ income_end|date:"Y-m-d" }}&income_q={{ income_query }}" target="_blank" rel="noopener" class="inline-flex h-10 items-center gap-2 rounded-md border border-stone-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:border-leaf hover:text-leaf"><i data-lucide="file-text" class="h-4 w-4" aria-hidden="true"></i>ใบสรุปรายรับ</a>
+              </div>
               <div class="overflow-x-auto">
                 <table class="min-w-[800px] w-full text-left text-sm">
                   <thead class="border-b border-stone-200 bg-stone-50 text-slate-700"><tr><th class="px-4 py-3">คำสั่งซื้อ</th><th class="px-4 py-3">{% if income_status == 'transferred' %}เงินที่โอนแล้วเมื่อ{% else %}เริ่มดำเนินการเมื่อ{% endif %}</th><th class="px-4 py-3">สถานะ</th><th class="px-4 py-3">ช่องทางการรับเงิน</th><th class="px-4 py-3 text-right">{% if income_status == 'transferred' %}ยอดที่โอนเงิน{% else %}ยอดรอรับ{% endif %}</th></tr></thead>
@@ -438,27 +460,10 @@
           {% url 'catalog:seller_store' request.user.pk as public_store_url %}
           <section class="space-y-5"><header class="border-b border-stone-300 pb-4"><p class="text-sm font-semibold text-leaf">ศูนย์การตลาด</p><h1 class="mt-1 text-2xl font-semibold text-slate-950">การประชาสัมพันธ์ร้าน</h1><p class="mt-1 text-sm text-slate-600">อัปเดตข้อมูลที่ลูกค้าเห็นและแชร์หน้าร้านให้เข้าถึงสินค้าได้ง่ายขึ้น</p></header><section class="rounded-lg border border-stone-200 bg-white p-6"><p class="text-sm font-semibold text-slate-800">ลิงก์หน้าร้านของคุณ</p><div class="mt-3 flex flex-wrap gap-3"><a href="{{ public_store_url }}" target="_blank" rel="noopener" class="inline-flex h-10 items-center gap-2 rounded-md bg-leaf px-4 text-sm font-semibold text-white hover:bg-emerald-800"><i data-lucide="external-link" class="h-4 w-4" aria-hidden="true"></i>เปิดหน้าร้านสาธารณะ</a><a href="?section=store&mode=settings" class="inline-flex h-10 items-center rounded-md border border-emerald-900/25 px-4 text-sm font-semibold text-leaf hover:bg-emerald-50">แก้ไขชื่อและคำอธิบายร้าน</a></div></section><section class="rounded-lg border border-emerald-200 bg-emerald-50 p-5"><p class="font-semibold text-emerald-900">สิ่งที่ลูกค้าเห็นบนหน้าร้าน</p><p class="mt-2 text-sm leading-6 text-emerald-800">{{ farmer_profile.farm_name|default:request.user.username }}{% if farmer_profile.bio %} · {{ farmer_profile.bio }}{% endif %}</p></section></section>
         {% else %}
-          <section class="space-y-5"><header class="border-b border-stone-300 pb-4"><p class="text-sm font-semibold text-leaf">ศูนย์การตลาด</p><h1 class="mt-1 text-2xl font-semibold text-slate-950">ภาพรวมผลงานร้านค้า</h1></header><section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><div class="rounded-lg border border-stone-200 bg-white p-5"><p class="text-sm text-slate-600">ยอดขายที่ชำระแล้ว</p><p class="mt-2 text-3xl font-semibold text-leaf">฿{{ gross_sales|floatformat:2 }}</p></div><div class="rounded-lg border border-stone-200 bg-white p-5"><p class="text-sm text-slate-600">สินค้าเปิดขาย</p><p class="mt-2 text-3xl font-semibold">{{ active_product_total }}</p></div><div class="rounded-lg border border-stone-200 bg-white p-5"><p class="text-sm text-slate-600">คะแนนรีวิว</p><p class="mt-2 text-3xl font-semibold text-amber-600">{{ review_average|floatformat:1 }}</p></div><div class="rounded-lg border border-stone-200 bg-white p-5"><p class="text-sm text-slate-600">รีวิวทั้งหมด</p><p class="mt-2 text-3xl font-semibold">{{ review_total }}</p></div></section><a href="{% url 'catalog:seller_store' request.user.pk %}" target="_blank" rel="noopener" class="inline-flex h-10 items-center gap-2 rounded-md border border-emerald-900/25 px-4 text-sm font-semibold text-leaf hover:bg-emerald-50"><i data-lucide="external-link" class="h-4 w-4" aria-hidden="true"></i>ดูหน้าร้านสาธารณะ</a></section>
-        {% endif %}
-      {% else %}
-        <section class="space-y-6">
-          <header class="flex flex-wrap items-start justify-between gap-4 rounded-lg border border-emerald-900/20 border-l-4 border-l-leaf bg-white px-6 py-6 shadow-sm"><div><p class="text-sm font-semibold text-leaf">ศูนย์จัดการร้านค้า</p><h1 class="mt-1 text-3xl font-semibold text-slate-950">{{ farmer_profile.farm_name|default:request.user.display_name|default:request.user.username }}</h1><p class="mt-2 text-sm text-slate-600">เลือกเมนูด้านซ้ายเพื่อจัดการคำสั่งซื้อ สินค้า การเงิน และข้อมูลร้านค้า</p></div></header>
-          <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6"><a href="?section=orders&status=pending_payment" class="rounded-lg border border-stone-200 bg-white p-5 shadow-sm"><p class="text-sm text-slate-600">รอชำระเงิน</p><p class="mt-2 text-3xl font-semibold">{{ pending_payment_total }}</p></a><a href="?section=orders&status=preparing" class="rounded-lg border border-stone-200 bg-white p-5 shadow-sm"><p class="text-sm text-slate-600">ที่ต้องจัดส่ง</p><p class="mt-2 text-3xl font-semibold">{{ preparing_total }}</p></a><a href="?section=orders&status=shipping" class="rounded-lg border border-stone-200 bg-white p-5 shadow-sm"><p class="text-sm text-slate-600">กำลังจัดส่ง</p><p class="mt-2 text-3xl font-semibold">{{ shipped_total }}</p></a><a href="?section=orders&status=cancelled&order_menu=cancelled" class="rounded-lg border border-stone-200 bg-white p-5 shadow-sm"><p class="text-sm leading-5 text-slate-600">คำขอคืนเงิน / คืนสินค้า / ยกเลิก</p><p class="mt-2 text-3xl font-semibold {% if refund_or_cancel_total %}text-amber-800{% endif %}">{{ refund_or_cancel_total }}</p></a><a href="?section=products&mode=status" class="rounded-lg border border-stone-200 bg-white p-5 shadow-sm"><p class="text-sm leading-5 text-slate-600">สินค้าที่ละเมิดนโยบาย</p><p class="mt-2 text-3xl font-semibold {% if policy_issue_total %}text-red-700{% else %}text-leaf{% endif %}">{{ policy_issue_total }}</p></a><div class="rounded-lg border border-stone-200 bg-white p-5 shadow-sm"><p class="text-sm text-slate-600">ยอดขายที่ชำระแล้ว</p><p class="mt-2 text-3xl font-semibold text-leaf">฿{{ gross_sales|floatformat:2 }}</p></div></section>
-          <section class="rounded-lg border border-stone-200 bg-white p-5 shadow-sm sm:p-6">
-            <div class="flex flex-wrap items-center justify-between gap-3">
-              <div><h2 class="text-xl font-semibold text-slate-950">ตัวชี้วัดหลัก</h2><p class="mt-1 text-sm text-slate-500">ข้อมูลของวันนี้ เปรียบเทียบกับเมื่อวาน</p></div>
-              <a href="?section=marketing" class="inline-flex h-10 items-center gap-2 text-sm font-semibold text-leaf hover:underline">ดูเพิ่มเติม<i data-lucide="chevron-right" class="h-4 w-4" aria-hidden="true"></i></a>
-            </div>
-            <div class="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
-              <div class="border-t-4 border-blue-600 rounded-md border border-stone-200 bg-white p-5"><p class="text-sm font-medium text-slate-600">ยอดขายวันนี้</p><p class="mt-2 text-2xl font-semibold text-slate-950">฿{{ today_sales_total|floatformat:2 }}</p><p class="mt-3 text-xs text-slate-500">เทียบกับเมื่อวาน <span class="font-semibold {% if today_sales_change > 0 %}text-leaf{% elif today_sales_change < 0 %}text-red-700{% else %}text-slate-600{% endif %}">{{ today_sales_change|floatformat:2 }}%</span></p></div>
-              <div class="rounded-md border border-stone-200 bg-white p-5"><p class="text-sm font-medium text-slate-600">จำนวนผู้เยี่ยมชม</p><p class="mt-2 text-2xl font-semibold text-slate-950">{{ today_store_visitor_total }}</p><p class="mt-3 text-xs text-slate-500">ผู้เยี่ยมชมหน้าร้านไม่ซ้ำในวันนี้</p></div>
-              <div class="rounded-md border border-stone-200 bg-white p-5"><p class="text-sm font-medium text-slate-600">จำนวนการคลิกสินค้า</p><p class="mt-2 text-2xl font-semibold text-slate-950">{{ today_product_click_total }}</p><p class="mt-3 text-xs text-slate-500">จำนวนครั้งที่เปิดดูหน้าสินค้าในวันนี้</p></div>
-              <div class="rounded-md border border-stone-200 bg-white p-5"><p class="text-sm font-medium text-slate-600">ยอดขายไม่รวมค่าจัดส่ง</p><p class="mt-2 text-2xl font-semibold text-slate-950">฿{{ today_product_sales_total|floatformat:2 }}</p><p class="mt-3 text-xs text-slate-500">ยอดหลังหักค่าจัดส่งของวันนี้</p></div>
-              <div class="rounded-md border border-stone-200 bg-white p-5"><p class="text-sm font-medium text-slate-600">คำสั่งซื้อวันนี้</p><p class="mt-2 text-2xl font-semibold text-slate-950">{{ today_order_total }}</p><p class="mt-3 text-xs text-slate-500">เทียบกับเมื่อวาน <span class="font-semibold {% if today_order_change > 0 %}text-leaf{% elif today_order_change < 0 %}text-red-700{% else %}text-slate-600{% endif %}">{{ today_order_change|floatformat:2 }}%</span></p></div>
-              <div class="rounded-md border border-stone-200 bg-white p-5"><p class="text-sm font-medium text-slate-600">อัตราชำระสำเร็จวันนี้</p><p class="mt-2 text-2xl font-semibold text-slate-950">{{ today_payment_success_rate|floatformat:2 }}%</p><p class="mt-3 text-xs text-slate-500">จากคำสั่งซื้อที่สร้างวันนี้</p></div>
-            </div>
-            <section class="mt-6 border-t border-stone-200 pt-5">
-              <div class="flex flex-wrap items-center justify-between gap-3"><div><h3 class="font-semibold text-slate-950">แนวโน้มยอดขาย 7 วันล่าสุด</h3><p class="mt-1 text-sm text-slate-500">ยอดชำระสำเร็จในแต่ละวัน</p></div><p class="text-sm font-semibold text-slate-700">รวม ฿{{ weekly_sales_total|floatformat:2 }}</p></div>
+          <section class="space-y-5">
+            <header class="border-b border-stone-300 pb-4"><p class="text-sm font-semibold text-leaf">ศูนย์การตลาด</p><h1 class="mt-1 text-2xl font-semibold text-slate-950">แนวโน้มยอดขาย</h1><p class="mt-1 text-sm text-slate-600">ติดตามยอดขายที่ชำระสำเร็จของร้านในช่วง 7 วันล่าสุด</p></header>
+            <section class="rounded-lg border border-stone-200 bg-white p-5 shadow-sm sm:p-6">
+              <div class="flex flex-wrap items-center justify-between gap-3"><div><h2 class="text-xl font-semibold text-slate-950">แนวโน้มยอดขาย 7 วันล่าสุด</h2><p class="mt-1 text-sm text-slate-500">ยอดชำระสำเร็จในแต่ละวัน</p></div><p class="text-sm font-semibold text-slate-700">รวม ฿{{ weekly_sales_total|floatformat:2 }}</p></div>
               {% if daily_sales_trend_has_data %}
                 <div class="seller-line-chart mt-5" aria-label="กราฟยอดขาย 7 วันล่าสุด">
                   <svg viewBox="0 0 700 180" role="img" aria-label="กราฟเส้นยอดขาย 7 วันล่าสุด">
@@ -479,7 +484,26 @@
               <p class="mt-3 text-sm text-slate-500">กราฟแสดงยอดขายที่ชำระสำเร็จในแต่ละวัน</p>
             </section>
           </section>
-          <section class="rounded-lg border border-stone-200 bg-white p-6 shadow-sm"><h2 class="text-xl font-semibold text-slate-950">ภาพรวมร้านค้า</h2><div class="mt-5 grid gap-4 sm:grid-cols-3"><div><p class="text-sm text-slate-500">สินค้าทั้งหมด</p><p class="mt-1 text-2xl font-semibold">{{ product_total }}</p></div><div><p class="text-sm text-slate-500">เปิดขายอยู่</p><p class="mt-1 text-2xl font-semibold text-leaf">{{ active_product_total }}</p></div><div><p class="text-sm text-slate-500">สต็อกต่ำ</p><p class="mt-1 text-2xl font-semibold {% if low_stock_total %}text-red-700{% endif %}">{{ low_stock_total }}</p></div></div></section>
+        {% endif %}
+      {% else %}
+        <section class="space-y-6">
+          <header class="flex flex-wrap items-start justify-between gap-4 rounded-lg border border-emerald-900/20 border-l-4 border-l-leaf bg-white px-6 py-6 shadow-sm"><div><p class="text-sm font-semibold text-leaf">ศูนย์จัดการร้านค้า</p><h1 class="mt-1 text-3xl font-semibold text-slate-950">{{ farmer_profile.farm_name|default:request.user.display_name|default:request.user.username }}</h1><p class="mt-2 text-sm text-slate-600">เลือกเมนูด้านซ้ายเพื่อจัดการคำสั่งซื้อ สินค้า การเงิน และข้อมูลร้านค้า</p></div></header>
+          <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6"><a href="?section=orders&status=pending_payment" class="rounded-lg border border-stone-200 bg-white p-5 shadow-sm"><p class="text-sm text-slate-600">รอชำระเงิน</p><p class="mt-2 text-3xl font-semibold">{{ pending_payment_total }}</p></a><a href="?section=orders&status=preparing" class="rounded-lg border border-stone-200 bg-white p-5 shadow-sm"><p class="text-sm text-slate-600">ที่ต้องจัดส่ง</p><p class="mt-2 text-3xl font-semibold">{{ preparing_total }}</p></a><a href="?section=orders&status=shipping" class="rounded-lg border border-stone-200 bg-white p-5 shadow-sm"><p class="text-sm text-slate-600">กำลังจัดส่ง</p><p class="mt-2 text-3xl font-semibold">{{ shipped_total }}</p></a><a href="?section=orders&status=cancelled&order_menu=cancelled" class="rounded-lg border border-stone-200 bg-white p-5 shadow-sm"><p class="text-sm leading-5 text-slate-600">คำขอคืนเงิน / คืนสินค้า / ยกเลิก</p><p class="mt-2 text-3xl font-semibold {% if refund_or_cancel_total %}text-amber-800{% endif %}">{{ refund_or_cancel_total }}</p></a><a href="?section=products&mode=status" class="rounded-lg border border-stone-200 bg-white p-5 shadow-sm"><p class="text-sm leading-5 text-slate-600">สินค้าที่ละเมิดนโยบาย</p><p class="mt-2 text-3xl font-semibold {% if policy_issue_total %}text-red-700{% else %}text-leaf{% endif %}">{{ policy_issue_total }}</p></a><div class="rounded-lg border border-stone-200 bg-white p-5 shadow-sm"><p class="text-sm text-slate-600">ยอดขายที่ชำระแล้ว</p><p class="mt-2 text-3xl font-semibold text-leaf">฿{{ gross_sales|floatformat:2 }}</p></div></section>
+          <section class="rounded-lg border border-stone-200 bg-white p-5 shadow-sm sm:p-6">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div><h2 class="text-xl font-semibold text-slate-950">ตัวชี้วัดหลัก</h2><p class="mt-1 text-sm text-slate-500">ข้อมูลของวันนี้ เปรียบเทียบกับเมื่อวาน</p></div>
+              <a href="?section=marketing" class="inline-flex h-10 items-center gap-2 text-sm font-semibold text-leaf hover:underline">ดูเพิ่มเติม<i data-lucide="chevron-right" class="h-4 w-4" aria-hidden="true"></i></a>
+            </div>
+            <div class="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+              <div class="border-t-4 border-blue-600 rounded-md border border-stone-200 bg-white p-5"><p class="text-sm font-medium text-slate-600">ยอดขายวันนี้</p><p class="mt-2 text-2xl font-semibold text-slate-950">฿{{ today_sales_total|floatformat:2 }}</p><p class="mt-3 text-xs text-slate-500">เทียบกับเมื่อวาน <span class="font-semibold {% if today_sales_change > 0 %}text-leaf{% elif today_sales_change < 0 %}text-red-700{% else %}text-slate-600{% endif %}">{{ today_sales_change|floatformat:2 }}%</span></p></div>
+              <div class="rounded-md border border-stone-200 bg-white p-5"><p class="text-sm font-medium text-slate-600">จำนวนผู้เยี่ยมชม</p><p class="mt-2 text-2xl font-semibold text-slate-950">{{ today_store_visitor_total }}</p><p class="mt-3 text-xs text-slate-500">ผู้เยี่ยมชมหน้าร้านไม่ซ้ำในวันนี้</p></div>
+              <div class="rounded-md border border-stone-200 bg-white p-5"><p class="text-sm font-medium text-slate-600">จำนวนการคลิกสินค้า</p><p class="mt-2 text-2xl font-semibold text-slate-950">{{ today_product_click_total }}</p><p class="mt-3 text-xs text-slate-500">จำนวนครั้งที่เปิดดูหน้าสินค้าในวันนี้</p></div>
+              <div class="rounded-md border border-stone-200 bg-white p-5"><p class="text-sm font-medium text-slate-600">ยอดขายไม่รวมค่าจัดส่ง</p><p class="mt-2 text-2xl font-semibold text-slate-950">฿{{ today_product_sales_total|floatformat:2 }}</p><p class="mt-3 text-xs text-slate-500">ยอดหลังหักค่าจัดส่งของวันนี้</p></div>
+              <div class="rounded-md border border-stone-200 bg-white p-5"><p class="text-sm font-medium text-slate-600">คำสั่งซื้อวันนี้</p><p class="mt-2 text-2xl font-semibold text-slate-950">{{ today_order_total }}</p><p class="mt-3 text-xs text-slate-500">เทียบกับเมื่อวาน <span class="font-semibold {% if today_order_change > 0 %}text-leaf{% elif today_order_change < 0 %}text-red-700{% else %}text-slate-600{% endif %}">{{ today_order_change|floatformat:2 }}%</span></p></div>
+              <div class="rounded-md border border-stone-200 bg-white p-5"><p class="text-sm font-medium text-slate-600">อัตราชำระสำเร็จวันนี้</p><p class="mt-2 text-2xl font-semibold text-slate-950">{{ today_payment_success_rate|floatformat:2 }}%</p><p class="mt-3 text-xs text-slate-500">จากคำสั่งซื้อที่สร้างวันนี้</p></div>
+            </div>
+          </section>
+          <section class="rounded-lg border border-stone-200 bg-white p-6 shadow-sm"><h2 class="text-xl font-semibold text-slate-950">ภาพรวมร้านค้า</h2><div class="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3"><div><p class="text-sm text-slate-500">ยอดขายที่ชำระแล้ว</p><p class="mt-1 text-2xl font-semibold text-leaf">฿{{ gross_sales|floatformat:2 }}</p></div><div><p class="text-sm text-slate-500">สินค้าเปิดขาย</p><p class="mt-1 text-2xl font-semibold text-leaf">{{ active_product_total }}</p></div><div><p class="text-sm text-slate-500">คะแนนรีวิว</p><p class="mt-1 text-2xl font-semibold text-amber-600">{{ review_average|floatformat:1 }}</p></div><div><p class="text-sm text-slate-500">รีวิวทั้งหมด</p><p class="mt-1 text-2xl font-semibold">{{ review_total }}</p></div><div><p class="text-sm text-slate-500">สินค้าทั้งหมด</p><p class="mt-1 text-2xl font-semibold">{{ product_total }}</p></div><div><p class="text-sm text-slate-500">สต็อกต่ำ</p><p class="mt-1 text-2xl font-semibold {% if low_stock_total %}text-red-700{% endif %}">{{ low_stock_total }}</p></div></div></section>
         </section>
       {% endif %}
     </main>
