@@ -27,21 +27,25 @@ ALLOWED_STATUS_TRANSITIONS = {
 }
 
 
-def shipping_fee_for(order):
-    subtotal = Decimal(order.subtotal)
+def shipping_fee_for_values(province, subtotal, weight_grams):
+    subtotal = Decimal(subtotal)
     rule = ShippingRate.objects.filter(
-        province__iexact=order.shipping_province.strip(),
+        province__iexact=province.strip(),
         is_active=True,
     ).first()
     if rule is None:
         rule = ShippingRate.objects.filter(province="", is_active=True).first()
 
     if rule is None:
-        threshold = Decimal(settings.FREE_SHIPPING_THRESHOLD)
-        return Decimal("0.00") if subtotal >= threshold else Decimal(settings.FLAT_SHIPPING_FEE)
+        return Decimal(settings.FLAT_SHIPPING_FEE)
     if rule.free_shipping_threshold is not None and subtotal >= rule.free_shipping_threshold:
         return Decimal("0.00")
 
+    weight_kg = Decimal(weight_grams) / Decimal("1000")
+    return (rule.base_fee + (rule.fee_per_kg * weight_kg)).quantize(Decimal("0.01"))
+
+
+def shipping_fee_for(order):
     weight_grams = sum(
         (
             Decimal(item.product.weight_grams or 0) * item.quantity
@@ -49,8 +53,11 @@ def shipping_fee_for(order):
         ),
         Decimal("0"),
     )
-    weight_kg = weight_grams / Decimal("1000")
-    return (rule.base_fee + (rule.fee_per_kg * weight_kg)).quantize(Decimal("0.01"))
+    return shipping_fee_for_values(
+        order.shipping_province,
+        order.subtotal,
+        weight_grams,
+    )
 
 @transaction.atomic
 def release_coupon(order):

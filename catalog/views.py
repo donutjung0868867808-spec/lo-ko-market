@@ -3,7 +3,8 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.management import call_command
 from django.db import transaction
-from django.db.models import Avg, Count, Max, Prefetch, Q, Sum
+from django.db.models import Avg, Count, DecimalField, Max, OuterRef, Prefetch, Q, Subquery, Sum, Value
+from django.db.models.functions import Coalesce
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
@@ -12,7 +13,7 @@ from accounts.decorators import role_required, user_community
 from accounts.models import AuditEvent, Community, Notification, Report, User
 from accounts.services import record_audit
 
-from orders.models import Order
+from orders.models import Order, OrderItem
 
 from accounts.forms import ReportForm
 from .forms import ProductForm, ProductImageForm, ProductReviewForm
@@ -121,7 +122,28 @@ def filtered_products(request):
         products = products.filter(category_id=category_id)
     if community_id:
         products = products.filter(community_id=community_id)
-    return products
+    sold_quantity = (
+        OrderItem.objects.filter(
+            product_id=OuterRef("pk"),
+            order__payment_status=Order.PaymentStatus.PAID,
+        )
+        .exclude(
+            order__status__in=[Order.Status.CANCELLED, Order.Status.REFUNDED]
+        )
+        .values("product_id")
+        .annotate(total=Sum("quantity"))
+        .values("total")[:1]
+    )
+    quantity_field = DecimalField(max_digits=10, decimal_places=2)
+    return products.annotate(
+        card_average_rating=Avg("reviews__rating"),
+        card_review_count=Count("reviews"),
+        card_sold_quantity=Coalesce(
+            Subquery(sold_quantity, output_field=quantity_field),
+            Value(0),
+            output_field=quantity_field,
+        ),
+    )
 
 
 def product_list(request):

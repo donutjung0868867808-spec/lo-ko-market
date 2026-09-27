@@ -77,6 +77,53 @@ class ProductCatalogTests(TestCase):
 
         self.assertContains(response, "ข้าวอินทรีย์")
 
+    def test_product_card_shows_review_score_and_paid_sales_quantity(self):
+        product = Product.objects.create(
+            seller=self.farmer,
+            community=self.community,
+            name="Kale",
+            description="Fresh kale",
+            price=Decimal("120.00"),
+            stock_quantity=Decimal("20.00"),
+            status=Product.Status.ACTIVE,
+        )
+        buyer = User.objects.create_user(
+            username="product-card-buyer",
+            password="pass",
+            role=User.Roles.CONSUMER,
+        )
+        second_buyer = User.objects.create_user(
+            username="product-card-second-buyer",
+            password="pass",
+            role=User.Roles.CONSUMER,
+        )
+        ProductReview.objects.create(product=product, user=buyer, rating=5)
+        ProductReview.objects.create(product=product, user=second_buyer, rating=3)
+        order = Order.objects.create(
+            buyer=buyer,
+            seller=self.farmer,
+            community=self.community,
+            status=Order.Status.COMPLETED,
+            payment_status=Order.PaymentStatus.PAID,
+            shipping_name="Buyer",
+            shipping_phone="0811111111",
+            shipping_address="Chiang Mai",
+        )
+        OrderItem.objects.create(
+            order=order,
+            product=product,
+            product_name=product.name,
+            unit=product.unit,
+            quantity=Decimal("8.00"),
+            unit_price=product.price,
+        )
+
+        response = self.client.get(reverse("catalog:product_list"))
+
+        self.assertContains(response, "4.0")
+        self.assertContains(response, "2 รีวิว")
+        self.assertContains(response, "ขายแล้ว 8 กิโลกรัม")
+
     def test_category_uses_its_cover_image_on_marketplace(self):
         category = Category.objects.create(
             name="category cover",

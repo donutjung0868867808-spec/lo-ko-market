@@ -23,10 +23,12 @@ from .services import (
     reserve_order_stock,
     ship_order,
     shipping_fee_for,
+    shipping_fee_for_values,
 )
 
 
 CART_SESSION_KEY = "cart"
+CHECKOUT_QUANTITY_SESSION_KEY = "checkout_quantities"
 
 
 def parse_quantity(value, default=Decimal("1.00"), step=Decimal("0.50")):
@@ -143,23 +145,64 @@ def buyer_initial(user):
         "shipping_name": user.display_name or user.get_full_name() or user.username,
         "shipping_phone": user.phone,
     }
-    address = user.delivery_addresses.filter(is_default=True).first()
+    address = default_delivery_address(user)
     if address:
-        address_parts = [address.address_line]
-        if address.subdistrict:
-            address_parts.append(f"ตำบล/แขวง {address.subdistrict}")
-        if address.district:
-            address_parts.append(f"อำเภอ/เขต {address.district}")
-        initial.update(
-            {
-                "shipping_name": address.recipient_name,
-                "shipping_phone": address.phone,
-                "shipping_address": " ".join(address_parts),
-                "shipping_province": address.province,
-                "shipping_postal_code": address.postal_code,
-            }
-        )
+        initial.update(shipping_details_from_address(address))
     return initial
+
+
+def default_delivery_address(user):
+    return user.delivery_addresses.order_by("-is_default", "-updated_at").first()
+
+
+def shipping_details_from_address(address):
+    address_parts = [address.address_line]
+    if address.subdistrict:
+        address_parts.append(f"ตำบล/แขวง {address.subdistrict}")
+    if address.district:
+        address_parts.append(f"อำเภอ/เขต {address.district}")
+    return {
+        "shipping_name": address.recipient_name,
+        "shipping_phone": address.phone,
+        "shipping_address": " ".join(address_parts),
+        "shipping_province": address.province,
+        "shipping_postal_code": address.postal_code,
+    }
+
+
+def preview_shipping_fee(items, province):
+    if not province:
+        return Decimal("0.00")
+
+    grouped_items = {}
+    for item in items:
+        product = item["product"]
+        quantity = Decimal(item["quantity"])
+        group = grouped_items.setdefault(
+            (product.seller_id, product.community_id),
+            {"subtotal": Decimal("0.00"), "weight_grams": Decimal("0.00")},
+        )
+        group["subtotal"] += product.price * quantity
+        group["weight_grams"] += Decimal(product.weight_grams or 0) * quantity
+
+    return sum(
+        (
+            shipping_fee_for_values(
+                province,
+                group["subtotal"],
+                group["weight_grams"],
+            )
+            for group in grouped_items.values()
+        ),
+        Decimal("0.00"),
+    )
+
+
+def checkout_payment_redirect(order, payment_method):
+    url = reverse("payments:create_checkout", args=[order.pk])
+    if payment_method == "promptpay":
+        url = f"{url}?payment_method=promptpay"
+    return redirect(url)
 
 
 def finalize_order(order):
@@ -349,7 +392,14 @@ def cart_checkout(request):
         selected_items = items
         selected_item_ids = {item["product"].pk for item in items}
 
+    delivery_address = default_delivery_address(request.user)
     form = CartCheckoutForm(request.POST or None, initial=buyer_initial(request.user))
+    preview_shipping = preview_shipping_fee(
+        selected_items,
+        delivery_address.province if delivery_address else "",
+    )
+    preview_discount = Decimal("0.00")
+    preview_grand_total = total + preview_shipping - preview_discount
     if request.method == "GET":
         if not selection_submitted or not selected_items:
             messages.warning(request, "กรุณาเลือกสินค้าอย่างน้อย 1 รายการ")
@@ -357,12 +407,23 @@ def cart_checkout(request):
         return render(
             request,
             "orders/cart_checkout.html",
-            {"items": selected_items, "total": total, "form": form},
+            {
+                "items": selected_items,
+                "total": total,
+                "form": form,
+                "delivery_address": delivery_address,
+                "preview_shipping": preview_shipping,
+                "preview_discount": preview_discount,
+                "preview_grand_total": preview_grand_total,
+            },
         )
 
     if selection_submitted and not selected_items:
         form.add_error(None, "กรุณาเลือกสินค้าอย่างน้อย 1 รายการ")
+    elif not delivery_address:
+        form.add_error(None, "กรุณาเพิ่มที่อยู่จัดส่งก่อนยืนยันคำสั่งซื้อ")
     elif form.is_valid():
+        shipping_details = shipping_details_from_address(delivery_address)
         cart = request.session.get(CART_SESSION_KEY, {})
         errors = []
         created_orders = []
@@ -410,11 +471,7 @@ def cart_checkout(request):
                         buyer=request.user,
                         seller=first_product.seller,
                         community=first_product.community,
-                        shipping_name=form.cleaned_data["shipping_name"],
-                        shipping_phone=form.cleaned_data["shipping_phone"],
-                        shipping_address=form.cleaned_data["shipping_address"],
-                        shipping_province=form.cleaned_data["shipping_province"],
-                        shipping_postal_code=form.cleaned_data["shipping_postal_code"],
+                        **shipping_details,
                         note=form.cleaned_data["note"],
                     )
                     for item in grouped_items:
@@ -444,7 +501,10 @@ def cart_checkout(request):
             request.session[CART_SESSION_KEY] = cart
             request.session.modified = True
             if len(created_orders) == 1:
-                return redirect("payments:create_checkout", order_id=created_orders[0].pk)
+                return checkout_payment_redirect(
+                    created_orders[0],
+                    form.cleaned_data.get("payment_method") or "card",
+                )
             messages.success(request, f"สร้างคำสั่งซื้อ {len(created_orders)} รายการแล้ว กรุณาชำระเงินแยกตามผู้ขาย")
             return redirect("orders:order_list")
 
@@ -455,6 +515,10 @@ def cart_checkout(request):
             "items": selected_items,
             "total": total,
             "form": form,
+            "delivery_address": delivery_address,
+            "preview_shipping": preview_shipping,
+            "preview_discount": preview_discount,
+            "preview_grand_total": preview_grand_total,
         },
     )
 
@@ -473,16 +537,43 @@ def checkout(request, product_id):
     if product.seller_id == request.user.id:
         messages.info(request, "ไม่สามารถซื้อสินค้าจากร้านค้าของตัวเองได้")
         return redirect(product)
-    requested_quantity = parse_quantity(
-        request.GET.get("quantity"),
-        default=product.minimum_order_quantity,
-        step=product.quantity_step,
-    )
-    initial = {"quantity": requested_quantity, **buyer_initial(request.user)}
-    form = CheckoutForm(request.POST or None, initial=initial, product=product)
+    checkout_quantities = request.session.get(CHECKOUT_QUANTITY_SESSION_KEY, {})
+    if request.method == "GET":
+        selected_quantity = parse_quantity(
+            request.GET.get("quantity"),
+            default=product.minimum_order_quantity,
+            step=product.quantity_step,
+        )
+        checkout_quantities[str(product.pk)] = str(selected_quantity)
+        request.session[CHECKOUT_QUANTITY_SESSION_KEY] = checkout_quantities
+        request.session.modified = True
+    else:
+        selected_quantity = parse_quantity(
+            checkout_quantities.get(str(product.pk)),
+            default=product.minimum_order_quantity,
+            step=product.quantity_step,
+        )
 
-    if request.method == "POST" and form.is_valid():
+    delivery_address = default_delivery_address(request.user)
+    initial = {"quantity": selected_quantity, **buyer_initial(request.user)}
+    form_data = request.POST.copy() if request.method == "POST" else None
+    if form_data is not None:
+        # Keep the quantity chosen before checkout; never trust a browser-side edit here.
+        form_data["quantity"] = str(selected_quantity)
+    form = CheckoutForm(form_data, initial=initial, product=product)
+    preview_total = product.price * selected_quantity
+    preview_shipping = preview_shipping_fee(
+        [{"product": product, "quantity": selected_quantity}],
+        delivery_address.province if delivery_address else "",
+    )
+    preview_discount = Decimal("0.00")
+    preview_grand_total = preview_total + preview_shipping - preview_discount
+
+    if request.method == "POST" and not delivery_address:
+        form.add_error(None, "กรุณาเพิ่มที่อยู่จัดส่งก่อนยืนยันคำสั่งซื้อ")
+    elif request.method == "POST" and form.is_valid():
         quantity = form.cleaned_data["quantity"]
+        shipping_details = shipping_details_from_address(delivery_address)
         with transaction.atomic():
             product = Product.objects.select_for_update().get(pk=product.pk)
             if quantity > available_quantity(product):
@@ -492,11 +583,7 @@ def checkout(request, product_id):
                     buyer=request.user,
                     seller=product.seller,
                     community=product.community,
-                    shipping_name=form.cleaned_data["shipping_name"],
-                    shipping_phone=form.cleaned_data["shipping_phone"],
-                    shipping_address=form.cleaned_data["shipping_address"],
-                    shipping_province=form.cleaned_data["shipping_province"],
-                    shipping_postal_code=form.cleaned_data["shipping_postal_code"],
+                    **shipping_details,
                     note=form.cleaned_data["note"],
                 )
                 OrderItem.objects.create(
@@ -513,9 +600,28 @@ def checkout(request, product_id):
                     form.add_error(None, exc.message)
                     transaction.set_rollback(True)
                 else:
-                    return redirect("payments:create_checkout", order_id=order.pk)
+                    checkout_quantities.pop(str(product.pk), None)
+                    request.session[CHECKOUT_QUANTITY_SESSION_KEY] = checkout_quantities
+                    request.session.modified = True
+                    return checkout_payment_redirect(
+                        order,
+                        form.cleaned_data.get("payment_method") or "card",
+                    )
 
-    return render(request, "orders/checkout.html", {"form": form, "product": product})
+    return render(
+        request,
+        "orders/checkout.html",
+        {
+            "form": form,
+            "product": product,
+            "preview_quantity": selected_quantity,
+            "preview_total": preview_total,
+            "preview_shipping": preview_shipping,
+            "preview_discount": preview_discount,
+            "preview_grand_total": preview_grand_total,
+            "delivery_address": delivery_address,
+        },
+    )
 
 
 @login_required

@@ -82,6 +82,8 @@
 
     const setMethod = (method) => {
       const isCard = method === 'card';
+      const selectedInput = form.querySelector(\`input[name="payment_method"][value="\${method}"]\`);
+      if (selectedInput) selectedInput.checked = true;
       cardFields.hidden = !isCard;
       promptPayFields.hidden = isCard;
       cardInputs.forEach((input) => {
@@ -101,7 +103,7 @@
     form.querySelectorAll('input[name="payment_method"]').forEach((input) => {
       input.addEventListener('change', () => setMethod(input.value));
     });
-    setMethod('card');
+    setMethod('{{ selected_payment_method|default:"card" }}');
   })();
 </script>
 {% endblock %}

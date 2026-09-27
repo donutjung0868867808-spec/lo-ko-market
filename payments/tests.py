@@ -92,6 +92,26 @@ class PaymentWorkflowTests(TestCase):
         self.assertEqual(payment.status, Payment.Status.PAID)
         self.assertEqual(payment.raw_payload["payment_method"], "promptpay")
 
+    @override_settings(DEBUG=True, PAYMENT_MODE="test", STRIPE_SECRET_KEY="")
+    def test_checkout_keeps_promptpay_selected_in_demo_payment(self):
+        self.client.force_login(self.buyer)
+
+        response = self.client.get(
+            reverse("payments:create_checkout", args=[self.order.pk]),
+            {"payment_method": "promptpay"},
+        )
+
+        self.assertRedirects(
+            response,
+            f"{reverse('payments:demo_checkout', args=[self.order.pk])}?payment_method=promptpay",
+            fetch_redirect_response=False,
+        )
+        response = self.client.get(
+            reverse("payments:demo_checkout", args=[self.order.pk]),
+            {"payment_method": "promptpay"},
+        )
+        self.assertEqual(response.context["selected_payment_method"], "promptpay")
+
     @override_settings(DEBUG=False, PAYMENT_MODE="live", STRIPE_SECRET_KEY="", SECURE_SSL_REDIRECT=False)
     def test_checkout_without_provider_in_live_mode_fails_safely(self):
         self.client.force_login(self.buyer)

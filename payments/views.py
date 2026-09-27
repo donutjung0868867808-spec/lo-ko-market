@@ -64,11 +64,16 @@ def start_demo_checkout(order, payment, request):
         order.expires_at = checkout_expires_at
         order.save(update_fields=["expires_at", "updated_at"])
 
+    payment_method = request.GET.get("payment_method", "card")
+    if payment_method not in {"card", "promptpay"}:
+        payment_method = "card"
+    demo_url = reverse("payments:demo_checkout", args=[order.pk])
+    if payment_method == "promptpay":
+        demo_url = f"{demo_url}?payment_method=promptpay"
+
     payment.status = Payment.Status.PROCESSING
     payment.checkout_session_id = f"demo-{payment.checkout_attempt_id.hex}"
-    payment.checkout_url = request.build_absolute_uri(
-        reverse("payments:demo_checkout", args=[order.pk])
-    )
+    payment.checkout_url = request.build_absolute_uri(demo_url)
     payment.checkout_expires_at = checkout_expires_at
     payment.save(
         update_fields=[
@@ -81,7 +86,7 @@ def start_demo_checkout(order, payment, request):
     )
     order.payment_status = Order.PaymentStatus.PROCESSING
     order.save(update_fields=["payment_status", "updated_at"])
-    return redirect("payments:demo_checkout", order_id=order.pk)
+    return redirect(demo_url)
 
 
 def stripe_client():
@@ -207,6 +212,9 @@ def mark_session_paid(session, payload=None):
 @login_required
 def create_checkout_session(request, order_id):
     accessible_order = get_object_or_404(Order, pk=order_id, buyer=request.user)
+    payment_method = request.GET.get("payment_method", "card")
+    if payment_method not in {"card", "promptpay"}:
+        payment_method = "card"
 
     with transaction.atomic():
         payment = Payment.objects.select_for_update().filter(order_id=accessible_order.pk).first()
@@ -314,6 +322,7 @@ def create_checkout_session(request, order_id):
                 metadata={"order_id": str(order.pk), "reference": order.reference},
                 payment_intent_data={"transfer_group": order.reference},
                 client_reference_id=order.reference,
+                payment_method_types=[payment_method],
                 **customer_arguments,
                 expires_at=int(checkout_expires_at.timestamp()),
                 idempotency_key=f"checkout-{order.pk}-{payment.checkout_attempt_id}",
@@ -365,7 +374,18 @@ def demo_checkout(request, order_id):
         cancel_unpaid_order(order, changed_by=request.user, note="หมดเวลาชำระเงินทดลอง")
         messages.error(request, "รายการชำระเงินหมดเวลาแล้ว")
         return redirect(order)
-    return render(request, "payments/demo_checkout.html", {"order": order, "payment": payment})
+    payment_method = request.GET.get("payment_method", "card")
+    if payment_method not in {"card", "promptpay"}:
+        payment_method = "card"
+    return render(
+        request,
+        "payments/demo_checkout.html",
+        {
+            "order": order,
+            "payment": payment,
+            "selected_payment_method": payment_method,
+        },
+    )
 
 
 @login_required

@@ -8,10 +8,17 @@ from catalog.forms import StyledFormMixin
 from .models import Order
 
 
+PAYMENT_METHOD_CHOICES = (
+    ("card", "บัตรเครดิต / เดบิต"),
+    ("promptpay", "PromptPay QR"),
+)
+
+
 class CheckoutForm(StyledFormMixin, forms.Form):
     def __init__(self, *args, product=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.product = product
+        self.fields["payment_method"].widget.attrs["class"] = "sr-only"
         if product is not None:
             step = product.quantity_step
             minimum = (product.minimum_order_quantity / step).to_integral_value(rounding=ROUND_CEILING) * step
@@ -53,9 +60,20 @@ class CheckoutForm(StyledFormMixin, forms.Form):
         required=False,
         widget=forms.Textarea(attrs={"rows": 3}),
     )
+    payment_method = forms.ChoiceField(
+        label="ช่องทางการชำระเงิน",
+        choices=PAYMENT_METHOD_CHOICES,
+        initial="card",
+        required=False,
+        widget=forms.RadioSelect,
+    )
 
 
 class CartCheckoutForm(StyledFormMixin, forms.Form):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["payment_method"].widget.attrs["class"] = "sr-only"
+
     shipping_name = forms.CharField(label="ชื่อผู้รับ", max_length=180)
     shipping_phone = forms.CharField(label="เบอร์โทรศัพท์", max_length=30)
     shipping_address = forms.CharField(
@@ -72,6 +90,13 @@ class CartCheckoutForm(StyledFormMixin, forms.Form):
         label="หมายเหตุ",
         required=False,
         widget=forms.Textarea(attrs={"rows": 3}),
+    )
+    payment_method = forms.ChoiceField(
+        label="ช่องทางการชำระเงิน",
+        choices=PAYMENT_METHOD_CHOICES,
+        initial="card",
+        required=False,
+        widget=forms.RadioSelect,
     )
 
 

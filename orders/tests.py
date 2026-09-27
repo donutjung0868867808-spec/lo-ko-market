@@ -3,13 +3,20 @@ from decimal import Decimal
 from django.test import TestCase
 from django.urls import reverse
 
-from accounts.models import Community, FarmerProfile, Report, User
+from accounts.models import Community, DeliveryAddress, FarmerProfile, Report, User
 from catalog.models import Product
 
 from .models import Order, OrderItem, OrderStatusHistory, Shipment, ShippingRate
+from .services import shipping_fee_for_values
 
 
 class OrderModelTests(TestCase):
+    def test_standard_shipping_fee_applies_without_a_province_rate(self):
+        self.assertEqual(
+            shipping_fee_for_values("สกลนคร", Decimal("1000.00"), Decimal("0.00")),
+            Decimal("50.00"),
+        )
+
     def test_refresh_total_sums_line_items(self):
         community = Community.objects.create(
             name="ชุมชนทดสอบ",
@@ -146,6 +153,17 @@ class CartWorkflowTests(TestCase):
             price=Decimal("25.00"),
             stock_quantity=Decimal("10.00"),
             status=Product.Status.ACTIVE,
+        )
+        self.delivery_address = DeliveryAddress.objects.create(
+            user=self.buyer,
+            recipient_name="ผู้ซื้อจากสมุดที่อยู่",
+            phone="0811111111",
+            address_line="9 Market Road",
+            subdistrict="เมือง",
+            district="เมือง",
+            province="เชียงใหม่",
+            postal_code="50000",
+            is_default=True,
         )
 
     def test_consumer_can_add_product_to_cart(self):
@@ -449,6 +467,29 @@ class CartWorkflowTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["form"].initial["quantity"], Decimal("3.50"))
+        self.assertContains(response, "จำนวนที่เลือก")
+        self.assertNotContains(response, 'for="id_quantity"')
+
+    def test_direct_checkout_keeps_the_quantity_selected_before_checkout(self):
+        self.client.force_login(self.buyer)
+        self.client.get(reverse("orders:checkout", args=[self.product.pk]), {"quantity": "2"})
+
+        response = self.client.post(
+            reverse("orders:checkout", args=[self.product.pk]),
+            {
+                "quantity": "8",
+                "shipping_name": "ข้อมูลที่แก้ในเบราว์เซอร์",
+                "shipping_phone": "0800000000",
+                "shipping_address": "ไม่ควรถูกนำไปใช้",
+                "shipping_province": "กรุงเทพมหานคร",
+                "shipping_postal_code": "10100",
+                "note": "",
+            },
+        )
+
+        order = Order.objects.get(buyer=self.buyer, seller=self.seller)
+        self.assertRedirects(response, reverse("payments:create_checkout", args=[order.pk]), fetch_redirect_response=False)
+        self.assertEqual(order.items.get().quantity, Decimal("2.00"))
 
     def test_cart_checkout_creates_order(self):
         self.client.force_login(self.buyer)
@@ -476,6 +517,53 @@ class CartWorkflowTests(TestCase):
         self.product.refresh_from_db()
         self.assertEqual(self.product.stock_quantity, Decimal("7.00"))
         self.assertEqual(self.client.session.get("cart"), {})
+
+    def test_cart_checkout_uses_saved_delivery_address(self):
+        self.client.force_login(self.buyer)
+        self.client.post(reverse("orders:cart_add", args=[self.product.pk]), {"quantity": "1"})
+
+        response = self.client.post(
+            reverse("orders:cart_checkout"),
+            {
+                "shipping_name": "ข้อมูลที่แก้ในเบราว์เซอร์",
+                "shipping_phone": "0800000000",
+                "shipping_address": "ไม่ควรถูกนำไปใช้",
+                "shipping_province": "กรุงเทพมหานคร",
+                "shipping_postal_code": "10100",
+                "note": "",
+            },
+        )
+
+        order = Order.objects.get(buyer=self.buyer, seller=self.seller)
+        self.assertRedirects(response, reverse("payments:create_checkout", args=[order.pk]), fetch_redirect_response=False)
+        self.assertEqual(order.shipping_name, self.delivery_address.recipient_name)
+        self.assertEqual(order.shipping_phone, self.delivery_address.phone)
+        self.assertEqual(order.shipping_province, self.delivery_address.province)
+        self.assertEqual(order.shipping_postal_code, self.delivery_address.postal_code)
+
+    def test_cart_checkout_passes_promptpay_to_payment_page(self):
+        self.client.force_login(self.buyer)
+        self.client.post(reverse("orders:cart_add", args=[self.product.pk]), {"quantity": "1"})
+
+        response = self.client.post(
+            reverse("orders:cart_checkout"),
+            {
+                "shipping_name": "Cart buyer",
+                "shipping_phone": "0899999999",
+                "shipping_address": "9 Market Road",
+                "shipping_province": "Chiang Mai",
+                "shipping_postal_code": "50000",
+                "note": "",
+                "payment_method": "promptpay",
+            },
+        )
+
+        order = Order.objects.get(buyer=self.buyer, seller=self.seller)
+        self.assertRedirects(
+            response,
+            f"{reverse('payments:create_checkout', args=[order.pk])}?payment_method=promptpay",
+            fetch_redirect_response=False,
+        )
 
     def test_cart_checkout_only_orders_selected_products(self):
         other_product = Product.objects.create(
@@ -595,6 +683,13 @@ class CartWorkflowTests(TestCase):
         self.client.force_login(self.buyer)
         self.client.post(reverse("orders:cart_add", args=[self.product.pk]), {"quantity": "3"})
 
+        preview_response = self.client.get(
+            reverse("orders:cart_checkout"),
+            {"cart_selection": "1", "selected_items": str(self.product.pk)},
+        )
+        self.assertEqual(preview_response.context["preview_shipping"], Decimal("90.00"))
+        self.assertEqual(preview_response.context["preview_grand_total"], Decimal("165.00"))
+
         self.client.post(
             reverse("orders:cart_checkout"),
             {
@@ -611,13 +706,15 @@ class CartWorkflowTests(TestCase):
         self.assertEqual(order.shipping_fee, Decimal("90.00"))
         self.assertEqual(order.total_amount, Decimal("165.00"))
 
-    def test_checkout_rejects_invalid_postal_code(self):
+    def test_cart_checkout_shows_saved_address_instead_of_edit_fields(self):
         self.client.force_login(self.buyer)
         self.client.post(reverse("orders:cart_add", args=[self.product.pk]), {"quantity": "1"})
 
-        response = self.client.post(
+        response = self.client.get(
             reverse("orders:cart_checkout"),
             {
+                "cart_selection": "1",
+                "selected_items": str(self.product.pk),
                 "shipping_name": "ผู้รับสินค้า",
                 "shipping_phone": "0899999999",
                 "shipping_address": "บ้านเลขที่ 9",
@@ -628,8 +725,9 @@ class CartWorkflowTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "กรุณากรอกรหัสไปรษณีย์ 5 หลัก")
-        self.assertFalse(Order.objects.filter(buyer=self.buyer).exists())
+        self.assertContains(response, self.delivery_address.recipient_name)
+        self.assertContains(response, self.delivery_address.full_address)
+        self.assertNotContains(response, '<label class="text-sm font-semibold text-slate-700" for="id_shipping_name">')
 
 
 class BuyerReportTests(TestCase):
@@ -679,6 +777,17 @@ class InventoryReservationTests(TestCase):
             price=Decimal("100.00"),
             stock_quantity=Decimal("5.00"),
             status=Product.Status.ACTIVE,
+        )
+        DeliveryAddress.objects.create(
+            user=self.buyer,
+            recipient_name="ผู้รับ",
+            phone="0800000000",
+            address_line="ที่อยู่",
+            subdistrict="เมือง",
+            district="เมือง",
+            province="น่าน",
+            postal_code="55000",
+            is_default=True,
         )
 
     def test_buyer_cancel_restores_reserved_stock(self):
