@@ -210,11 +210,43 @@ class Product(models.Model):
         default=Decimal("0.50"),
         validators=[MinValueValidator(Decimal("0.50"))],
     )
+    maximum_order_quantity = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0.50"))],
+        verbose_name="จำนวนสั่งซื้อสูงสุดต่อคำสั่งซื้อ",
+    )
     low_stock_threshold = models.DecimalField(
         max_digits=10, decimal_places=2, default=5, validators=[MinValueValidator(0)]
     )
     last_low_stock_notified_at = models.DateTimeField(null=True, blank=True)
     weight_grams = models.PositiveIntegerField(null=True, blank=True)
+    gtin = models.CharField(max_length=14, null=True, blank=True, verbose_name="รหัส GTIN")
+    package_length_cm = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1)],
+        verbose_name="ความยาวพัสดุ (ซม.)",
+    )
+    package_width_cm = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1)],
+        verbose_name="ความกว้างพัสดุ (ซม.)",
+    )
+    package_height_cm = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1)],
+        verbose_name="ความสูงพัสดุ (ซม.)",
+    )
+    preparation_days = models.PositiveSmallIntegerField(
+        default=1,
+        validators=[MaxValueValidator(14)],
+        verbose_name="ระยะเวลาเตรียมสินค้า (วัน)",
+    )
     image = models.FileField(
         "รูปภาพหลัก",
         upload_to="products/",
@@ -281,8 +313,14 @@ class Product(models.Model):
         return self.quantity_step_for_unit(self.unit)
 
     @property
+    def orderable_quantity(self):
+        if self.maximum_order_quantity is None:
+            return self.stock_quantity
+        return min(self.stock_quantity, self.maximum_order_quantity)
+
+    @property
     def is_available(self):
-        return self.status == self.Status.ACTIVE and self.stock_quantity >= self.quantity_step
+        return self.status == self.Status.ACTIVE and self.orderable_quantity >= self.quantity_step
 
     def approve(self, staff_user):
         self.status = self.Status.ACTIVE

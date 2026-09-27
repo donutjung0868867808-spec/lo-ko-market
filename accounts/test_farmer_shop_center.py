@@ -7,7 +7,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from catalog.models import Category, Product, ProductImage, ProductReview
+from catalog.models import Category, Product, ProductImage, ProductReview, StockMovement
 from orders.models import Order
 from payments.models import Payment, SellerSettlement
 
@@ -243,6 +243,37 @@ class FarmerShopCenterTests(TestCase):
             response,
             'href="?section=orders" class="block px-6 py-2 text-slate-700 hover:bg-emerald-50 hover:text-leaf"',
         )
+
+    def test_seller_center_product_create_requires_weight_and_records_initial_stock(self):
+        payload = {
+            "shop_action": "create_product",
+            "name": "New seller-center product",
+            "description": "Product created from the seller center.",
+            "unit": Product.Unit.KG,
+            "price": "45.00",
+            "stock_quantity": "8.00",
+            "minimum_order_quantity": "0.50",
+            "low_stock_threshold": "2.00",
+        }
+
+        missing_weight = self.client.post(reverse("accounts:farmer_shop_center"), payload)
+
+        self.assertEqual(missing_weight.status_code, 200)
+        self.assertFalse(Product.objects.filter(name=payload["name"]).exists())
+
+        response = self.client.post(
+            reverse("accounts:farmer_shop_center"),
+            {**payload, "weight_grams": "750"},
+        )
+
+        self.assertRedirects(
+            response,
+            f"{reverse('accounts:farmer_shop_center')}?section=products",
+        )
+        product = Product.objects.get(name=payload["name"])
+        movement = StockMovement.objects.get(product=product)
+        self.assertEqual(movement.quantity_change, Decimal("8.00"))
+        self.assertEqual(movement.balance_after, Decimal("8.00"))
 
     def test_product_list_shows_product_thumbnail(self):
         self.product.image = "products/seller-center-product.jpg"

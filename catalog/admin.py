@@ -180,8 +180,9 @@ class ProductAdmin(CsvExportAdminMixin, RoleScopedAdminMixin, admin.ModelAdmin):
         ),
         (
             "ราคาและสต็อก",
-            {"fields": ("unit", "price", "stock_quantity", "minimum_order_quantity", "low_stock_threshold", "weight_grams", "last_low_stock_notified_at")},
+            {"fields": ("unit", "price", "stock_quantity", "minimum_order_quantity", "maximum_order_quantity", "low_stock_threshold", "weight_grams", "last_low_stock_notified_at")},
         ),
+        ("การจัดส่ง", {"fields": ("gtin", "package_length_cm", "package_width_cm", "package_height_cm", "preparation_days")}),
         ("วันที่สำคัญของสินค้า", {"fields": ("harvest_date", "expiry_date")}),
         (
             "การตรวจสอบและการขาย",

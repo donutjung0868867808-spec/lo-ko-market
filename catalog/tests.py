@@ -11,12 +11,12 @@ from django.urls import reverse
 from PIL import Image
 
 
-from accounts.models import Community, FarmerProfile, Notification, StoreCoverSlide, User
+from accounts.models import Community, CommunityStaffProfile, FarmerProfile, Notification, StoreCoverSlide, User
 
 from orders.models import Order, OrderItem
 
 from .forms import ProductForm
-from .models import Category, HomeSlide, Product, ProductClick, ProductDetailImage, ProductReview, ProductReviewMedia, SellerStoreVisit
+from .models import Category, HomeSlide, Product, ProductClick, ProductDetailImage, ProductReview, ProductReviewMedia, SellerStoreVisit, StockMovement
 
 
 def test_image_bytes():
@@ -191,6 +191,7 @@ class ProductCatalogTests(TestCase):
                         "stock_quantity": "10.00",
                         "minimum_order_quantity": "0.50",
                         "low_stock_threshold": "5.00",
+                        "weight_grams": "1000",
                         "image": files,
                     },
                 )
@@ -207,8 +208,54 @@ class ProductCatalogTests(TestCase):
 
         self.assertContains(response, "ลากรูปมาวางได้หลายรูป")
         self.assertContains(response, 'data-product-detail-image-input="true"')
+        self.assertContains(response, 'data-product-form-tab="product"')
+        self.assertContains(response, 'data-product-form-tab="inventory"')
+        self.assertContains(response, 'data-product-form-tab="shipping"')
+        self.assertContains(response, 'data-product-form-tab="additional"')
         markup = response.content.decode()
         self.assertLess(markup.index('id_description'), markup.index('data-product-detail-image-input="true"'))
+
+    def test_new_product_requires_weight_and_notifies_community_reviewer(self):
+        reviewer = User.objects.create_user(
+            username="product-reviewer",
+            password="pass",
+            role=User.Roles.COOPERATIVE_STAFF,
+        )
+        CommunityStaffProfile.objects.create(user=reviewer, community=self.community)
+        self.client.force_login(self.farmer)
+        payload = {
+            "name": "สินค้าใหม่",
+            "description": "สินค้าสำหรับตรวจสอบสต็อกเริ่มต้น",
+            "unit": Product.Unit.KG,
+            "price": "35.00",
+            "stock_quantity": "10.00",
+            "minimum_order_quantity": "0.50",
+            "low_stock_threshold": "5.00",
+        }
+
+        missing_weight = self.client.post(reverse("catalog:product_create"), payload)
+
+        self.assertContains(missing_weight, "น้ำหนักต่อหน่วย")
+        self.assertEqual(Product.objects.filter(name=payload["name"]).count(), 0)
+
+        response = self.client.post(
+            reverse("catalog:product_create"),
+            {**payload, "weight_grams": "1000"},
+        )
+
+        product = Product.objects.get(name=payload["name"])
+        self.assertRedirects(response, product.get_absolute_url(), fetch_redirect_response=False)
+        movement = StockMovement.objects.get(product=product)
+        self.assertEqual(movement.quantity_change, Decimal("10.00"))
+        self.assertEqual(movement.balance_after, Decimal("10.00"))
+        self.assertEqual(movement.note, "สต็อกเริ่มต้นเมื่อเพิ่มสินค้า")
+        self.assertTrue(
+            Notification.objects.filter(
+                user=reviewer,
+                title="มีสินค้าใหม่รออนุมัติ",
+                link=reverse("catalog:product_review"),
+            ).exists()
+        )
 
     def test_farmer_can_add_images_inside_product_details(self):
         self.client.force_login(self.farmer)
@@ -228,6 +275,7 @@ class ProductCatalogTests(TestCase):
                     "stock_quantity": "10.00",
                     "minimum_order_quantity": "0.50",
                     "low_stock_threshold": "5.00",
+                    "weight_grams": "1000",
                     "detail_images": files,
                 },
             )

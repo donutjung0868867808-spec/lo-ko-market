@@ -89,6 +89,13 @@ def reserve_order_stock(order):
             raise ValidationError(
                 f"สินค้า {product.name} ต้องสั่งอย่างน้อย {product.minimum_order_quantity} {product.get_unit_display()}"
             )
+        if (
+            product.maximum_order_quantity is not None
+            and item.quantity > product.maximum_order_quantity
+        ):
+            raise ValidationError(
+                f"สินค้า {product.name} สั่งได้ไม่เกิน {product.maximum_order_quantity} {product.get_unit_display()} ต่อคำสั่งซื้อ"
+            )
 
     for item in order.items.all():
         product = locked_products[item.product_id]

@@ -17,6 +17,7 @@ from orders.models import Order, OrderItem
 
 from accounts.forms import ReportForm
 from .forms import ProductForm, ProductImageForm, ProductReviewForm
+from .services import create_pending_product
 from .models import (
     Category,
     HomeSlide,
@@ -339,17 +340,34 @@ def product_create(request):
         messages.warning(request, "บัญชีเกษตรกรต้องได้รับการยืนยันจากเจ้าหน้าที่ก่อน")
         return redirect("accounts:dashboard")
 
-    form = ProductForm(request.POST or None, request.FILES or None)
+    form = ProductForm(
+        request.POST or None,
+        request.FILES or None,
+        require_shipping_weight=True,
+    )
     if request.method == "POST" and form.is_valid():
         product = form.save(commit=False)
-        gallery_images = use_first_gallery_image_as_cover(product, form.cleaned_data["image"])
-        detail_images = form.cleaned_data["detail_images"]
-        product.seller = request.user
-        product.community = profile.community
-        product.status = Product.Status.PENDING
-        product.save()
-        save_product_gallery_images(product, gallery_images)
-        save_product_detail_images(product, detail_images)
+        product = create_pending_product(
+            seller=request.user,
+            community=profile.community,
+            product=product,
+            gallery_images=form.cleaned_data["image"],
+            detail_images=form.cleaned_data["detail_images"],
+        )
+        record_audit(
+            request,
+            AuditEvent.Action.CREATE,
+            product,
+            description="เพิ่มสินค้าเพื่อรออนุมัติ",
+            after={
+                "name": product.name,
+                "price": str(product.price),
+                "stock_quantity": str(product.stock_quantity),
+                "weight_grams": product.weight_grams,
+                "status": product.status,
+            },
+            community=product.community,
+        )
         messages.success(request, "ส่งสินค้าให้เจ้าหน้าที่ตรวจสอบแล้ว")
         return redirect(product)
 

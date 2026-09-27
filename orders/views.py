@@ -49,7 +49,7 @@ def parse_quantity(value, default=Decimal("1.00"), step=Decimal("0.50")):
 def available_quantity(product):
     """Return the largest orderable quantity that matches the product unit."""
     step = product.quantity_step
-    return (product.stock_quantity / step).to_integral_value(rounding=ROUND_FLOOR) * step
+    return (product.orderable_quantity / step).to_integral_value(rounding=ROUND_FLOOR) * step
 
 
 def cart_items(request):
@@ -544,6 +544,7 @@ def checkout(request, product_id):
             default=product.minimum_order_quantity,
             step=product.quantity_step,
         )
+        selected_quantity = min(selected_quantity, available_quantity(product))
         checkout_quantities[str(product.pk)] = str(selected_quantity)
         request.session[CHECKOUT_QUANTITY_SESSION_KEY] = checkout_quantities
         request.session.modified = True

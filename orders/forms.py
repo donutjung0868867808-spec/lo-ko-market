@@ -22,7 +22,7 @@ class CheckoutForm(StyledFormMixin, forms.Form):
         if product is not None:
             step = product.quantity_step
             minimum = (product.minimum_order_quantity / step).to_integral_value(rounding=ROUND_CEILING) * step
-            maximum = (product.stock_quantity / step).to_integral_value(rounding=ROUND_FLOOR) * step
+            maximum = (product.orderable_quantity / step).to_integral_value(rounding=ROUND_FLOOR) * step
             self.fields["quantity"].min_value = minimum
             self.fields["quantity"].max_value = maximum
             self.fields["quantity"].widget.attrs["step"] = str(step)

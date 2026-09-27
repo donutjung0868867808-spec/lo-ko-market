@@ -24,6 +24,7 @@ from django.views.decorators.http import require_POST
 
 from catalog.forms import ProductForm
 from catalog.models import Product, ProductClick, ProductDetailImage, ProductFavorite, ProductImage, ProductReview, SellerFavorite, SellerStoreVisit
+from catalog.services import create_pending_product
 from orders.models import Order
 from payments.models import CustomerPaymentProfile, Refund, SavedPaymentMethod, SellerPaymentAccount, SellerSettlement
 
@@ -389,24 +390,37 @@ def farmer_shop_center(request):
         request.POST or None,
         instance=farmer_profile,
     ) if farmer_profile else None
-    product_form = ProductForm(request.POST or None, request.FILES or None)
+    product_form = ProductForm(
+        request.POST or None,
+        request.FILES or None,
+        require_shipping_weight=True,
+    )
     if request.method == "POST" and request.POST.get("shop_action") == "create_product":
         if not farmer_profile or not farmer_profile.community or not farmer_profile.is_verified:
             messages.warning(request, "บัญชีเกษตรกรต้องได้รับการยืนยันจากเจ้าหน้าที่ก่อนเพิ่มสินค้า")
         elif product_form.is_valid():
             product = product_form.save(commit=False)
-            gallery_images = list(product_form.cleaned_data["image"])
-            detail_images = product_form.cleaned_data["detail_images"]
-            if not product.image and gallery_images:
-                product.image = gallery_images.pop(0)
-            product.seller = request.user
-            product.community = farmer_profile.community
-            product.status = Product.Status.PENDING
-            product.save()
-            for image in gallery_images:
-                ProductImage.objects.create(product=product, image=image)
-            for sort_order, image in enumerate(detail_images, start=1):
-                ProductDetailImage.objects.create(product=product, image=image, sort_order=sort_order)
+            product = create_pending_product(
+                seller=request.user,
+                community=farmer_profile.community,
+                product=product,
+                gallery_images=product_form.cleaned_data["image"],
+                detail_images=product_form.cleaned_data["detail_images"],
+            )
+            record_audit(
+                request,
+                AuditEvent.Action.CREATE,
+                product,
+                description="เพิ่มสินค้าเพื่อรออนุมัติ",
+                after={
+                    "name": product.name,
+                    "price": str(product.price),
+                    "stock_quantity": str(product.stock_quantity),
+                    "weight_grams": product.weight_grams,
+                    "status": product.status,
+                },
+                community=product.community,
+            )
             messages.success(request, "ส่งสินค้าให้เจ้าหน้าที่ตรวจสอบแล้ว")
             return redirect(f"{reverse('accounts:farmer_shop_center')}?section=products")
     elif request.method == "POST" and request.POST.get("shop_action") == "update_store":

@@ -1,11 +1,69 @@
 from datetime import timedelta
 
-from django.db import models
+from django.db import models, transaction
+from django.db.models import Q
+from django.urls import reverse
 from django.utils import timezone
 
+from accounts.models import Notification, User
 from accounts.services import notify_user
 
-from .models import Product
+from .models import Product, ProductDetailImage, ProductImage, StockMovement
+
+
+def create_pending_product(*, seller, community, product, gallery_images, detail_images):
+    """Create a pending product and all inventory/media records as one database transaction."""
+    gallery_images = list(gallery_images)
+    detail_images = list(detail_images)
+
+    with transaction.atomic():
+        if not product.image and gallery_images:
+            product.image = gallery_images.pop(0)
+        product.seller = seller
+        product.community = community
+        product.status = Product.Status.PENDING
+        product.save()
+
+        for index, image in enumerate(gallery_images, start=1):
+            ProductImage.objects.create(
+                product=product,
+                image=image,
+                sort_order=index,
+            )
+        for index, image in enumerate(detail_images, start=1):
+            ProductDetailImage.objects.create(
+                product=product,
+                image=image,
+                sort_order=index,
+            )
+        StockMovement.objects.create(
+            product=product,
+            movement_type=StockMovement.MovementType.MANUAL,
+            quantity_change=product.stock_quantity,
+            balance_after=product.stock_quantity,
+            note="สต็อกเริ่มต้นเมื่อเพิ่มสินค้า",
+        )
+
+        reviewers = User.objects.filter(is_active=True).filter(
+            Q(
+                role=User.Roles.COOPERATIVE_STAFF,
+                community_staff_profile__community=community,
+            )
+            | Q(role=User.Roles.OWNER)
+        ).distinct()
+        Notification.objects.bulk_create(
+            [
+                Notification(
+                    user=reviewer,
+                    title="มีสินค้าใหม่รออนุมัติ",
+                    message=f"{product.name} จาก {seller} รอการตรวจสอบ",
+                    link=reverse("catalog:product_review"),
+                )
+                for reviewer in reviewers
+            ]
+        )
+
+    return product
 
 
 def notify_low_stock(product_id):

@@ -177,6 +177,23 @@ class CartWorkflowTests(TestCase):
         self.assertRedirects(response, reverse("orders:cart"))
         self.assertEqual(self.client.session["cart"][str(self.product.pk)], "2.00")
 
+    def test_maximum_order_quantity_limits_cart_and_direct_checkout(self):
+        self.product.maximum_order_quantity = Decimal("2.00")
+        self.product.save(update_fields=["maximum_order_quantity"])
+        self.client.force_login(self.buyer)
+
+        self.client.post(
+            reverse("orders:cart_add", args=[self.product.pk]),
+            {"quantity": "5"},
+        )
+
+        self.assertEqual(self.client.session["cart"][str(self.product.pk)], "2.00")
+        response = self.client.get(
+            reverse("orders:checkout", args=[self.product.pk]),
+            {"quantity": "5"},
+        )
+        self.assertEqual(response.context["form"].initial["quantity"], Decimal("2.00"))
+
         cart_response = self.client.get(reverse("orders:cart"))
         self.assertContains(cart_response, 'data-cart-count="1"', html=False)
 

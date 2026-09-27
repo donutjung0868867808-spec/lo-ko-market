@@ -85,7 +85,7 @@
 
       <div class="mt-6">
         <p class="text-3xl font-semibold text-leaf">฿{{ product.price|floatformat:2 }}<span class="ml-2 text-base font-normal text-slate-500">/ {{ product.get_unit_display }}</span></p>
-        <p class="mt-2 text-sm text-slate-500">สั่งขั้นต่ำ {{ product.minimum_order_quantity|floatformat:"-2" }} {{ product.get_unit_display }} · เหลือ {{ product.stock_quantity|floatformat:"-2" }} {{ product.get_unit_display }}</p>
+        <p class="mt-2 text-sm text-slate-500">สั่งขั้นต่ำ {{ product.minimum_order_quantity|floatformat:"-2" }} {{ product.get_unit_display }}{% if product.maximum_order_quantity %} · สั่งสูงสุด {{ product.maximum_order_quantity|floatformat:"-2" }} {{ product.get_unit_display }}{% endif %} · เหลือ {{ product.stock_quantity|floatformat:"-2" }} {{ product.get_unit_display }}</p>
       </div>
 
       {% if product.is_available and user != product.seller %}
@@ -95,11 +95,11 @@
             <label class="text-sm font-semibold text-slate-700" for="product-quantity">จำนวน</label>
             <div class="grid h-12 grid-cols-[46px_96px_46px] overflow-hidden rounded-md border border-stone-300 bg-white">
               <button id="quantity-minus" type="button" class="grid place-items-center border-r border-stone-300 text-slate-700 hover:bg-stone-50" title="ลดจำนวน" aria-label="ลดจำนวน"><i data-lucide="minus" class="h-4 w-4" aria-hidden="true"></i></button>
-              <input id="product-quantity" name="quantity" type="number" min="{{ product.minimum_order_quantity|floatformat:'-2' }}" max="{{ product.stock_quantity|floatformat:'-2' }}" step="{{ product.quantity_step|floatformat:'-2' }}" value="{{ product.minimum_order_quantity|floatformat:'-2' }}" inputmode="decimal" class="w-full border-0 bg-white px-2 text-center text-sm font-semibold outline-none" aria-describedby="quantity-help">
+              <input id="product-quantity" name="quantity" type="number" min="{{ product.minimum_order_quantity|floatformat:'-2' }}" max="{{ product.orderable_quantity|floatformat:'-2' }}" step="{{ product.quantity_step|floatformat:'-2' }}" value="{{ product.minimum_order_quantity|floatformat:'-2' }}" inputmode="decimal" class="w-full border-0 bg-white px-2 text-center text-sm font-semibold outline-none" aria-describedby="quantity-help">
               <button id="quantity-plus" type="button" class="grid place-items-center border-l border-stone-300 text-slate-700 hover:bg-stone-50" title="เพิ่มจำนวน" aria-label="เพิ่มจำนวน"><i data-lucide="plus" class="h-4 w-4" aria-hidden="true"></i></button>
             </div>
           </div>
-          <p id="quantity-help" class="sr-only">เลือกจำนวนตั้งแต่ {{ product.minimum_order_quantity }} ถึง {{ product.stock_quantity }} {{ product.get_unit_display }}</p>
+          <p id="quantity-help" class="sr-only">เลือกจำนวนตั้งแต่ {{ product.minimum_order_quantity }} ถึง {{ product.orderable_quantity }} {{ product.get_unit_display }}</p>
           <div class="mt-6 grid gap-3 sm:grid-cols-2">
             <button class="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-leaf bg-white px-5 py-3 text-sm font-semibold text-leaf hover:bg-emerald-50" type="submit">
               <i data-lucide="shopping-cart" class="h-5 w-5" aria-hidden="true"></i>เพิ่มลงตะกร้า
@@ -186,6 +186,9 @@
     </div>
     <dl class="grid grid-cols-2 gap-x-5 gap-y-4 text-sm">
       <div><dt class="text-slate-500">รหัสสินค้า</dt><dd class="mt-1 font-semibold text-slate-900">{{ product.sku|default:"-" }}</dd></div>
+      {% if product.gtin %}<div><dt class="text-slate-500">GTIN</dt><dd class="mt-1 font-semibold text-slate-900">{{ product.gtin }}</dd></div>{% endif %}
+      {% if product.package_length_cm %}<div><dt class="text-slate-500">ขนาดพัสดุ</dt><dd class="mt-1 font-semibold text-slate-900">{{ product.package_length_cm }} x {{ product.package_width_cm }} x {{ product.package_height_cm }} ซม.</dd></div>{% endif %}
+      <div><dt class="text-slate-500">เตรียมสินค้า</dt><dd class="mt-1 font-semibold text-slate-900">{{ product.preparation_days }} วัน</dd></div>
       <div><dt class="text-slate-500">สถานะ</dt><dd class="mt-1 font-semibold text-slate-900">{{ product.get_status_display }}</dd></div>
       <div><dt class="text-slate-500">วันที่เก็บเกี่ยว</dt><dd class="mt-1 font-semibold text-slate-900">{{ product.harvest_date|date:"d/m/Y"|default:"-" }}</dd></div>
       <div><dt class="text-slate-500">ควรบริโภคก่อน</dt><dd class="mt-1 font-semibold text-slate-900">{{ product.expiry_date|date:"d/m/Y"|default:"-" }}</dd></div>

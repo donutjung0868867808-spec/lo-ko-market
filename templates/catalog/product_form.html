@@ -16,9 +16,15 @@
 
     <form method="post" enctype="multipart/form-data" class="mt-8 space-y-5">
       {% csrf_token %}
-      <div class="grid gap-4 sm:grid-cols-2">
+      <div class="flex gap-1 overflow-x-auto border-b border-stone-200" role="tablist" aria-label="หมวดข้อมูลสินค้า" data-product-form-tabs>
+        <button type="button" role="tab" aria-selected="true" data-product-form-tab="product" class="inline-flex min-h-11 shrink-0 items-center gap-2 border-b-2 border-leaf px-4 py-3 text-sm font-semibold text-leaf"><i data-lucide="package" class="h-4 w-4" aria-hidden="true"></i>ข้อมูลสินค้า</button>
+        <button type="button" role="tab" aria-selected="false" data-product-form-tab="inventory" class="inline-flex min-h-11 shrink-0 items-center gap-2 border-b-2 border-transparent px-4 py-3 text-sm font-semibold text-slate-600 hover:text-leaf"><i data-lucide="warehouse" class="h-4 w-4" aria-hidden="true"></i>ราคาและสต็อก</button>
+        <button type="button" role="tab" aria-selected="false" data-product-form-tab="shipping" class="inline-flex min-h-11 shrink-0 items-center gap-2 border-b-2 border-transparent px-4 py-3 text-sm font-semibold text-slate-600 hover:text-leaf"><i data-lucide="truck" class="h-4 w-4" aria-hidden="true"></i>การจัดส่ง</button>
+        <button type="button" role="tab" aria-selected="false" data-product-form-tab="additional" class="inline-flex min-h-11 shrink-0 items-center gap-2 border-b-2 border-transparent px-4 py-3 text-sm font-semibold text-slate-600 hover:text-leaf"><i data-lucide="calendar-days" class="h-4 w-4" aria-hidden="true"></i>ข้อมูลเสริม</button>
+      </div>
+      <div class="grid gap-4 pt-2 sm:grid-cols-2" data-product-form-fields>
         {% for field in form %}
-          <div class="{% if field.name == 'description' or field.name == 'detail_images' or field.name == 'image' %}sm:col-span-2{% endif %}">
+          <div data-product-form-field data-product-form-group="{% if field.name == 'category' or field.name == 'name' or field.name == 'description' or field.name == 'detail_images' or field.name == 'image' %}product{% elif field.name == 'unit' or field.name == 'price' or field.name == 'stock_quantity' or field.name == 'minimum_order_quantity' or field.name == 'maximum_order_quantity' or field.name == 'low_stock_threshold' %}inventory{% elif field.name == 'weight_grams' or field.name == 'package_length_cm' or field.name == 'package_width_cm' or field.name == 'package_height_cm' or field.name == 'preparation_days' %}shipping{% else %}additional{% endif %}" class="{% if field.name == 'description' or field.name == 'detail_images' or field.name == 'image' %}sm:col-span-2{% endif %}">
             <label class="text-sm font-semibold text-slate-700" for="{{ field.id_for_label }}">{{ field.label }}</label>
             {% if product and field.name == 'image' %}
               {% if product.image or product.images.all %}
@@ -49,6 +55,7 @@
     const unit = document.getElementById("id_unit");
     const stock = document.getElementById("id_stock_quantity");
     const minimum = document.getElementById("id_minimum_order_quantity");
+    const maximum = document.getElementById("id_maximum_order_quantity");
     if (!unit || !stock || !minimum) return;
 
     function updateQuantityFields() {
@@ -56,6 +63,7 @@
       const step = isKg ? "0.50" : "1";
       stock.step = step;
       minimum.step = step;
+      if (maximum) maximum.step = step;
       minimum.min = step;
       if (!isKg && Number(minimum.value || 0) < 1) minimum.value = "1";
       if (isKg && (!minimum.value || Number(minimum.value) < 0.5)) minimum.value = "0.50";
@@ -63,6 +71,28 @@
 
     unit.addEventListener("change", updateQuantityFields);
     updateQuantityFields();
+
+    const tabButtons = Array.from(document.querySelectorAll("[data-product-form-tab]"));
+    const formFields = Array.from(document.querySelectorAll("[data-product-form-field]"));
+    function activateProductFormTab(group) {
+      tabButtons.forEach((button) => {
+        const active = button.dataset.productFormTab === group;
+        button.setAttribute("aria-selected", String(active));
+        button.classList.toggle("border-leaf", active);
+        button.classList.toggle("text-leaf", active);
+        button.classList.toggle("border-transparent", !active);
+        button.classList.toggle("text-slate-600", !active);
+      });
+      formFields.forEach((field) => {
+        field.classList.toggle("hidden", field.dataset.productFormGroup !== group);
+      });
+    }
+
+    tabButtons.forEach((button) => {
+      button.addEventListener("click", () => activateProductFormTab(button.dataset.productFormTab));
+    });
+    const firstInvalidField = formFields.find((field) => field.querySelector(".text-red-700"));
+    activateProductFormTab(firstInvalidField ? firstInvalidField.dataset.productFormGroup : "product");
   });
 </script>
 {% endblock %}
