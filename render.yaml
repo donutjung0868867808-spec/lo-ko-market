@@ -5,7 +5,7 @@ services:
     region: singapore
     plan: 0.5c-512mb
     buildCommand: "pip install -r requirements.txt && python manage.py collectstatic --noinput"
-    preDeployCommand: "python manage.py check_production && python manage.py migrate --noinput && python manage.py bootstrap_owner"
+    preDeployCommand: "python manage.py check_production && python manage.py migrate --noinput && python manage.py seed_shipping_rates && python manage.py bootstrap_owner"
     startCommand: "daphne -b 0.0.0.0 -p $PORT --proxy-headers agri_market.asgi:application"
     healthCheckPath: /ready/
     envVars:
@@ -42,7 +42,9 @@ services:
       - key: STRIPE_CONNECT_TRANSFERS_ENABLED
         value: "False"
       - key: PAYMENT_MODE
-        value: "test"
+        value: "demo"
+      - key: DEMO_SETTLEMENTS_ENABLED
+        value: "True"
       - key: SETTLEMENT_MAX_ATTEMPTS
         value: "5"
       - key: DELIVERY_CONFIRMATION_DAYS
@@ -81,14 +83,6 @@ services:
       - key: AFTERSHIP_WEBHOOK_SECRET
         sync: false
       - key: AFTERSHIP_API_KEY
-        sync: false
-      - key: STRIPE_SECRET_KEY
-        sync: false
-      - key: STRIPE_PUBLISHABLE_KEY
-        sync: false
-      - key: STRIPE_WEBHOOK_SECRET
-        sync: false
-      - key: STRIPE_CONNECT_WEBHOOK_SECRET
         sync: false
       - key: EMAIL_BACKEND
         value: django.core.mail.backends.smtp.EmailBackend
@@ -163,11 +157,6 @@ services:
           type: web
           name: agri-market
           envVarKey: SITE_URL
-      - key: STRIPE_SECRET_KEY
-        fromService:
-          type: web
-          name: agri-market
-          envVarKey: STRIPE_SECRET_KEY
       - key: PAYMENT_MODE
         fromService:
           type: web
@@ -178,6 +167,11 @@ services:
           type: web
           name: agri-market
           envVarKey: STRIPE_CONNECT_TRANSFERS_ENABLED
+      - key: DEMO_SETTLEMENTS_ENABLED
+        fromService:
+          type: web
+          name: agri-market
+          envVarKey: DEMO_SETTLEMENTS_ENABLED
       - key: PLATFORM_FEE_PERCENT
         fromService:
           type: web

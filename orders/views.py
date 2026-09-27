@@ -12,7 +12,7 @@ from django.utils.dateparse import parse_datetime
 from accounts.decorators import user_community
 from accounts.forms import ReportForm
 from accounts.models import Report
-from catalog.models import Product
+from catalog.models import Product, ProductVariant
 
 from .forms import CancelOrderForm, CartCheckoutForm, CheckoutForm, OrderStatusForm, SellerShipmentForm
 from .models import Order, OrderItem, Shipment
@@ -52,20 +52,61 @@ def available_quantity(product):
     return (product.orderable_quantity / step).to_integral_value(rounding=ROUND_FLOOR) * step
 
 
+def cart_line_key(product_id, variant_id=None):
+    return f"{product_id}:{variant_id}" if variant_id else str(product_id)
+
+
+def parse_cart_line_key(value):
+    product_id, separator, variant_id = str(value).partition(":")
+    if not product_id.isdigit():
+        return None
+    if separator and not variant_id.isdigit():
+        return None
+    return int(product_id), int(variant_id) if separator else None
+
+
+def active_variant_for_product(product, variant_id):
+    variants = {variant.pk: variant for variant in product.variants.all()}
+    if not variants:
+        return None
+    variant = variants.get(variant_id)
+    return variant if variant and variant.is_active else None
+
+
 def cart_items(request):
     cart = request.session.get(CART_SESSION_KEY, {})
-    products = Product.objects.select_related("seller", "community", "category").filter(
-        pk__in=cart.keys(),
+    cart_lines = {
+        key: parts
+        for key, parts in (
+            (key, parse_cart_line_key(key)) for key in cart
+        )
+        if parts
+    }
+    products = Product.objects.select_related("seller", "community", "category").prefetch_related(
+        "variants"
+    ).filter(
+        pk__in={parts[0] for parts in cart_lines.values()},
         status=Product.Status.ACTIVE,
     )
+    products_by_id = {product.pk: product for product in products}
     items = []
     normalized_cart = {}
     total = Decimal("0.00")
 
-    for product in products:
+    for key, (product_id, variant_id) in cart_lines.items():
+        product = products_by_id.get(product_id)
+        if product is None:
+            continue
         if request.user.is_authenticated and product.seller_id == request.user.id:
             continue
-        quantity = parse_quantity(cart.get(str(product.pk)), default=product.minimum_order_quantity, step=product.quantity_step)
+        variant = active_variant_for_product(product, variant_id)
+        if product.variants.exists() and variant is None:
+            continue
+        quantity = parse_quantity(
+            cart.get(key),
+            default=product.minimum_order_quantity,
+            step=product.quantity_step,
+        )
         available = available_quantity(product)
         if available <= 0 or quantity <= 0:
             continue
@@ -73,8 +114,17 @@ def cart_items(request):
             quantity = available
         line_total = quantity * product.price
         total += line_total
-        normalized_cart[str(product.pk)] = str(quantity)
-        items.append({"product": product, "quantity": quantity, "line_total": line_total})
+        normalized_cart[key] = str(quantity)
+        items.append(
+            {
+                "key": key,
+                "product": product,
+                "variant": variant,
+                "quantity": quantity,
+                "unit_price": product.price,
+                "line_total": line_total,
+            }
+        )
 
     if normalized_cart != cart:
         request.session[CART_SESSION_KEY] = normalized_cart
@@ -222,14 +272,18 @@ def cart_detail(request):
         {
             "items": items,
             "total": total,
-            "selected_item_ids": {item["product"].pk for item in items},
+            "selected_item_keys": {item["key"] for item in items},
         },
     )
 
 
 @login_required
 def cart_add(request, product_id):
-    product = get_object_or_404(Product, pk=product_id, status=Product.Status.ACTIVE)
+    product = get_object_or_404(
+        Product.objects.prefetch_related("variants"),
+        pk=product_id,
+        status=Product.Status.ACTIVE,
+    )
     if product.seller_id == request.user.id:
         messages.info(request, "ไม่สามารถซื้อสินค้าจากร้านค้าของตัวเองได้")
         return redirect(product)
@@ -237,18 +291,27 @@ def cart_add(request, product_id):
         messages.error(request, "ตะกร้าสินค้าเปิดให้ผู้บริโภคทั่วไป")
         return redirect(product)
     if request.method == "POST":
+        variant_id = request.POST.get("variant_id", "").strip()
+        variant = active_variant_for_product(
+            product,
+            int(variant_id) if variant_id.isdigit() else None,
+        )
+        if product.variants.exists() and variant is None:
+            messages.warning(request, "กรุณาเลือกตัวเลือกสินค้าที่เปิดขายอยู่")
+            return redirect(product)
         quantity = parse_quantity(request.POST.get("quantity"), default=product.minimum_order_quantity, step=product.quantity_step)
         if quantity <= 0:
             messages.warning(request, "กรุณาระบุจำนวนสินค้า")
             return redirect(product)
         cart = request.session.get(CART_SESSION_KEY, {})
-        current_quantity = parse_quantity(cart.get(str(product.pk)), default=Decimal("0.00"), step=product.quantity_step)
+        line_key = cart_line_key(product.pk, variant.pk if variant else None)
+        current_quantity = parse_quantity(cart.get(line_key), default=Decimal("0.00"), step=product.quantity_step)
         next_quantity = current_quantity + quantity
         available = available_quantity(product)
         if next_quantity > available:
             next_quantity = available
             messages.info(request, "จำนวนสินค้าในตะกร้าถูกปรับตามสต็อกที่มี")
-        cart[str(product.pk)] = str(next_quantity)
+        cart[line_key] = str(next_quantity)
         request.session[CART_SESSION_KEY] = cart
         request.session.modified = True
         messages.success(request, "เพิ่มสินค้าในตะกร้าแล้ว")
@@ -260,7 +323,7 @@ def cart_add(request, product_id):
 @require_POST
 def order_reorder(request, pk):
     order = get_object_or_404(
-        Order.objects.prefetch_related("items__product"),
+        Order.objects.prefetch_related("items__product__variants"),
         pk=pk,
         buyer=request.user,
     )
@@ -274,10 +337,12 @@ def order_reorder(request, pk):
 
     for item in order.items.all():
         product = item.product
+        variant = active_variant_for_product(product, item.variant_id)
         if (
             product.status != Product.Status.ACTIVE
             or product.seller_id == request.user.id
             or available_quantity(product) <= 0
+            or (product.variants.exists() and variant is None)
         ):
             unavailable_count += 1
             continue
@@ -288,8 +353,9 @@ def order_reorder(request, pk):
             step=product.quantity_step,
         )
         quantity = max(quantity, product.minimum_order_quantity)
+        line_key = cart_line_key(product.pk, variant.pk if variant else None)
         current_quantity = parse_quantity(
-            cart.get(str(product.pk)),
+            cart.get(line_key),
             default=Decimal("0.00"),
             step=product.quantity_step,
         )
@@ -298,7 +364,7 @@ def order_reorder(request, pk):
             unavailable_count += 1
             continue
 
-        cart[str(product.pk)] = str(next_quantity)
+        cart[line_key] = str(next_quantity)
         added_count += 1
 
     request.session[CART_SESSION_KEY] = cart
@@ -313,19 +379,32 @@ def order_reorder(request, pk):
 
 @login_required
 def cart_update(request, product_id):
-    product = get_object_or_404(Product, pk=product_id, status=Product.Status.ACTIVE)
+    product = get_object_or_404(
+        Product.objects.prefetch_related("variants"),
+        pk=product_id,
+        status=Product.Status.ACTIVE,
+    )
     if request.method == "POST":
+        variant_id = request.POST.get("variant_id", "").strip()
+        variant = active_variant_for_product(
+            product,
+            int(variant_id) if variant_id.isdigit() else None,
+        )
+        if product.variants.exists() and variant is None:
+            messages.warning(request, "ตัวเลือกสินค้านี้ไม่พร้อมจำหน่ายแล้ว")
+            return redirect("orders:cart")
+        line_key = cart_line_key(product.pk, variant.pk if variant else None)
         quantity = parse_quantity(request.POST.get("quantity"), default=Decimal("0.00"), step=product.quantity_step)
         cart = request.session.get(CART_SESSION_KEY, {})
         if quantity <= 0:
-            cart.pop(str(product.pk), None)
+            cart.pop(line_key, None)
             messages.info(request, "นำสินค้าออกจากตะกร้าแล้ว")
         else:
             available = available_quantity(product)
             if quantity > available:
                 quantity = available
                 messages.info(request, "จำนวนสินค้าในตะกร้าถูกปรับตามสต็อกที่มี")
-            cart[str(product.pk)] = str(quantity)
+            cart[line_key] = str(quantity)
             messages.success(request, "อัปเดตตะกร้าแล้ว")
         request.session[CART_SESSION_KEY] = cart
         request.session.modified = True
@@ -335,7 +414,12 @@ def cart_update(request, product_id):
 @login_required
 def cart_remove(request, product_id):
     cart = request.session.get(CART_SESSION_KEY, {})
-    cart.pop(str(product_id), None)
+    variant_id = request.POST.get("variant_id", "").strip()
+    line_key = cart_line_key(
+        product_id,
+        int(variant_id) if variant_id.isdigit() else None,
+    )
+    cart.pop(line_key, None)
     request.session[CART_SESSION_KEY] = cart
     request.session.modified = True
     messages.info(request, "นำสินค้าออกจากตะกร้าแล้ว")
@@ -360,7 +444,8 @@ def cart_checkout(request):
         cart_changed = False
         for item in items:
             product = item["product"]
-            requested_quantity = selection_data.get(f"cart_quantity_{product.pk}")
+            line_key = item["key"]
+            requested_quantity = selection_data.get(f"cart_quantity_{line_key}")
             if requested_quantity is None:
                 continue
             quantity = parse_quantity(
@@ -370,27 +455,23 @@ def cart_checkout(request):
             )
             quantity = min(quantity, available_quantity(product))
             if quantity <= 0:
-                cart.pop(str(product.pk), None)
+                cart.pop(line_key, None)
             else:
-                cart[str(product.pk)] = str(quantity)
+                cart[line_key] = str(quantity)
             cart_changed = True
         if cart_changed:
             request.session[CART_SESSION_KEY] = cart
             request.session.modified = True
             items, total = cart_items(request)
 
-    selected_item_ids = {
-        int(product_id)
-        for product_id in selection_data.getlist("selected_items")
-        if product_id.isdigit()
-    }
+    selected_item_keys = set(selection_data.getlist("selected_items"))
     if selection_submitted:
-        selected_items = [item for item in items if item["product"].pk in selected_item_ids]
+        selected_items = [item for item in items if item["key"] in selected_item_keys]
         total = sum((item["line_total"] for item in selected_items), Decimal("0.00"))
     else:
         # Keep legacy checkout posts working while the cart UI submits an explicit selection.
         selected_items = items
-        selected_item_ids = {item["product"].pk for item in items}
+        selected_item_keys = {item["key"] for item in items}
 
     delivery_address = default_delivery_address(request.user)
     form = CartCheckoutForm(request.POST or None, initial=buyer_initial(request.user))
@@ -429,13 +510,29 @@ def cart_checkout(request):
         created_orders = []
 
         with transaction.atomic():
-            products = Product.objects.select_for_update().select_related("seller", "community").filter(
-                pk__in=selected_item_ids,
+            products = Product.objects.select_for_update().select_related("seller", "community").prefetch_related(
+                "variants"
+            ).filter(
+                pk__in={item["product"].pk for item in selected_items},
                 status=Product.Status.ACTIVE,
             )
+            products_by_id = {product.pk: product for product in products}
             locked_items = []
-            for product in products:
-                quantity = parse_quantity(cart.get(str(product.pk)), default=Decimal("0.00"), step=product.quantity_step)
+            for cart_item in selected_items:
+                product = products_by_id.get(cart_item["product"].pk)
+                if product is None:
+                    errors.append("มีสินค้าในตะกร้าที่ไม่พร้อมจำหน่ายแล้ว")
+                    continue
+                variant_id = cart_item["variant"].pk if cart_item["variant"] else None
+                variant = active_variant_for_product(product, variant_id)
+                if product.variants.exists() and variant is None:
+                    errors.append(f"ตัวเลือกของ {product.name} ไม่พร้อมจำหน่ายแล้ว")
+                    continue
+                quantity = parse_quantity(
+                    cart.get(cart_item["key"]),
+                    default=Decimal("0.00"),
+                    step=product.quantity_step,
+                )
                 if quantity <= 0:
                     continue
                 if quantity > available_quantity(product):
@@ -446,7 +543,14 @@ def cart_checkout(request):
                         f"{product.name} ต้องสั่งอย่างน้อย {product.minimum_order_quantity} {product.get_unit_display()}"
                     )
                     continue
-                locked_items.append({"product": product, "quantity": quantity})
+                locked_items.append(
+                    {
+                        "key": cart_item["key"],
+                        "product": product,
+                        "variant": variant,
+                        "quantity": quantity,
+                    }
+                )
 
             if not locked_items:
                 errors.append("ไม่พบสินค้าที่พร้อมสั่งซื้อ")
@@ -479,7 +583,9 @@ def cart_checkout(request):
                         OrderItem.objects.create(
                             order=order,
                             product=product,
+                            variant=item["variant"],
                             product_name=product.name,
+                            variant_name=item["variant"].name if item["variant"] else "",
                             unit=product.unit,
                             quantity=item["quantity"],
                             unit_price=product.price,
@@ -497,7 +603,7 @@ def cart_checkout(request):
                 form.add_error(None, error)
         else:
             for item in locked_items:
-                cart.pop(str(item["product"].pk), None)
+                cart.pop(item["key"], None)
             request.session[CART_SESSION_KEY] = cart
             request.session.modified = True
             if len(created_orders) == 1:
@@ -530,14 +636,28 @@ def checkout(request, product_id):
         return redirect("catalog:product_detail", pk=product_id)
 
     product = get_object_or_404(
-        Product.objects.select_related("seller", "community"),
+        Product.objects.select_related("seller", "community").prefetch_related("variants"),
         pk=product_id,
         status=Product.Status.ACTIVE,
     )
     if product.seller_id == request.user.id:
         messages.info(request, "ไม่สามารถซื้อสินค้าจากร้านค้าของตัวเองได้")
         return redirect(product)
+    variant_id = (
+        request.GET.get("variant", "").strip()
+        if request.method == "GET"
+        else request.POST.get("variant_id", "").strip()
+    )
+    variant = active_variant_for_product(
+        product,
+        int(variant_id) if variant_id.isdigit() else None,
+    )
+    if product.variants.exists() and variant is None:
+        messages.warning(request, "กรุณาเลือกตัวเลือกสินค้าที่เปิดขายอยู่ก่อนทำการสั่งซื้อ")
+        return redirect(product)
+
     checkout_quantities = request.session.get(CHECKOUT_QUANTITY_SESSION_KEY, {})
+    checkout_key = cart_line_key(product.pk, variant.pk if variant else None)
     if request.method == "GET":
         selected_quantity = parse_quantity(
             request.GET.get("quantity"),
@@ -545,12 +665,12 @@ def checkout(request, product_id):
             step=product.quantity_step,
         )
         selected_quantity = min(selected_quantity, available_quantity(product))
-        checkout_quantities[str(product.pk)] = str(selected_quantity)
+        checkout_quantities[checkout_key] = str(selected_quantity)
         request.session[CHECKOUT_QUANTITY_SESSION_KEY] = checkout_quantities
         request.session.modified = True
     else:
         selected_quantity = parse_quantity(
-            checkout_quantities.get(str(product.pk)),
+            checkout_quantities.get(checkout_key),
             default=product.minimum_order_quantity,
             step=product.quantity_step,
         )
@@ -576,10 +696,15 @@ def checkout(request, product_id):
         quantity = form.cleaned_data["quantity"]
         shipping_details = shipping_details_from_address(delivery_address)
         with transaction.atomic():
-            product = Product.objects.select_for_update().get(pk=product.pk)
+            product = Product.objects.select_for_update().prefetch_related("variants").get(
+                pk=product.pk
+            )
+            variant = active_variant_for_product(product, variant.pk if variant else None)
+            if product.variants.exists() and variant is None:
+                form.add_error(None, "ตัวเลือกสินค้านี้ไม่พร้อมจำหน่ายแล้ว")
             if quantity > available_quantity(product):
                 form.add_error("quantity", "จำนวนสินค้าไม่พอ")
-            else:
+            elif not form.errors:
                 order = Order.objects.create(
                     buyer=request.user,
                     seller=product.seller,
@@ -590,7 +715,9 @@ def checkout(request, product_id):
                 OrderItem.objects.create(
                     order=order,
                     product=product,
+                    variant=variant,
                     product_name=product.name,
+                    variant_name=variant.name if variant else "",
                     unit=product.unit,
                     quantity=quantity,
                     unit_price=product.price,
@@ -601,7 +728,7 @@ def checkout(request, product_id):
                     form.add_error(None, exc.message)
                     transaction.set_rollback(True)
                 else:
-                    checkout_quantities.pop(str(product.pk), None)
+                    checkout_quantities.pop(checkout_key, None)
                     request.session[CHECKOUT_QUANTITY_SESSION_KEY] = checkout_quantities
                     request.session.modified = True
                     return checkout_payment_redirect(
@@ -615,6 +742,7 @@ def checkout(request, product_id):
         {
             "form": form,
             "product": product,
+            "variant": variant,
             "preview_quantity": selected_quantity,
             "preview_total": preview_total,
             "preview_shipping": preview_shipping,
@@ -639,7 +767,8 @@ def order_list(request):
         "preparing": [Order.Status.PAID, Order.Status.CONFIRMED, Order.Status.PREPARING],
         "shipping": [Order.Status.SHIPPED],
         "completed": [Order.Status.COMPLETED],
-        "cancelled": [Order.Status.CANCELLED, Order.Status.REFUNDED],
+        "cancelled": [Order.Status.CANCELLED],
+        "refunded": [Order.Status.REFUNDED],
     }
     if status_filter in status_groups:
         orders = orders.filter(status__in=status_groups[status_filter])
@@ -845,6 +974,7 @@ def cancel_order(request, pk):
     return render(request, "orders/order_cancel_form.html", {"form": form, "order": order})
 
 @login_required
+@require_POST
 def confirm_received(request, pk):
     order = get_object_or_404(Order, pk=pk, buyer=request.user)
     if request.method == "POST":

@@ -20,6 +20,7 @@
         <button type="button" role="tab" aria-selected="true" data-product-form-tab="product" class="inline-flex min-h-11 shrink-0 items-center gap-2 border-b-2 border-leaf px-4 py-3 text-sm font-semibold text-leaf"><i data-lucide="package" class="h-4 w-4" aria-hidden="true"></i>ข้อมูลสินค้า</button>
         <button type="button" role="tab" aria-selected="false" data-product-form-tab="inventory" class="inline-flex min-h-11 shrink-0 items-center gap-2 border-b-2 border-transparent px-4 py-3 text-sm font-semibold text-slate-600 hover:text-leaf"><i data-lucide="warehouse" class="h-4 w-4" aria-hidden="true"></i>ราคาและสต็อก</button>
         <button type="button" role="tab" aria-selected="false" data-product-form-tab="shipping" class="inline-flex min-h-11 shrink-0 items-center gap-2 border-b-2 border-transparent px-4 py-3 text-sm font-semibold text-slate-600 hover:text-leaf"><i data-lucide="truck" class="h-4 w-4" aria-hidden="true"></i>การจัดส่ง</button>
+        <button type="button" role="tab" aria-selected="false" data-product-form-tab="variants" class="inline-flex min-h-11 shrink-0 items-center gap-2 border-b-2 border-transparent px-4 py-3 text-sm font-semibold text-slate-600 hover:text-leaf"><i data-lucide="sliders-horizontal" class="h-4 w-4" aria-hidden="true"></i>ตัวเลือกสินค้า</button>
         <button type="button" role="tab" aria-selected="false" data-product-form-tab="additional" class="inline-flex min-h-11 shrink-0 items-center gap-2 border-b-2 border-transparent px-4 py-3 text-sm font-semibold text-slate-600 hover:text-leaf"><i data-lucide="calendar-days" class="h-4 w-4" aria-hidden="true"></i>ข้อมูลเสริม</button>
       </div>
       <div class="grid gap-4 pt-2 sm:grid-cols-2" data-product-form-fields>
@@ -44,6 +45,25 @@
           </div>
         {% endfor %}
       </div>
+      <section data-product-form-field data-product-form-group="variants" class="hidden border-t border-stone-200 pt-6">
+        {{ variant_formset.management_form }}
+        <div>
+          <h2 class="text-lg font-semibold text-slate-950">ตัวเลือกสินค้า</h2>
+          <p class="mt-1 text-sm text-slate-600">เพิ่มตัวเลือก เช่น สีเหลือง สีม่วง หรือขนาดใหญ่ พร้อมรูปกำกับแต่ละตัวเลือกได้</p>
+        </div>
+        {% if variant_formset.non_form_errors %}<div class="mt-4 text-sm text-red-700">{{ variant_formset.non_form_errors }}</div>{% endif %}
+        <div class="mt-5 space-y-3">
+          {% for variant_form in variant_formset %}
+            <div class="grid gap-3 rounded-md border border-stone-200 bg-stone-50 p-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto] sm:items-end">
+              {% for hidden in variant_form.hidden_fields %}{{ hidden }}{% endfor %}
+              <div><label class="text-sm font-semibold text-slate-700" for="{{ variant_form.name.id_for_label }}">{{ variant_form.name.label }}</label><div class="mt-1.5">{{ variant_form.name }}</div>{% for error in variant_form.name.errors %}<p class="mt-1 text-sm text-red-700">{{ error }}</p>{% endfor %}</div>
+              <div><label class="text-sm font-semibold text-slate-700" for="{{ variant_form.image.id_for_label }}">{{ variant_form.image.label }}</label><div class="mt-1.5">{{ variant_form.image }}</div>{% for error in variant_form.image.errors %}<p class="mt-1 text-sm text-red-700">{{ error }}</p>{% endfor %}</div>
+              <label class="flex min-h-10 items-center gap-2 text-sm font-medium text-slate-700">{{ variant_form.is_active }} {{ variant_form.is_active.label }}</label>
+              <div class="flex min-h-10 items-center gap-2 text-sm text-slate-700">{% if variant_form.DELETE %}{{ variant_form.DELETE }} <label for="{{ variant_form.DELETE.id_for_label }}">ลบ</label>{% endif %}</div>
+            </div>
+          {% endfor %}
+        </div>
+      </section>
       <button class="rounded-md bg-leaf px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800" type="submit">บันทึกสินค้า</button>
     </form>
   </div>

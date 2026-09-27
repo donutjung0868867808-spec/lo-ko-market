@@ -90,6 +90,8 @@ def start_demo_checkout(order, payment, request):
 
 
 def stripe_client():
+    if settings.PAYMENT_MODE == "demo":
+        return None
     secret_key = settings.STRIPE_SECRET_KEY
     if not secret_key:
         return None
@@ -269,7 +271,7 @@ def create_checkout_session(request, order_id):
 
         stripe = stripe_client()
         if stripe is None:
-            if settings.PAYMENT_MODE == "test":
+            if settings.PAYMENT_MODE in {"demo", "test"}:
                 try:
                     return start_demo_checkout(order, payment, request)
                 except ValidationError as exc:
@@ -329,7 +331,7 @@ def create_checkout_session(request, order_id):
             )
         except Exception:
             logger.exception("Unable to create Stripe checkout for order %s", order.pk)
-            if settings.PAYMENT_MODE == "test":
+            if settings.PAYMENT_MODE in {"demo", "test"}:
                 try:
                     return start_demo_checkout(order, payment, request)
                 except ValidationError as exc:
@@ -360,7 +362,7 @@ def create_checkout_session(request, order_id):
 
 @login_required
 def demo_checkout(request, order_id):
-    if settings.PAYMENT_MODE != "test":
+    if settings.PAYMENT_MODE not in {"demo", "test"}:
         messages.error(request, "หน้าชำระเงินจำลองใช้ได้เฉพาะโหมดทดลอง")
         return redirect("orders:order_detail", pk=order_id)
 
@@ -391,7 +393,7 @@ def demo_checkout(request, order_id):
 @login_required
 @require_POST
 def complete_demo_checkout(request, order_id):
-    if settings.PAYMENT_MODE != "test":
+    if settings.PAYMENT_MODE not in {"demo", "test"}:
         messages.error(request, "หน้าชำระเงินจำลองใช้ได้เฉพาะโหมดทดลอง")
         return redirect("orders:order_detail", pk=order_id)
 

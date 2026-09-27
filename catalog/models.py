@@ -351,6 +351,45 @@ class Product(models.Model):
         self.save(update_fields=["status", "approved_by", "approved_at", "rejection_reason"])
 
 
+class ProductVariant(models.Model):
+    """A selectable product option, such as a colour, with its own display image."""
+
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name="variants",
+    )
+    name = models.CharField(
+        "ชื่อตัวเลือก",
+        max_length=80,
+        help_text="เช่น สีเหลือง, สีม่วง หรือ ขนาดใหญ่",
+    )
+    image = models.FileField(
+        "รูปของตัวเลือก",
+        upload_to="products/variants/%Y/%m/",
+        blank=True,
+        validators=[validate_image_file, validate_image_size],
+    )
+    is_active = models.BooleanField("เปิดให้เลือก", default=True)
+    sort_order = models.PositiveSmallIntegerField("ลำดับ", default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "ตัวเลือกสินค้า"
+        verbose_name_plural = "ตัวเลือกสินค้า"
+        ordering = ["sort_order", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["product", "name"],
+                name="unique_product_variant_name",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.product.name} - {self.name}"
+
+
 class ProductImage(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="images")
     image = models.FileField(

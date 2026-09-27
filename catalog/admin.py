@@ -14,6 +14,7 @@ from .models import (
     ProductFavorite,
     ProductImage,
     ProductReview,
+    ProductVariant,
     SellerFavorite,
     StockMovement,
 )
@@ -113,6 +114,12 @@ class ProductDetailImageInline(ProductImageInline):
     verbose_name_plural = "รูปประกอบรายละเอียดสินค้า"
 
 
+class ProductVariantInline(ProductImageInline):
+    model = ProductVariant
+    verbose_name = "ตัวเลือกสินค้า"
+    verbose_name_plural = "ตัวเลือกสินค้า"
+
+
 class StockMovementInline(admin.TabularInline):
     model = StockMovement
     extra = 0
@@ -190,7 +197,12 @@ class ProductAdmin(CsvExportAdminMixin, RoleScopedAdminMixin, admin.ModelAdmin):
         ),
         ("ข้อมูลระบบ", {"fields": ("created_at", "updated_at"), "classes": ("collapse",)}),
     )
-    inlines = [ProductImageInline, ProductDetailImageInline, StockMovementInline]
+    inlines = [
+        ProductImageInline,
+        ProductDetailImageInline,
+        ProductVariantInline,
+        StockMovementInline,
+    ]
     actions = ("approve_selected", "block_selected", "unblock_selected", "export_as_csv")
 
     def get_queryset(self, request):

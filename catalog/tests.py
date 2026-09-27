@@ -16,7 +16,7 @@ from accounts.models import Community, CommunityStaffProfile, FarmerProfile, Not
 from orders.models import Order, OrderItem
 
 from .forms import ProductForm
-from .models import Category, HomeSlide, Product, ProductClick, ProductDetailImage, ProductReview, ProductReviewMedia, SellerStoreVisit, StockMovement
+from .models import Category, HomeSlide, Product, ProductClick, ProductDetailImage, ProductReview, ProductReviewMedia, ProductVariant, SellerStoreVisit, StockMovement
 
 
 def test_image_bytes():
@@ -211,9 +211,40 @@ class ProductCatalogTests(TestCase):
         self.assertContains(response, 'data-product-form-tab="product"')
         self.assertContains(response, 'data-product-form-tab="inventory"')
         self.assertContains(response, 'data-product-form-tab="shipping"')
+        self.assertContains(response, 'data-product-form-tab="variants"')
         self.assertContains(response, 'data-product-form-tab="additional"')
         markup = response.content.decode()
         self.assertLess(markup.index('id_description'), markup.index('data-product-detail-image-input="true"'))
+
+    def test_farmer_can_add_product_variants(self):
+        self.client.force_login(self.farmer)
+
+        response = self.client.post(
+            reverse("catalog:product_create"),
+            {
+                "name": "ข้าวโพดคละสี",
+                "description": "เลือกสีที่ต้องการได้",
+                "unit": Product.Unit.KG,
+                "price": "35.00",
+                "stock_quantity": "10.00",
+                "minimum_order_quantity": "0.50",
+                "low_stock_threshold": "5.00",
+                "weight_grams": "1000",
+                "variants-TOTAL_FORMS": "1",
+                "variants-INITIAL_FORMS": "0",
+                "variants-MIN_NUM_FORMS": "0",
+                "variants-MAX_NUM_FORMS": "1000",
+                "variants-0-name": "สีเหลือง",
+                "variants-0-is_active": "on",
+            },
+        )
+
+        product = Product.objects.get(name="ข้าวโพดคละสี")
+        self.assertRedirects(response, product.get_absolute_url(), fetch_redirect_response=False)
+        self.assertEqual(
+            list(ProductVariant.objects.filter(product=product).values_list("name", flat=True)),
+            ["สีเหลือง"],
+        )
 
     def test_new_product_requires_weight_and_notifies_community_reviewer(self):
         reviewer = User.objects.create_user(
@@ -504,7 +535,7 @@ class ProductReviewTests(TestCase):
             unit_price=self.product.price,
         )
         order.payment_status = Order.PaymentStatus.PAID
-        order.status = Order.Status.PAID
+        order.status = Order.Status.COMPLETED
         order.save(update_fields=["payment_status", "status", "updated_at"])
 
         self.client.force_login(self.buyer)
@@ -526,7 +557,7 @@ class ProductReviewTests(TestCase):
             shipping_phone="0812345678",
             shipping_address="บ้านเลขที่ 1",
             payment_status=Order.PaymentStatus.PAID,
-            status=Order.Status.PAID,
+            status=Order.Status.COMPLETED,
         )
         OrderItem.objects.create(
             order=order,
@@ -590,6 +621,44 @@ class ProductReviewTests(TestCase):
 
         self.assertContains(response, "ซื้อสินค้านี้และชำระเงินเรียบร้อยแล้ว")
         self.assertNotContains(response, 'id="review-media"')
+
+    def test_seller_store_product_cards_include_review_and_paid_sales_metrics(self):
+        order = Order.objects.create(
+            buyer=self.buyer,
+            seller=self.farmer,
+            community=self.community,
+            status=Order.Status.COMPLETED,
+            payment_status=Order.PaymentStatus.PAID,
+            shipping_name="ผู้ซื้อ",
+            shipping_phone="0812345678",
+            shipping_address="บ้านเลขที่ 1",
+        )
+        OrderItem.objects.create(
+            order=order,
+            product=self.product,
+            product_name=self.product.name,
+            unit=self.product.unit,
+            quantity=Decimal("3.00"),
+            unit_price=self.product.price,
+        )
+        ProductReview.objects.create(
+            product=self.product,
+            user=self.buyer,
+            rating=5,
+            comment="สดมาก",
+        )
+
+        response = self.client.get(
+            reverse("catalog:seller_store", args=[self.farmer.pk])
+        )
+
+        product = next(
+            item for item in response.context["products"] if item.pk == self.product.pk
+        )
+        self.assertEqual(product.card_average_rating, 5)
+        self.assertEqual(product.card_review_count, 1)
+        self.assertEqual(product.card_sold_quantity, Decimal("3"))
+        self.assertContains(response, "ขายแล้ว 3 กิโลกรัม")
 
     def test_seller_store_displays_the_seller_avatar(self):
         self.farmer.avatar = "avatars/store-owner.jpg"

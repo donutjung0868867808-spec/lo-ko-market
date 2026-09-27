@@ -1,10 +1,13 @@
 from decimal import Decimal
+from io import StringIO
 
+from django.core.management import call_command
 from django.test import TestCase
 from django.urls import reverse
 
 from accounts.models import Community, DeliveryAddress, FarmerProfile, Report, User
-from catalog.models import Product
+from catalog.models import Product, ProductVariant
+from payments.models import Payment, Refund
 
 from .models import Order, OrderItem, OrderStatusHistory, Shipment, ShippingRate
 from .services import shipping_fee_for_values
@@ -16,6 +19,23 @@ class OrderModelTests(TestCase):
             shipping_fee_for_values("สกลนคร", Decimal("1000.00"), Decimal("0.00")),
             Decimal("50.00"),
         )
+
+    def test_shipping_rate_seed_adds_province_defaults_without_overwriting_existing_rate(self):
+        ShippingRate.objects.create(
+            province="สกลนคร",
+            base_fee=Decimal("99.00"),
+            fee_per_kg=Decimal("11.00"),
+        )
+
+        call_command("seed_shipping_rates", stdout=StringIO())
+        call_command("seed_shipping_rates", stdout=StringIO())
+
+        sakon_nakhon = ShippingRate.objects.get(province="สกลนคร")
+        bangkok = ShippingRate.objects.get(province="กรุงเทพมหานคร")
+        self.assertEqual(sakon_nakhon.base_fee, Decimal("99.00"))
+        self.assertEqual(sakon_nakhon.fee_per_kg, Decimal("11.00"))
+        self.assertEqual(bangkok.base_fee, Decimal("35.00"))
+        self.assertEqual(bangkok.fee_per_kg, Decimal("5.00"))
 
     def test_refresh_total_sums_line_items(self):
         community = Community.objects.create(
@@ -94,6 +114,40 @@ class SellerShipmentWorkflowTests(TestCase):
             [Order.Status.CONFIRMED, Order.Status.PREPARING, Order.Status.SHIPPED],
         )
 
+    def test_buyer_can_confirm_received_shipment_and_see_review_action(self):
+        product = Product.objects.create(
+            seller=self.seller,
+            community=self.community,
+            name="Shipment product",
+            description="Product for completed-order workflow.",
+            price=Decimal("30.00"),
+            stock_quantity=Decimal("10.00"),
+            status=Product.Status.ACTIVE,
+        )
+        OrderItem.objects.create(
+            order=self.order,
+            product=product,
+            product_name=product.name,
+            unit=product.unit,
+            quantity=Decimal("1.00"),
+            unit_price=product.price,
+        )
+        self.client.force_login(self.seller)
+        self.client.post(
+            reverse("orders:seller_ship_order", args=[self.order.pk]),
+            {"shipping_carrier": "SPX Express", "tracking_number": "th123456789"},
+        )
+
+        self.client.force_login(self.buyer)
+        response = self.client.post(reverse("orders:confirm_received", args=[self.order.pk]))
+
+        self.assertRedirects(response, self.order.get_absolute_url())
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.status, Order.Status.COMPLETED)
+        self.assertTrue(
+            OrderStatusHistory.objects.filter(order=self.order, status=Order.Status.COMPLETED).exists()
+        )
+        response = self.client.get(reverse("orders:order_list"))
     def test_shop_center_shows_quick_shipment_form_for_paid_order(self):
         FarmerProfile.objects.create(
             user=self.seller,
@@ -176,6 +230,55 @@ class CartWorkflowTests(TestCase):
 
         self.assertRedirects(response, reverse("orders:cart"))
         self.assertEqual(self.client.session["cart"][str(self.product.pk)], "2.00")
+
+    def test_cart_and_order_keep_the_selected_product_variant(self):
+        yellow = ProductVariant.objects.create(product=self.product, name="สีเหลือง")
+        ProductVariant.objects.create(product=self.product, name="สีม่วง")
+        self.client.force_login(self.buyer)
+
+        missing_variant = self.client.post(
+            reverse("orders:cart_add", args=[self.product.pk]),
+            {"quantity": "2"},
+        )
+        self.assertRedirects(missing_variant, self.product.get_absolute_url())
+        self.assertFalse(self.client.session.get("cart"))
+
+        self.client.post(
+            reverse("orders:cart_add", args=[self.product.pk]),
+            {"quantity": "2", "variant_id": yellow.pk},
+        )
+        line_key = f"{self.product.pk}:{yellow.pk}"
+        self.assertEqual(self.client.session["cart"][line_key], "2.00")
+
+        cart_response = self.client.get(reverse("orders:cart"))
+        self.assertContains(cart_response, yellow.name)
+
+        response = self.client.post(
+            reverse("orders:cart_checkout"),
+            {
+                "cart_selection": "1",
+                "selected_items": line_key,
+                "shipping_name": "Cart buyer",
+                "shipping_phone": "0899999999",
+                "shipping_address": "9 Market Road",
+                "shipping_province": "Chiang Mai",
+                "shipping_postal_code": "50000",
+                "note": "",
+            },
+        )
+
+        order = Order.objects.get(buyer=self.buyer, seller=self.seller)
+        self.assertRedirects(
+            response,
+            reverse("payments:create_checkout", args=[order.pk]),
+            fetch_redirect_response=False,
+        )
+        item = order.items.get()
+        self.assertEqual(item.variant, yellow)
+        self.assertEqual(item.variant_name, "สีเหลือง")
+
+        self.client.post(reverse("orders:order_reorder", args=[order.pk]))
+        self.assertIn(line_key, self.client.session["cart"])
 
     def test_maximum_order_quantity_limits_cart_and_direct_checkout(self):
         self.product.maximum_order_quantity = Decimal("2.00")
@@ -272,6 +375,74 @@ class CartWorkflowTests(TestCase):
         self.assertNotContains(response, "SALE-AS-SELLER")
         self.assertContains(response, "การซื้อของฉัน")
 
+    def test_cancelled_order_exposes_reorder_refund_details_and_seller_contact_actions(self):
+        order = Order.objects.create(
+            reference="CANCELLED-ACTIONS",
+            buyer=self.buyer,
+            seller=self.seller,
+            community=self.community,
+            status=Order.Status.CANCELLED,
+            payment_status=Order.PaymentStatus.PAID,
+            shipping_name="Buyer",
+            shipping_phone="0800000000",
+            shipping_address="Buyer address",
+        )
+        payment = Payment.objects.create(
+            order=order,
+            status=Payment.Status.PAID,
+            amount=Decimal("25.00"),
+        )
+        refund = Refund.objects.create(
+            payment=payment,
+            amount=Decimal("25.00"),
+            reason="Buyer cancellation",
+            requested_by=self.buyer,
+        )
+        self.client.force_login(self.buyer)
+
+        list_response = self.client.get(reverse("orders:order_list"), {"status": "cancelled"})
+        self.assertContains(list_response, reverse("orders:order_reorder", args=[order.pk]))
+        self.assertContains(list_response, f"{order.get_absolute_url()}#refund-details")
+        self.assertContains(list_response, reverse("accounts:conversation_start_order", args=[order.pk]))
+        self.assertContains(list_response, reverse("catalog:seller_store", args=[self.seller.pk]))
+
+        detail_response = self.client.get(order.get_absolute_url())
+        self.assertContains(detail_response, 'id="refund-details"')
+        self.assertNotContains(detail_response, reverse("payments:process_refund", args=[refund.pk]))
+    def test_buyer_order_history_filters_cancelled_and_refunded_separately(self):
+        cancelled_order = Order.objects.create(
+            reference="CANCELLED-ORDER",
+            buyer=self.buyer,
+            seller=self.seller,
+            community=self.community,
+            status=Order.Status.CANCELLED,
+            payment_status=Order.PaymentStatus.UNPAID,
+            shipping_name="Buyer",
+            shipping_phone="0800000000",
+            shipping_address="Buyer address",
+        )
+        refunded_order = Order.objects.create(
+            reference="REFUNDED-ORDER",
+            buyer=self.buyer,
+            seller=self.seller,
+            community=self.community,
+            status=Order.Status.REFUNDED,
+            payment_status=Order.PaymentStatus.REFUNDED,
+            shipping_name="Buyer",
+            shipping_phone="0800000000",
+            shipping_address="Buyer address",
+        )
+        self.client.force_login(self.buyer)
+
+        cancelled_response = self.client.get(reverse("orders:order_list"), {"status": "cancelled"})
+        self.assertContains(cancelled_response, cancelled_order.reference)
+        self.assertNotContains(cancelled_response, refunded_order.reference)
+        self.assertEqual(cancelled_response.context["status_filter"], "cancelled")
+
+        refunded_response = self.client.get(reverse("orders:order_list"), {"status": "refunded"})
+        self.assertContains(refunded_response, refunded_order.reference)
+        self.assertNotContains(refunded_response, cancelled_order.reference)
+        self.assertEqual(refunded_response.context["status_filter"], "refunded")
     def test_buyer_order_history_shows_product_image(self):
         self.product.image = "products/order-history-image.jpg"
         self.product.save(update_fields=["image"])

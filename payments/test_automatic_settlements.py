@@ -7,13 +7,18 @@ from django.core.exceptions import ValidationError
 from django.test import TestCase, override_settings
 from django.utils import timezone
 
-from accounts.models import Community, User
+from accounts.models import Community, Notification, User
 from orders.models import Order
 from .models import Payment, Refund, SellerPaymentAccount, SellerSettlement
 from .services import process_seller_settlement, retry_due_settlements
 
 
-@override_settings(STRIPE_CONNECT_TRANSFERS_ENABLED=True, SETTLEMENT_MAX_ATTEMPTS=5)
+@override_settings(
+    PAYMENT_MODE="test",
+    DEMO_SETTLEMENTS_ENABLED=False,
+    STRIPE_CONNECT_TRANSFERS_ENABLED=True,
+    SETTLEMENT_MAX_ATTEMPTS=5,
+)
 class AutomaticSettlementTests(TestCase):
     def setUp(self):
         buyer = User.objects.create_user(username="auto-buyer")
@@ -111,3 +116,68 @@ class AutomaticSettlementTests(TestCase):
         self.assertEqual(result.status, SellerSettlement.Status.HELD)
         self.assertEqual(result.stripe_transfer_id, "tr_test")
         self.stripe.Transfer.create.assert_not_called()
+
+
+@override_settings(
+    PAYMENT_MODE="demo",
+    DEMO_SETTLEMENTS_ENABLED=True,
+    STRIPE_CONNECT_TRANSFERS_ENABLED=False,
+)
+class DemoAutomaticSettlementTests(TestCase):
+    def setUp(self):
+        buyer = User.objects.create_user(username="demo-settlement-buyer")
+        self.seller = User.objects.create_user(
+            username="demo-settlement-seller",
+            email="seller@example.com",
+            role=User.Roles.FARMER,
+        )
+        community = Community.objects.create(
+            name="Demo settlements",
+            slug="demo-settlements",
+            province="สกลนคร",
+        )
+        order = Order.objects.create(
+            buyer=buyer,
+            seller=self.seller,
+            community=community,
+            status=Order.Status.COMPLETED,
+            total_amount=Decimal("100.00"),
+            shipping_name="Buyer",
+            shipping_phone="0800000000",
+            shipping_address="Test",
+        )
+        payment = Payment.objects.create(
+            order=order,
+            amount=Decimal("100.00"),
+            status=Payment.Status.PAID,
+            payment_intent_id="demo_pi_settlement",
+        )
+        self.settlement = SellerSettlement.objects.create(
+            payment=payment,
+            seller=self.seller,
+            gross_amount=Decimal("100.00"),
+            fee_rate=Decimal("5.00"),
+            platform_fee=Decimal("5.00"),
+            net_amount=Decimal("95.00"),
+            available_at=timezone.now() - timedelta(days=1),
+            status=SellerSettlement.Status.READY,
+        )
+
+    def test_due_job_records_weekly_demo_transfer_once_and_notifies_seller(self):
+        with self.captureOnCommitCallbacks(execute=True):
+            self.assertEqual(retry_due_settlements(), 1)
+        self.assertEqual(retry_due_settlements(), 0)
+
+        self.settlement.refresh_from_db()
+        self.assertEqual(self.settlement.status, SellerSettlement.Status.TRANSFERRED)
+        self.assertEqual(
+            self.settlement.stripe_transfer_id,
+            f"demo-settlement-{self.settlement.pk}",
+        )
+        self.assertIsNotNone(self.settlement.transferred_at)
+        self.assertTrue(
+            Notification.objects.filter(
+                user=self.seller,
+                title="บันทึกการโอนรายสัปดาห์แล้ว",
+            ).exists()
+        )

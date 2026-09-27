@@ -7,6 +7,8 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 
+from accounts.services import notify_user
+
 from .models import Payment, SellerPaymentAccount, SellerSettlement
 
 
@@ -223,22 +225,73 @@ def process_seller_settlement(settlement):
     return settlement
 
 
+@transaction.atomic
+def process_demo_seller_settlement(settlement):
+    """Record the weekly seller transfer for project demonstrations without moving money."""
+    payment = Payment.objects.select_for_update().select_related("order").get(
+        pk=settlement.payment_id
+    )
+    settlement = SellerSettlement.objects.select_for_update().get(pk=settlement.pk)
+    if settlement.status == SellerSettlement.Status.TRANSFERRED:
+        return settlement
+    if settlement.status not in {
+        SellerSettlement.Status.READY,
+        SellerSettlement.Status.FAILED,
+    }:
+        raise ValidationError("ยอดนี้ยังไม่พร้อมบันทึกการโอน")
+    if (
+        payment.status != Payment.Status.PAID
+        or payment.order.status != payment.order.Status.COMPLETED
+        or settlement.available_at is None
+        or settlement.available_at > timezone.now()
+        or payment.refunds.filter(
+            status__in=["requested", "processing", "failed"]
+        ).exists()
+    ):
+        raise ValidationError("คำสั่งซื้อยังไม่เข้าเงื่อนไขการโอน")
+
+    settlement.status = SellerSettlement.Status.TRANSFERRED
+    settlement.stripe_transfer_id = f"demo-settlement-{settlement.pk}"
+    settlement.transferred_at = timezone.now()
+    settlement.failure_reason = ""
+    settlement.save(
+        update_fields=[
+            "status",
+            "stripe_transfer_id",
+            "transferred_at",
+            "failure_reason",
+            "updated_at",
+        ]
+    )
+    transaction.on_commit(
+        lambda: notify_user(
+            settlement.seller,
+            "บันทึกการโอนรายสัปดาห์แล้ว",
+            f"ยอด {settlement.net_amount:.2f} บาท เป็นการโอนจำลองของโครงการ",
+            "/accounts/farmer-shop/?section=finance&mode=balance",
+        )
+    )
+    return settlement
+
+
 def retry_due_settlements(limit=50):
-    if not settings.STRIPE_CONNECT_TRANSFERS_ENABLED:
+    demo_mode = settings.PAYMENT_MODE == "demo" and settings.DEMO_SETTLEMENTS_ENABLED
+    if not settings.STRIPE_CONNECT_TRANSFERS_ENABLED and not demo_mode:
         return 0
     # Only release holds caused by missing payout onboarding, never refund or manual holds.
-    for settlement in SellerSettlement.objects.filter(
-        status=SellerSettlement.Status.HELD, failure_reason="บัญชีผู้ขายยังไม่พร้อมรับเงิน",
-        seller__payment_account__payouts_enabled=True,
-    )[:limit]:
-        with transaction.atomic():
-            Payment.objects.select_for_update().get(pk=settlement.payment_id)
-            current = SellerSettlement.objects.select_for_update().get(pk=settlement.pk)
-            if current.status == SellerSettlement.Status.HELD and current.failure_reason == "บัญชีผู้ขายยังไม่พร้อมรับเงิน":
-                current.status = SellerSettlement.Status.PENDING
-                current.failure_reason = ""
-                current.save(update_fields=["status", "failure_reason", "updated_at"])
-                sync_settlement_for_payment(current.payment)
+    if not demo_mode:
+        for settlement in SellerSettlement.objects.filter(
+            status=SellerSettlement.Status.HELD, failure_reason="บัญชีผู้ขายยังไม่พร้อมรับเงิน",
+            seller__payment_account__payouts_enabled=True,
+        )[:limit]:
+            with transaction.atomic():
+                Payment.objects.select_for_update().get(pk=settlement.payment_id)
+                current = SellerSettlement.objects.select_for_update().get(pk=settlement.pk)
+                if current.status == SellerSettlement.Status.HELD and current.failure_reason == "บัญชีผู้ขายยังไม่พร้อมรับเงิน":
+                    current.status = SellerSettlement.Status.PENDING
+                    current.failure_reason = ""
+                    current.save(update_fields=["status", "failure_reason", "updated_at"])
+                    sync_settlement_for_payment(current.payment)
     due = SellerSettlement.objects.filter(
         status__in=[SellerSettlement.Status.READY, SellerSettlement.Status.FAILED],
         next_attempt_at__lte=timezone.now(), attempts__lt=settings.SETTLEMENT_MAX_ATTEMPTS,
@@ -247,7 +300,11 @@ def retry_due_settlements(limit=50):
     transferred = 0
     for settlement in due[:limit]:
         try:
-            result = process_seller_settlement(settlement)
+            result = (
+                process_demo_seller_settlement(settlement)
+                if demo_mode
+                else process_seller_settlement(settlement)
+            )
             transferred += result.status == SellerSettlement.Status.TRANSFERRED
         except Exception:
             logger.exception("Unable to settle payment %s", settlement.payment_id)

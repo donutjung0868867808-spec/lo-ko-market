@@ -2,8 +2,9 @@ from decimal import Decimal
 
 from django import forms
 from django.conf import settings
+from django.forms import inlineformset_factory
 
-from .models import Product, ProductDetailImage, ProductImage
+from .models import Product, ProductDetailImage, ProductImage, ProductVariant
 
 
 class StyledFormMixin:
@@ -239,6 +240,44 @@ class ProductImageForm(StyledFormMixin, forms.Form):
             }
         ),
     )
+
+
+class ProductVariantForm(StyledFormMixin, forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["is_active"].widget.attrs["class"] = (
+            "h-4 w-4 rounded border-stone-300 text-leaf focus:ring-leaf"
+        )
+        self.fields["sort_order"].required = False
+
+    def clean_sort_order(self):
+        return self.cleaned_data.get("sort_order") or 0
+
+    class Meta:
+        model = ProductVariant
+        fields = ["name", "image", "is_active", "sort_order"]
+        labels = {
+            "name": "ชื่อตัวเลือก",
+            "image": "รูปกำกับ",
+            "is_active": "เปิดให้เลือก",
+            "sort_order": "ลำดับ",
+        }
+        widgets = {
+            "name": forms.TextInput(attrs={"placeholder": "เช่น สีเหลือง"}),
+            "image": forms.ClearableFileInput(
+                attrs={"accept": "image/jpeg,image/png,image/webp"}
+            ),
+            "sort_order": forms.NumberInput(attrs={"min": "0"}),
+        }
+
+
+ProductVariantFormSet = inlineformset_factory(
+    Product,
+    ProductVariant,
+    form=ProductVariantForm,
+    extra=3,
+    can_delete=True,
+)
 
 
 class ProductReviewForm(StyledFormMixin, forms.Form):

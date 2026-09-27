@@ -17,6 +17,7 @@
 
   <form method="post" class="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
     {% csrf_token %}
+    {% if variant %}<input type="hidden" name="variant_id" value="{{ variant.id }}">{% endif %}
     {{ form.shipping_name.as_hidden }}
     {{ form.shipping_phone.as_hidden }}
     {{ form.shipping_address.as_hidden }}
@@ -55,7 +56,9 @@
         </div>
         <article class="flex gap-4 p-5">
           <div class="h-24 w-24 shrink-0 overflow-hidden rounded-md bg-stone-100 sm:h-28 sm:w-28">
-            {% if product.image %}
+            {% if variant and variant.image %}
+              <img class="h-full w-full object-cover" src="{{ variant.image.url }}" alt="{{ product.name }} - {{ variant.name }}">
+            {% elif product.image %}
               <img class="h-full w-full object-cover" src="{{ product.image.url }}" alt="{{ product.name }}">
             {% else %}
               <img class="h-full w-full object-cover" src="{% static 'images/product-placeholder.svg' %}" alt="{{ product.name }}">
@@ -64,6 +67,7 @@
           <div class="min-w-0 flex-1">
             <p class="truncate text-sm text-slate-600">{{ product.community.name }} · {{ product.seller }}</p>
             <h2 class="mt-1 text-lg font-semibold text-slate-950">{{ product.name }}</h2>
+            {% if variant %}<p class="mt-1 text-sm font-semibold text-slate-700">{{ variant.name }}</p>{% endif %}
             <p class="mt-2 font-semibold text-leaf">฿{{ product.price|floatformat:2 }} <span class="text-sm font-normal text-slate-500">/ {{ product.get_unit_display }}</span></p>
           </div>
         </article>

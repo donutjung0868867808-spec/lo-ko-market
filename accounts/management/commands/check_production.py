@@ -73,7 +73,11 @@ class Command(BaseCommand):
             errors.append("ต้องเปิด SECURE_SSL_REDIRECT")
         if settings.EMAIL_BACKEND != "django.core.mail.backends.smtp.EmailBackend":
             errors.append("Production ต้องใช้ SMTP email backend")
-        if not settings.STRIPE_CONNECT_TRANSFERS_ENABLED:
+        if settings.PAYMENT_MODE == "demo":
+            warnings.append(
+                "PAYMENT_MODE=demo: ใช้การชำระเงินและการโอนยอดจำลอง ไม่มีการตัดหรือโอนเงินจริง"
+            )
+        elif not settings.STRIPE_CONNECT_TRANSFERS_ENABLED:
             warnings.append(
                 "ยังไม่ได้เปิด STRIPE_CONNECT_TRANSFERS_ENABLED "
                 "ระบบจะพักยอดผู้ขายไว้และยังไม่โอนอัตโนมัติ"

@@ -68,7 +68,9 @@
           {% for item in items %}
             <article class="flex gap-4 p-5">
               <a class="h-24 w-24 shrink-0 overflow-hidden rounded-md bg-stone-100" href="{{ item.product.get_absolute_url }}">
-                {% if item.product.image %}
+                {% if item.variant and item.variant.image %}
+                  <img class="h-full w-full object-cover" src="{{ item.variant.image.url }}" alt="{{ item.product.name }} - {{ item.variant.name }}">
+                {% elif item.product.image %}
                   <img class="h-full w-full object-cover" src="{{ item.product.image.url }}" alt="{{ item.product.name }}">
                 {% else %}
                   <img class="h-full w-full object-cover" src="{% static 'images/product-placeholder.svg' %}" alt="{{ item.product.name }}">
@@ -77,6 +79,7 @@
               <div class="min-w-0 flex-1">
                 <p class="text-sm text-slate-600">{{ item.product.seller }}</p>
                 <a class="mt-1 block font-semibold text-slate-950" href="{{ item.product.get_absolute_url }}">{{ item.product.name }}</a>
+                {% if item.variant %}<p class="mt-1 text-sm font-semibold text-slate-700">{{ item.variant.name }}</p>{% endif %}
                 <p class="mt-2 text-sm text-slate-600">{{ item.quantity|floatformat:'-2' }} {{ item.product.get_unit_display }}</p>
               </div>
               <p class="shrink-0 font-semibold text-leaf">฿{{ item.line_total|floatformat:2 }}</p>

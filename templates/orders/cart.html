@@ -14,23 +14,25 @@
     <div class="rounded-md border border-stone-200 bg-white shadow-sm">
       <div class="divide-y divide-stone-100">
         {% for item in items %}
-          <div class="grid gap-4 p-4 md:grid-cols-[120px_1fr_180px]" data-cart-item data-cart-price="{{ item.product.price }}" data-cart-product-id="{{ item.product.id }}">
+          <div class="grid gap-4 p-4 md:grid-cols-[120px_1fr_180px]" data-cart-item data-cart-price="{{ item.unit_price }}" data-cart-item-key="{{ item.key }}">
             <div class="relative">
               <label class="absolute left-2 top-2 z-10 inline-flex cursor-pointer items-center rounded bg-white p-1 shadow-sm">
                 <input
                   class="h-5 w-5 rounded border-stone-300 text-leaf focus:ring-leaf"
                   type="checkbox"
                   name="selected_items"
-                  value="{{ item.product.id }}"
+                  value="{{ item.key }}"
                   form="cart-checkout-form"
                   data-cart-select
                   data-cart-line-total="{{ item.line_total }}"
-                  {% if item.product.id in selected_item_ids %}checked{% endif %}
+                  {% if item.key in selected_item_keys %}checked{% endif %}
                 >
                 <span class="sr-only">เลือก {{ item.product.name }}</span>
               </label>
               <a class="block aspect-square overflow-hidden rounded-md bg-stone-100" href="{{ item.product.get_absolute_url }}">
-                {% if item.product.image %}
+                {% if item.variant and item.variant.image %}
+                  <img class="h-full w-full object-cover" src="{{ item.variant.image.url }}" alt="{{ item.product.name }} - {{ item.variant.name }}">
+                {% elif item.product.image %}
                   <img class="h-full w-full object-cover" src="{{ item.product.image.url }}" alt="{{ item.product.name }}">
                 {% else %}
                   <img class="h-full w-full object-cover" src="{% static 'images/product-placeholder.svg' %}" alt="{{ item.product.name }}">
@@ -39,17 +41,20 @@
             </div>
             <div>
               <a class="font-semibold text-slate-950" href="{{ item.product.get_absolute_url }}">{{ item.product.name }}</a>
+              {% if item.variant %}<p class="mt-1 text-sm font-semibold text-slate-700">{{ item.variant.name }}</p>{% endif %}
               <p class="mt-1 text-sm text-slate-600">{{ item.product.seller }} · {{ item.product.community.name }}</p>
-              <p class="mt-2 text-sm font-semibold text-leaf">฿{{ item.product.price|floatformat:2 }} / {{ item.product.get_unit_display }}</p>
+              <p class="mt-2 text-sm font-semibold text-leaf">฿{{ item.unit_price|floatformat:2 }} / {{ item.product.get_unit_display }}</p>
             </div>
             <div class="space-y-2">
               <form method="post" action="{% url 'orders:cart_update' item.product.id %}" data-cart-update-form>
                 {% csrf_token %}
+                {% if item.variant %}<input type="hidden" name="variant_id" value="{{ item.variant.id }}">{% endif %}
                 <input name="quantity" type="number" min="0" step="{{ item.product.quantity_step|floatformat:'-2' }}" value="{{ item.quantity|floatformat:'-2' }}" inputmode="decimal" data-cart-quantity class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm">
               </form>
               <p class="text-sm text-slate-600">รวม ฿<span data-cart-line-total>{{ item.line_total|floatformat:2 }}</span></p>
               <form method="post" action="{% url 'orders:cart_remove' item.product.id %}">
                 {% csrf_token %}
+                {% if item.variant %}<input type="hidden" name="variant_id" value="{{ item.variant.id }}">{% endif %}
                 <button class="text-sm font-semibold text-red-700" type="submit">นำออก</button>
               </form>
             </div>
@@ -162,7 +167,7 @@
         const quantity = item.querySelector("[data-cart-quantity]").value;
         const input = document.createElement("input");
         input.type = "hidden";
-        input.name = "cart_quantity_" + item.dataset.cartProductId;
+        input.name = "cart_quantity_" + item.dataset.cartItemKey;
         input.value = quantity;
         input.setAttribute("data-cart-quantity-value", "");
         checkoutForm.append(input);

@@ -16,7 +16,12 @@ from accounts.services import record_audit
 from orders.models import Order, OrderItem
 
 from accounts.forms import ReportForm
-from .forms import ProductForm, ProductImageForm, ProductReviewForm
+from .forms import (
+    ProductForm,
+    ProductImageForm,
+    ProductReviewForm,
+    ProductVariantFormSet,
+)
 from .services import create_pending_product
 from .models import (
     Category,
@@ -28,6 +33,7 @@ from .models import (
     ProductImage,
     ProductReview,
     ProductReviewMedia,
+    ProductVariant,
     SellerFavorite,
     SellerStoreVisit,
     StockMovement,
@@ -95,9 +101,35 @@ def can_review_product(user, product):
         buyer=user,
         items__product=product,
         payment_status=Order.PaymentStatus.PAID,
+        status=Order.Status.COMPLETED,
     ).exclude(
         status__in=[Order.Status.CANCELLED, Order.Status.REFUNDED]
     ).exists()
+
+
+def annotate_product_card_metrics(products):
+    sold_quantity = (
+        OrderItem.objects.filter(
+            product_id=OuterRef("pk"),
+            order__payment_status=Order.PaymentStatus.PAID,
+        )
+        .exclude(
+            order__status__in=[Order.Status.CANCELLED, Order.Status.REFUNDED]
+        )
+        .values("product_id")
+        .annotate(total=Sum("quantity"))
+        .values("total")[:1]
+    )
+    quantity_field = DecimalField(max_digits=10, decimal_places=2)
+    return products.annotate(
+        card_average_rating=Avg("reviews__rating"),
+        card_review_count=Count("reviews", distinct=True),
+        card_sold_quantity=Coalesce(
+            Subquery(sold_quantity, output_field=quantity_field),
+            Value(0),
+            output_field=quantity_field,
+        ),
+    )
 
 
 def filtered_products(request):
@@ -123,28 +155,7 @@ def filtered_products(request):
         products = products.filter(category_id=category_id)
     if community_id:
         products = products.filter(community_id=community_id)
-    sold_quantity = (
-        OrderItem.objects.filter(
-            product_id=OuterRef("pk"),
-            order__payment_status=Order.PaymentStatus.PAID,
-        )
-        .exclude(
-            order__status__in=[Order.Status.CANCELLED, Order.Status.REFUNDED]
-        )
-        .values("product_id")
-        .annotate(total=Sum("quantity"))
-        .values("total")[:1]
-    )
-    quantity_field = DecimalField(max_digits=10, decimal_places=2)
-    return products.annotate(
-        card_average_rating=Avg("reviews__rating"),
-        card_review_count=Count("reviews"),
-        card_sold_quantity=Coalesce(
-            Subquery(sold_quantity, output_field=quantity_field),
-            Value(0),
-            output_field=quantity_field,
-        ),
-    )
+    return annotate_product_card_metrics(products)
 
 
 def product_list(request):
@@ -201,7 +212,15 @@ def can_manage_product(user, product):
 
 def product_detail(request, pk):
     product = get_object_or_404(
-        Product.objects.select_related("seller", "community", "category").prefetch_related("images", "detail_images"),
+        Product.objects.select_related("seller", "community", "category").prefetch_related(
+            "images",
+            "detail_images",
+            Prefetch(
+                "variants",
+                queryset=ProductVariant.objects.filter(is_active=True),
+                to_attr="active_variants",
+            ),
+        ),
         pk=pk,
     )
     if product.status != Product.Status.ACTIVE:
@@ -257,6 +276,7 @@ def product_detail(request, pk):
         "catalog/product_detail.html",
         {
             "product": product,
+            "product_variants": product.active_variants,
             "reviews": reviews,
             "review_count": reviews.count(),
             "sold_quantity": sold_quantity,
@@ -345,7 +365,15 @@ def product_create(request):
         request.FILES or None,
         require_shipping_weight=True,
     )
-    if request.method == "POST" and form.is_valid():
+    variant_data = request.POST if "variants-TOTAL_FORMS" in request.POST else None
+    variant_formset = ProductVariantFormSet(
+        variant_data,
+        request.FILES if variant_data is not None else None,
+        instance=Product(),
+    )
+    if request.method == "POST" and form.is_valid() and (
+        not variant_formset.is_bound or variant_formset.is_valid()
+    ):
         product = form.save(commit=False)
         product = create_pending_product(
             seller=request.user,
@@ -354,6 +382,9 @@ def product_create(request):
             gallery_images=form.cleaned_data["image"],
             detail_images=form.cleaned_data["detail_images"],
         )
+        if variant_formset.is_bound:
+            variant_formset.instance = product
+            variant_formset.save()
         record_audit(
             request,
             AuditEvent.Action.CREATE,
@@ -371,13 +402,25 @@ def product_create(request):
         messages.success(request, "ส่งสินค้าให้เจ้าหน้าที่ตรวจสอบแล้ว")
         return redirect(product)
 
-    return render(request, "catalog/product_form.html", {"form": form, "title": "เพิ่มสินค้า"})
+    return render(
+        request,
+        "catalog/product_form.html",
+        {
+            "form": form,
+            "variant_formset": variant_formset,
+            "title": "เพิ่มสินค้า",
+        },
+    )
 
 
 @login_required
 def product_update(request, pk):
     product = get_object_or_404(
-        Product.objects.select_related("community", "seller").prefetch_related("images", "detail_images"),
+        Product.objects.select_related("community", "seller").prefetch_related(
+            "images",
+            "detail_images",
+            "variants",
+        ),
         pk=pk,
     )
     if not can_manage_product(request.user, product):
@@ -395,7 +438,15 @@ def product_update(request, pk):
     old_harvest_date = product.harvest_date
     old_expiry_date = product.expiry_date
     form = ProductForm(request.POST or None, request.FILES or None, instance=product)
-    if request.method == "POST" and form.is_valid():
+    variant_data = request.POST if "variants-TOTAL_FORMS" in request.POST else None
+    variant_formset = ProductVariantFormSet(
+        variant_data,
+        request.FILES if variant_data is not None else None,
+        instance=product,
+    )
+    if request.method == "POST" and form.is_valid() and (
+        not variant_formset.is_bound or variant_formset.is_valid()
+    ):
         remove_image = request.POST.get("remove_image") == "1" and not request.FILES.get("image")
         gallery_images = form.cleaned_data["image"]
         detail_images = form.cleaned_data["detail_images"]
@@ -417,6 +468,8 @@ def product_update(request, pk):
             product.save()
             save_product_gallery_images(product, gallery_images)
             save_product_detail_images(product, detail_images)
+            if variant_formset.is_bound:
+                variant_formset.save()
             if product.stock_quantity != old_stock:
                 StockMovement.objects.create(
                     product=product,
@@ -449,6 +502,7 @@ def product_update(request, pk):
         "catalog/product_form.html",
         {
             "form": form,
+            "variant_formset": variant_formset,
             "title": "แก้ไขสินค้า",
             "product": product,
             "is_staff_edit": request.user.is_cooperative_staff,
@@ -658,7 +712,7 @@ def product_moderation_action(request, pk, action):
 def seller_store(request, seller_id):
     seller = get_object_or_404(User, pk=seller_id, role=User.Roles.FARMER, is_active=True)
     track_store_visit(request, seller)
-    active_products = (
+    active_products = annotate_product_card_metrics(
         Product.objects.select_related("community", "category")
         .prefetch_related("images")
         .filter(seller=seller, status=Product.Status.ACTIVE)
@@ -696,13 +750,7 @@ def seller_store(request, seller_id):
     if sort == "latest":
         products = products.order_by("-created_at")
     elif sort == "bestselling":
-        products = products.annotate(
-            sold_quantity=Sum(
-                "order_items__quantity",
-                filter=Q(order_items__order__payment_status=Order.PaymentStatus.PAID),
-                default=0,
-            )
-        ).order_by("-sold_quantity", "-created_at")
+        products = products.order_by("-card_sold_quantity", "-created_at")
     elif sort == "price_asc":
         products = products.order_by("price", "name")
     elif sort == "price_desc":
