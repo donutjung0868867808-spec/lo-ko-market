@@ -151,6 +151,30 @@ class PaymentWorkflowTests(TestCase):
         payment.refresh_from_db()
         self.assertEqual(payment.status, Payment.Status.PAID)
         self.assertEqual(payment.raw_payload["payment_method"], "truemoney")
+    @override_settings(DEBUG=True, PAYMENT_MODE="test", STRIPE_SECRET_KEY="")
+    def test_truemoney_replaces_an_active_card_checkout_url(self):
+        payment = Payment.objects.create(
+            order=self.order,
+            amount=self.order.total_amount,
+            status=Payment.Status.PROCESSING,
+            checkout_session_id="cs_card_active",
+            checkout_url="https://checkout.stripe.test/card-session",
+            checkout_expires_at=timezone.now() + timedelta(minutes=20),
+        )
+        self.order.payment_status = Order.PaymentStatus.PROCESSING
+        self.order.save(update_fields=["payment_status", "updated_at"])
+        self.client.force_login(self.buyer)
+
+        response = self.client.get(
+            reverse("payments:create_checkout", args=[self.order.pk]),
+            {"payment_method": "truemoney"},
+        )
+
+        expected_url = f"{reverse('payments:demo_checkout', args=[self.order.pk])}?payment_method=truemoney"
+        self.assertRedirects(response, expected_url, fetch_redirect_response=False)
+        payment.refresh_from_db()
+        self.assertIn("payment_method=truemoney", payment.checkout_url)
+        self.assertTrue(payment.checkout_session_id.startswith("demo-"))
     @override_settings(SETTLEMENT_HOLD_DAYS=10)
     def test_buyer_confirmation_makes_seller_settlement_ready_immediately(self):
         confirmed_at = timezone.now()

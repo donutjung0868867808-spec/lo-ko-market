@@ -243,6 +243,11 @@ def create_checkout_session(request, order_id):
             )
 
         now = timezone.now()
+        if payment_method == "truemoney":
+            if settings.PAYMENT_MODE in {"demo", "test"}:
+                return start_demo_checkout(order, payment, request)
+            messages.error(request, "TrueMoney Wallet ยังเปิดใช้ได้เฉพาะโหมดทดลอง")
+            return redirect(order)
         if (
             payment.status == Payment.Status.PROCESSING
             and payment.checkout_url
@@ -268,12 +273,6 @@ def create_checkout_session(request, order_id):
                 "updated_at",
             ]
         )
-
-        if payment_method == "truemoney":
-            if settings.PAYMENT_MODE in {"demo", "test"}:
-                return start_demo_checkout(order, payment, request)
-            messages.error(request, "TrueMoney Wallet ยังเปิดใช้ได้เฉพาะโหมดทดลอง")
-            return redirect(order)
 
         stripe = stripe_client()
         if stripe is None:
@@ -433,12 +432,6 @@ def success(request):
     session_id = request.GET.get("session_id")
     payment = None
     if session_id:
-        if payment_method == "truemoney":
-            if settings.PAYMENT_MODE in {"demo", "test"}:
-                return start_demo_checkout(order, payment, request)
-            messages.error(request, "TrueMoney Wallet ยังเปิดใช้ได้เฉพาะโหมดทดลอง")
-            return redirect(order)
-
         stripe = stripe_client()
         payment = Payment.objects.filter(checkout_session_id=session_id).select_related("order").first()
         if stripe is not None:
