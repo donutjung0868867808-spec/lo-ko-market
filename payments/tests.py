@@ -117,14 +117,42 @@ class PaymentWorkflowTests(TestCase):
 
     @override_settings(SITE_URL="https://market.example.com")
     def test_truemoney_qr_uses_the_canonical_public_url(self):
+        payment = Payment.objects.create(
+            order=self.order,
+            amount=self.order.total_amount,
+            status=Payment.Status.PROCESSING,
+        )
         request = RequestFactory().get("/", HTTP_HOST="127.0.0.1:8000")
 
         self.assertEqual(
-            truemoney_sandbox_checkout_url(request, self.order),
-            f"https://market.example.com{reverse('payments:demo_checkout', args=[self.order.pk])}?payment_method=truemoney",
+            truemoney_sandbox_checkout_url(request, payment),
+            f"https://market.example.com{reverse('payments:truemoney_sandbox_scan', args=[payment.checkout_attempt_id])}",
         )
 
+    @override_settings(DEBUG=True, PAYMENT_MODE="test", STRIPE_SECRET_KEY="")
+    def test_scanning_truemoney_qr_completes_demo_payment(self):
+        self.client.force_login(self.buyer)
+        self.client.get(
+            reverse("payments:create_checkout", args=[self.order.pk]),
+            {"payment_method": "truemoney"},
+        )
+        payment = Payment.objects.get(order=self.order)
+        self.client.logout()
 
+        response = self.client.get(
+            reverse("payments:truemoney_sandbox_scan", args=[payment.checkout_attempt_id])
+        )
+
+        self.assertRedirects(
+            response,
+            f"{reverse('payments:success')}?session_id={payment.checkout_session_id}",
+            fetch_redirect_response=False,
+        )
+        payment.refresh_from_db()
+        self.order.refresh_from_db()
+        self.assertEqual(payment.status, Payment.Status.PAID)
+        self.assertEqual(self.order.payment_status, Order.PaymentStatus.PAID)
+        self.assertEqual(payment.raw_payload["confirmed_by"], "qr_scan")
     @override_settings(DEBUG=True, PAYMENT_MODE="test", STRIPE_SECRET_KEY="")
     def test_checkout_keeps_truemoney_selected_and_completes_in_demo_mode(self):
         self.client.force_login(self.buyer)

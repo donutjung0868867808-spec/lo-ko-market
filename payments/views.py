@@ -14,12 +14,12 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.http import HttpResponse, JsonResponse
+from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET, require_POST
 
 from accounts.models import AuditEvent, User
 from accounts.services import notify_user
@@ -110,17 +110,20 @@ def stripe_client():
     return stripe
 
 
-def truemoney_sandbox_checkout_url(request, order):
-    """Return the public sandbox URL encoded in the TrueMoney demonstration QR."""
-    checkout_path = f"{reverse('payments:demo_checkout', args=[order.pk])}?payment_method=truemoney"
+def truemoney_sandbox_checkout_url(request, payment):
+    """Return the one-time sandbox confirmation URL encoded in the TrueMoney QR."""
+    checkout_path = reverse(
+        "payments:truemoney_sandbox_scan",
+        args=[payment.checkout_attempt_id],
+    )
     if settings.SITE_URL:
         return f"{settings.SITE_URL}{checkout_path}"
     return request.build_absolute_uri(checkout_path)
 
 
-def truemoney_sandbox_qr_data_uri(request, order):
-    """Build a scannable QR for the TrueMoney demonstration page."""
-    sandbox_url = truemoney_sandbox_checkout_url(request, order)
+def truemoney_sandbox_qr_data_uri(request, payment):
+    """Build a scannable QR that completes one TrueMoney sandbox checkout."""
+    sandbox_url = truemoney_sandbox_checkout_url(request, payment)
     qr = qrcode.QRCode(version=None, box_size=6, border=4)
     qr.add_data(sandbox_url)
     qr.make(fit=True)
@@ -388,6 +391,41 @@ def create_checkout_session(request, order_id):
         order.save(update_fields=["payment_status", "updated_at"])
         return redirect(session.url)
 
+@require_GET
+def truemoney_sandbox_scan(request, attempt_id):
+    """Complete a demo payment when its short-lived QR is scanned."""
+    if settings.PAYMENT_MODE not in {"demo", "test"}:
+        raise Http404
+
+    payment = get_object_or_404(
+        Payment.objects.select_related("order"),
+        checkout_attempt_id=attempt_id,
+    )
+    order = payment.order
+    if payment.status == Payment.Status.PAID:
+        return redirect(f"{reverse('payments:success')}?session_id={payment.checkout_session_id}")
+    if (
+        payment.status != Payment.Status.PROCESSING
+        or not payment.checkout_session_id
+        or payment.checkout_expires_at is None
+        or payment.checkout_expires_at <= timezone.now()
+        or order.is_expired
+    ):
+        raise Http404
+
+    mark_session_paid(
+        {
+            "id": payment.checkout_session_id,
+            "payment_intent": f"demo-intent-{payment.checkout_attempt_id.hex}",
+        },
+        {
+            "provider": "truemoney_sandbox",
+            "payment_method": "truemoney",
+            "order_id": order.pk,
+            "confirmed_by": "qr_scan",
+        },
+    )
+    return redirect(f"{reverse('payments:success')}?session_id={payment.checkout_session_id}")
 
 @login_required
 def demo_checkout(request, order_id):
@@ -416,7 +454,7 @@ def demo_checkout(request, order_id):
             "payment": payment,
             "selected_payment_method": payment_method,
             "truemoney_qr_image": (
-                truemoney_sandbox_qr_data_uri(request, order)
+                truemoney_sandbox_qr_data_uri(request, payment)
                 if payment_method == "truemoney"
                 else ""
             ),

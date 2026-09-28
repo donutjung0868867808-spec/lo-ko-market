@@ -65,8 +65,8 @@
         <div class="mx-auto flex items-center justify-center rounded-md bg-white p-2 shadow-sm" style="height: 164px; width: 164px;">
           {% if truemoney_qr_image %}<img src="{{ truemoney_qr_image }}" alt="QR ทดสอบ TrueMoney สำหรับคำสั่งซื้อ {{ order.reference }}" class="object-contain" style="height: 148px; width: 148px;" width="148" height="148">{% else %}<i data-lucide="wallet" class="h-24 w-24 text-amber-700" aria-hidden="true"></i>{% endif %}
         </div>
-        <p class="mt-4 font-semibold text-slate-950">สแกน QR เพื่อเปิด TrueMoney Wallet Sandbox</p>
-        <p class="mt-1 text-sm text-slate-600">QR นี้ใช้ทดสอบการสแกนและเปิดหน้าคำสั่งซื้อเท่านั้น ไม่มีการตัดเงินจริงหรือส่งข้อมูลไปยัง TrueMoney</p>
+        <p class="mt-4 font-semibold text-slate-950">สแกน QR เพื่อยืนยันชำระเงินทดลอง</p>
+        <p class="mt-1 text-sm text-slate-600">สแกนแล้วคำสั่งซื้อจะสำเร็จทันทีในโหมดทดลอง ไม่มีการตัดเงินจริงหรือส่งข้อมูลไปยัง TrueMoney</p>
       </div>
 
       <div class="flex flex-wrap items-center gap-3 border-t border-stone-100 pt-5">

@@ -8,6 +8,7 @@ urlpatterns = [
     path("checkout/<int:order_id>/", views.create_checkout_session, name="create_checkout"),
     path("checkout/<int:order_id>/demo/", views.demo_checkout, name="demo_checkout"),
     path("checkout/<int:order_id>/demo/complete/", views.complete_demo_checkout, name="complete_demo_checkout"),
+    path("checkout/demo/scan/<uuid:attempt_id>/", views.truemoney_sandbox_scan, name="truemoney_sandbox_scan"),
     path("success/", views.success, name="success"),
     path("cancel/<int:order_id>/", views.cancel, name="cancel"),
     path("refund/<int:order_id>/request/", views.request_refund, name="request_refund"),
