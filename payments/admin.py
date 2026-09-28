@@ -4,7 +4,7 @@ from django.shortcuts import redirect
 from django.template.response import TemplateResponse
 from django.urls import path, reverse
 
-from accounts.admin_permissions import CsvExportAdminMixin, OwnerOnlyAdminMixin
+from accounts.admin_permissions import CsvExportAdminMixin, OwnerOnlyAdminMixin, render_status_badge
 
 from .forms import RefundDecisionForm
 from .models import (
@@ -63,7 +63,7 @@ class PaymentAdmin(CsvExportAdminMixin, ReadOnlyOwnerAdminMixin, admin.ModelAdmi
     list_display = (
         "order",
         "provider_thai",
-        "status",
+        "status_badge",
         "amount",
         "refunded_amount",
         "currency_thai",
@@ -128,6 +128,16 @@ class PaymentAdmin(CsvExportAdminMixin, ReadOnlyOwnerAdminMixin, admin.ModelAdmi
         ("created_at", "วันที่สร้าง"),
     )
 
+    @admin.display(description="สถานะการชำระเงิน", ordering="status")
+    def status_badge(self, payment):
+        tone = {
+            Payment.Status.PAID: "success",
+            Payment.Status.CREATED: "neutral",
+            Payment.Status.PROCESSING: "neutral",
+            Payment.Status.FAILED: "neutral",
+            Payment.Status.REFUNDED: "neutral",
+        }.get(payment.status, "neutral")
+        return render_status_badge(payment.get_status_display(), tone)
     @admin.display(description="ช่องทางชำระเงิน", ordering="provider")
     def provider_thai(self, obj):
         return "ชำระเงินออนไลน์"
@@ -140,7 +150,7 @@ class PaymentAdmin(CsvExportAdminMixin, ReadOnlyOwnerAdminMixin, admin.ModelAdmi
 @admin.register(Refund)
 class RefundAdmin(CsvExportAdminMixin, ReadOnlyOwnerAdminMixin, admin.ModelAdmin):
     change_form_template = "admin/payments/refund/change_form.html"
-    list_display = ("payment", "amount", "status", "requested_by", "handled_by", "created_at")
+    list_display = ("payment", "amount", "status_badge", "requested_by", "handled_by", "created_at")
     list_filter = ("status", "created_at")
     search_fields = ("payment__order__reference", "reason", "stripe_refund_id")
     readonly_fields = (
@@ -178,6 +188,16 @@ class RefundAdmin(CsvExportAdminMixin, ReadOnlyOwnerAdminMixin, admin.ModelAdmin
         ("created_at", "วันที่ยื่นคำขอ"),
     )
 
+    @admin.display(description="สถานะ", ordering="status")
+    def status_badge(self, refund):
+        tone = {
+            Refund.Status.SUCCEEDED: "success",
+            Refund.Status.REJECTED: "danger",
+            Refund.Status.REQUESTED: "neutral",
+            Refund.Status.PROCESSING: "neutral",
+            Refund.Status.FAILED: "neutral",
+        }.get(refund.status, "neutral")
+        return render_status_badge(refund.get_status_display(), tone)
     def get_urls(self):
         custom_urls = [
             path(
@@ -360,7 +380,7 @@ class StripeEventAdmin(ReadOnlyOwnerAdminMixin, admin.ModelAdmin):
 class SellerPaymentAccountAdmin(ReadOnlyOwnerAdminMixin, admin.ModelAdmin):
     list_display = (
         "seller",
-        "status",
+        "status_badge",
         "details_submitted",
         "charges_enabled",
         "payouts_enabled",
@@ -392,6 +412,15 @@ class SellerPaymentAccountAdmin(ReadOnlyOwnerAdminMixin, admin.ModelAdmin):
     )
 
 
+    @admin.display(description="สถานะ", ordering="status")
+    def status_badge(self, account):
+        tone = {
+            SellerPaymentAccount.Status.ACTIVE: "success",
+            SellerPaymentAccount.Status.RESTRICTED: "danger",
+            SellerPaymentAccount.Status.NOT_STARTED: "neutral",
+            SellerPaymentAccount.Status.PENDING: "neutral",
+        }.get(account.status, "neutral")
+        return render_status_badge(account.get_status_display(), tone)
 @admin.register(SellerSettlement)
 class SellerSettlementAdmin(CsvExportAdminMixin, OwnerOnlyAdminMixin, admin.ModelAdmin):
     list_display = (
@@ -400,7 +429,7 @@ class SellerSettlementAdmin(CsvExportAdminMixin, OwnerOnlyAdminMixin, admin.Mode
         "gross_amount",
         "platform_fee",
         "net_amount",
-        "status",
+        "status_badge",
         "available_at",
     )
     list_filter = ("status", "currency", "created_at")
@@ -432,6 +461,18 @@ class SellerSettlementAdmin(CsvExportAdminMixin, OwnerOnlyAdminMixin, admin.Mode
         ("available_at", "วันที่พร้อมโอน"),
         ("transferred_at", "วันที่โอน"),
     )
+    @admin.display(description="สถานะ", ordering="status")
+    def status_badge(self, settlement):
+        tone = {
+            SellerSettlement.Status.TRANSFERRED: "success",
+            SellerSettlement.Status.HELD: "danger",
+            SellerSettlement.Status.REVERSED: "danger",
+            SellerSettlement.Status.PENDING: "neutral",
+            SellerSettlement.Status.READY: "neutral",
+            SellerSettlement.Status.PROCESSING: "neutral",
+            SellerSettlement.Status.FAILED: "neutral",
+        }.get(settlement.status, "neutral")
+        return render_status_badge(settlement.get_status_display(), tone)
     actions = ("transfer_selected_settlements", "export_as_csv")
 
     @admin.action(description="โอนยอดที่เลือกให้ผู้ขาย")

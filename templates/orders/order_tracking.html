@@ -12,12 +12,12 @@
   <section class="overflow-hidden rounded-md border border-stone-200 bg-white shadow-sm">
     <div class="overflow-x-auto px-5 py-6 sm:px-6">
       <div class="relative" style="min-width: 680px;">
-        <span class="absolute h-1 bg-emerald-500" style="top: 32px; left: 10%; right: 10%;" aria-hidden="true"></span>
         <ol class="relative flex">
         {% for step in order_progress_steps %}
           <li class="relative flex flex-1 flex-col items-center text-center">
-            <span class="relative z-10 grid h-16 w-16 place-items-center rounded-full {% if step.is_current %}bg-emerald-500 text-white{% elif step.completed %}border-4 border-emerald-500 bg-white text-emerald-500{% else %}border-4 border-stone-200 bg-white text-stone-400{% endif %}">
-              <i data-lucide="{{ step.icon }}" class="h-7 w-7" aria-hidden="true"></i>{% if step.icon == "star" %}<span class="icon-fallback text-xl" aria-hidden="true">&#9733;</span>{% endif %}
+            {% if not forloop.last %}<span class="absolute" style="top: 31px; left: 50%; right: -50%; height: 4px; background: {% if step.completed or step.is_current %}#2f7d20{% else %}#d8dee3{% endif %};" aria-hidden="true"></span>{% endif %}
+            <span class="relative z-10 grid place-items-center rounded-full" style="width: 64px; height: 64px; {% if step.is_current %}background: #2f7d20; border: 4px solid #2f7d20; color: #ffffff;{% elif step.completed %}background: #ffffff; border: 4px solid #2f7d20; color: #2f7d20;{% else %}background: #ffffff; border: 4px solid #d8dee3; color: #6b7280;{% endif %}">
+              {% if step.icon == "star" %}<span class="text-3xl leading-none" style="color: {% if step.is_current %}#ffffff{% elif step.completed %}#2f7d20{% else %}#6b7280{% endif %};" aria-hidden="true">&#9733;</span>{% else %}<i data-lucide="{{ step.icon }}" class="h-7 w-7" aria-hidden="true"></i>{% endif %}
             </span>
             <p class="mt-3 text-sm font-semibold {% if step.completed or step.is_current %}text-slate-900{% else %}text-slate-500{% endif %}" style="max-width: 130px;">{{ step.label }}</p>
             {% if step.timestamp %}
