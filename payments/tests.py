@@ -135,6 +135,8 @@ class PaymentWorkflowTests(TestCase):
         )
         self.assertEqual(response.context["selected_payment_method"], "truemoney")
         self.assertContains(response, "TrueMoney Wallet")
+        self.assertContains(response, "data-truemoney-fields")
+        self.assertContains(response, "'input[name=\"payment_method\"][value=\"' + method + '\"]'")
 
         payment = Payment.objects.get(order=self.order)
         response = self.client.post(

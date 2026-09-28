@@ -91,7 +91,7 @@
     const setMethod = (method) => {
       const isCard = method === 'card';
       const isPromptPay = method === 'promptpay';
-      const selectedInput = form.querySelector(\`input[name="payment_method"][value="\${method}"]\`);
+      const selectedInput = form.querySelector('input[name="payment_method"][value="' + method + '"]');
       if (selectedInput) selectedInput.checked = true;
       cardFields.hidden = !isCard;
       promptPayFields.hidden = !isPromptPay;
