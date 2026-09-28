@@ -66,6 +66,19 @@ class AccountCenterTests(TestCase):
         self.assertContains(response, 'data-notification-count="2"')
         self.assertContains(response, reverse("accounts:notifications"))
 
+    def test_mark_all_notifications_read_only_marks_current_user_items(self):
+        Notification.objects.create(user=self.user, title="ยังไม่ได้อ่าน 1")
+        Notification.objects.create(user=self.user, title="ยังไม่ได้อ่าน 2")
+        Notification.objects.create(user=self.user, title="อ่านแล้ว", is_read=True)
+        other_notification = Notification.objects.create(user=self.other_user, title="ของผู้ใช้อื่น")
+
+        response = self.client.post(reverse("accounts:mark_all_notifications_read"))
+
+        self.assertRedirects(response, reverse("accounts:notifications"))
+        self.assertFalse(Notification.objects.filter(user=self.user, is_read=False).exists())
+        other_notification.refresh_from_db()
+        self.assertFalse(other_notification.is_read)
+
     def test_seller_menu_is_visible_only_to_farmers(self):
         consumer_page = self.client.get(reverse("catalog:product_list"))
         self.assertNotContains(consumer_page, "หน้าร้านค้าของฉัน")

@@ -546,7 +546,7 @@ def cancel(request, order_id):
 @login_required
 @transaction.atomic
 def request_refund(request, order_id):
-    order = get_object_or_404(Order.objects.select_related("payment"), pk=order_id, buyer=request.user)
+    order = get_object_or_404(Order.objects.select_related("payment", "seller"), pk=order_id, buyer=request.user)
     payment = getattr(order, "payment", None)
     if not payment or payment.status not in {Payment.Status.PAID, Payment.Status.REFUNDED}:
         messages.error(request, "คำสั่งซื้อนี้ยังไม่สามารถขอคืนเงินได้")
@@ -569,7 +569,7 @@ def request_refund(request, order_id):
 
     form = RefundRequestForm(request.POST or None, request.FILES or None, payment=payment)
     if request.method == "POST" and form.is_valid():
-        Refund.objects.create(
+        refund = Refund.objects.create(
             payment=payment,
             amount=form.cleaned_data["amount"],
             reason=form.cleaned_data["reason"],
@@ -577,6 +577,12 @@ def request_refund(request, order_id):
             evidence=form.cleaned_data["evidence"],
         )
         hold_settlement_for_refund(payment)
+        notify_user(
+            order.seller,
+            f"ผู้ซื้อขอคืนเงิน {order.reference}",
+            f"จำนวน {refund.amount:.2f} บาท · {refund.reason}",
+            order.get_absolute_url(),
+        )
         owners = User.objects.filter(role=User.Roles.OWNER, is_active=True)
         for owner in owners:
             notify_user(

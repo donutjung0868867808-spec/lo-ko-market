@@ -8,8 +8,21 @@
 
   <section class="overflow-hidden rounded-md border border-emerald-900/25 bg-white">
     <header class="border-b border-stone-200 px-5 py-5 sm:px-7">
-      <h1 class="text-xl font-semibold text-slate-950">การแจ้งเตือน</h1>
-      <p class="mt-1 text-sm text-slate-500">ติดตามคำสั่งซื้อ ข้อความ และข่าวสำคัญของบัญชี</p>
+      <div class="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 class="text-xl font-semibold text-slate-950">การแจ้งเตือน</h1>
+          <p class="mt-1 text-sm text-slate-500">ติดตามคำสั่งซื้อ ข้อความ และข่าวสำคัญของบัญชี</p>
+        </div>
+        {% if has_unread_notifications %}
+          <form method="post" action="{% url 'accounts:mark_all_notifications_read' %}">
+            {% csrf_token %}
+            <button type="submit" class="inline-flex h-10 items-center gap-2 rounded-md border border-emerald-800 px-3 text-sm font-semibold text-leaf hover:bg-emerald-50">
+              <i data-lucide="check-check" class="h-4 w-4" aria-hidden="true"></i>
+              อ่านทั้งหมด
+            </button>
+          </form>
+        {% endif %}
+      </div>
     </header>
     <div class="divide-y divide-stone-200">
       {% for notification in notifications %}

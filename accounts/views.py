@@ -50,7 +50,7 @@ from .forms import (
     split_display_name,
 )
 from .models import AuditEvent, ChatBlock, Conversation, DeliveryAddress, DirectMessage, FarmerProfile, NewsPost, Notification, Report, ReportMessage, StoreCoverSlide, SupportMessage, SupportTicket, User, chat_media_type_for_upload
-from .realtime import serialize_message
+from .realtime import publish, serialize_message
 from .services import (
     clear_login_failures,
     is_login_blocked,
@@ -1111,7 +1111,29 @@ def payment_settings(request):
 @login_required
 def notifications_list(request):
     notifications = request.user.notifications.all()
-    return render(request, "accounts/notifications.html", {"notifications": notifications, "account_section": "notifications"})
+    return render(
+        request,
+        "accounts/notifications.html",
+        {
+            "notifications": notifications,
+            "has_unread_notifications": notifications.filter(is_read=False).exists(),
+            "account_section": "notifications",
+        },
+    )
+
+
+@login_required
+@require_POST
+def mark_all_notifications_read(request):
+    updated_count = request.user.notifications.filter(is_read=False).update(is_read=True)
+    if updated_count:
+        transaction.on_commit(
+            lambda: publish(
+                f"user.{request.user.pk}", {"type": "notification.event"}
+            )
+        )
+        messages.success(request, f"ทำเครื่องหมายว่าอ่านแล้ว {updated_count} รายการ")
+    return redirect("accounts:notifications")
 
 
 @login_required

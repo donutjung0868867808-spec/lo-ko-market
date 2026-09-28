@@ -471,6 +471,13 @@ class PaymentWorkflowTests(TestCase):
         settlement = SellerSettlement.objects.get(payment=payment)
         self.assertEqual(refund.status, Refund.Status.REQUESTED)
         self.assertEqual(settlement.status, SellerSettlement.Status.HELD)
+        self.assertTrue(
+            Notification.objects.filter(
+                user=self.seller,
+                title=f"ผู้ซื้อขอคืนเงิน {self.order.reference}",
+                link=self.order.get_absolute_url(),
+            ).exists()
+        )
 
         self.client.force_login(owner)
         response = self.client.post(

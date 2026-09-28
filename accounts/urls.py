@@ -60,6 +60,7 @@ urlpatterns = [
     path("messages/<int:pk>/report/", views.conversation_report, name="conversation_report"),
     path("messages/<int:pk>/", views.conversation_detail, name="conversation_detail"),
     path("notifications/", views.notifications_list, name="notifications"),
+    path("notifications/read-all/", views.mark_all_notifications_read, name="mark_all_notifications_read"),
     path("notifications/send/", views.send_notification, name="send_notification"),
     path("notifications/send/<int:user_id>/", views.send_notification, name="send_notification_to"),
     path("notifications/<int:pk>/read/", views.mark_notification_read, name="mark_notification_read"),

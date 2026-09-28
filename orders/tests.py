@@ -1024,7 +1024,8 @@ class InventoryReservationTests(TestCase):
         self.product.refresh_from_db()
         self.assertEqual(self.product.stock_quantity, Decimal("3.00"))
 
-        self.client.post(reverse("orders:cancel_order", args=[order.pk]), {"reason": "เปลี่ยนแผนการสั่งซื้อ"})
+        with self.captureOnCommitCallbacks(execute=True):
+            self.client.post(reverse("orders:cancel_order", args=[order.pk]), {"reason": "เปลี่ยนแผนการสั่งซื้อ"})
 
         order.refresh_from_db()
         self.product.refresh_from_db()
@@ -1036,6 +1037,14 @@ class InventoryReservationTests(TestCase):
             status=Order.Status.CANCELLED,
         ).latest("created_at")
         self.assertIn("เปลี่ยนแผนการสั่งซื้อ", history.note)
+
+        self.assertTrue(
+            Notification.objects.filter(
+                user=self.seller,
+                title=f"คำสั่งซื้อ {order.reference} ถูกยกเลิก",
+                link=order.get_absolute_url(),
+            ).exists()
+        )
 
     def test_checkout_uses_full_total_without_discount(self):
         self.client.force_login(self.buyer)
