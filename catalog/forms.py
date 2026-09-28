@@ -36,6 +36,13 @@ class MultipleImageField(forms.FileField):
 
 
 class ProductForm(StyledFormMixin, forms.ModelForm):
+    detail_image_size = forms.ChoiceField(
+        label="ขนาดรูปประกอบรายละเอียด",
+        choices=ProductDetailImage.DisplaySize.choices,
+        initial=ProductDetailImage.DisplaySize.STANDARD,
+        help_text="ใช้กับรูปประกอบรายละเอียดที่เลือกในครั้งนี้",
+    )
+
     detail_images = MultipleImageField(
         label="รูปประกอบรายละเอียดสินค้า",
         required=False,
@@ -71,6 +78,7 @@ class ProductForm(StyledFormMixin, forms.ModelForm):
         "category",
         "name",
         "description",
+        "detail_image_size",
         "detail_images",
         "unit",
         "price",

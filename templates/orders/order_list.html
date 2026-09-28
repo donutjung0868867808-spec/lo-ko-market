@@ -118,7 +118,7 @@
               <a href="{{ order.get_absolute_url }}#refund-details" class="inline-flex min-h-[52px] items-center justify-center rounded-md border border-amber-400 px-4 text-base font-semibold text-amber-800 hover:bg-amber-50">ดูข้อมูลการขอคืนเงิน</a>
               <form method="post" action="{% url 'accounts:conversation_start_order' order.pk %}">{% csrf_token %}<button type="submit" class="inline-flex min-h-[52px] items-center justify-center rounded-md border border-stone-300 px-4 text-base font-semibold text-slate-700 hover:bg-stone-50">ติดต่อผู้ขาย</button></form>
             {% elif order.status == 'completed' %}
-              {% for item in order.items.all %}{% if forloop.first %}<a href="{{ item.product.get_absolute_url }}#review-title" class="inline-flex min-h-[52px] items-center justify-center rounded-md border border-amber-500 px-4 text-base font-semibold text-amber-800 hover:bg-amber-50">&#xE43;&#xE2B;&#xE49;&#xE04;&#xE30;&#xE41;&#xE19;&#xE19;</a>{% endif %}{% endfor %}
+              {% for item in order.items.all %}{% if forloop.first %}<a href="{% url 'orders:order_review' order.id %}" class="inline-flex min-h-[52px] items-center justify-center rounded-md border border-amber-500 px-4 text-base font-semibold text-amber-800 hover:bg-amber-50">&#xE43;&#xE2B;&#xE49;&#xE04;&#xE30;&#xE41;&#xE19;&#xE19;</a>{% endif %}{% endfor %}
             {% endif %}
           </div>
         </footer>

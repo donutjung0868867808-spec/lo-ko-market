@@ -99,10 +99,11 @@ class SellerShipmentWorkflowTests(TestCase):
     def test_seller_can_ship_a_paid_order_in_one_step(self):
         self.client.force_login(self.seller)
 
-        response = self.client.post(
-            reverse("orders:seller_ship_order", args=[self.order.pk]),
-            {"shipping_carrier": "SPX Express", "tracking_number": "th123456789"},
-        )
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(
+                reverse("orders:seller_ship_order", args=[self.order.pk]),
+                {"shipping_carrier": "SPX Express", "tracking_number": "th123456789"},
+            )
 
         self.assertRedirects(response, f"{reverse('accounts:farmer_shop_center')}?section=orders&status=preparing")
         self.order.refresh_from_db()
@@ -113,6 +114,9 @@ class SellerShipmentWorkflowTests(TestCase):
             list(OrderStatusHistory.objects.filter(order=self.order).values_list("status", flat=True)),
             [Order.Status.CONFIRMED, Order.Status.PREPARING, Order.Status.SHIPPED],
         )
+        notifications = Notification.objects.filter(user=self.buyer)
+        self.assertEqual(notifications.count(), 1)
+        self.assertIn("TH123456789", notifications.get().message)
 
     def test_buyer_can_confirm_received_shipment_and_see_review_action(self):
         product = Product.objects.create(
@@ -141,7 +145,7 @@ class SellerShipmentWorkflowTests(TestCase):
         self.client.force_login(self.buyer)
         response = self.client.post(reverse("orders:confirm_received", args=[self.order.pk]))
 
-        self.assertRedirects(response, self.order.get_absolute_url())
+        self.assertRedirects(response, reverse("orders:order_review", args=[self.order.pk]))
         self.order.refresh_from_db()
         self.assertEqual(self.order.status, Order.Status.COMPLETED)
         self.assertIsNotNone(self.order.received_confirmed_at)
@@ -155,10 +159,13 @@ class SellerShipmentWorkflowTests(TestCase):
                 link=self.order.get_absolute_url(),
             ).exists()
         )
+        response = self.client.get(reverse("orders:order_review", args=[self.order.pk]))
+        self.assertContains(response, product.name)
+        self.assertContains(response, reverse("catalog:submit_review", args=[product.pk]))
         response = self.client.get(reverse("orders:order_list"))
-        self.assertContains(response, "#review-title")
+        self.assertContains(response, reverse("orders:order_review", args=[self.order.pk]))
         response = self.client.get(self.order.get_absolute_url())
-        self.assertContains(response, "#review-title")
+        self.assertContains(response, reverse("orders:order_review", args=[self.order.pk]))
     def test_shop_center_shows_quick_shipment_form_for_paid_order(self):
         FarmerProfile.objects.create(
             user=self.seller,

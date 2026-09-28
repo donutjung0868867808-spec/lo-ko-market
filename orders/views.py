@@ -1133,7 +1133,7 @@ def confirm_received(request, pk):
     order = get_object_or_404(Order, pk=pk, buyer=request.user)
     if request.method == "POST":
         try:
-            change_order_status(
+            order = change_order_status(
                 order,
                 Order.Status.COMPLETED,
                 request.user,
@@ -1150,9 +1150,21 @@ def confirm_received(request, pk):
             messages.error(request, exc.message)
         else:
             messages.success(request, "ยืนยันการรับสินค้าแล้ว คุณสามารถให้คะแนนหรือเขียนรีวิวสินค้าได้ทันที")
-    return redirect(order)
+    return redirect("orders:order_review", pk=order.pk) if order.status == Order.Status.COMPLETED else redirect(order)
 
 
+
+@login_required
+def order_review(request, pk):
+    order = get_object_or_404(
+        Order.objects.prefetch_related("items__product"),
+        pk=pk,
+        buyer=request.user,
+    )
+    if order.status != Order.Status.COMPLETED:
+        messages.error(request, "ให้คะแนนสินค้าได้หลังยืนยันว่าได้รับสินค้าแล้ว")
+        return redirect(order)
+    return render(request, "orders/order_review.html", {"order": order})
 @login_required
 def report_buyer(request, pk):
     order = get_object_or_404(Order.objects.select_related("buyer", "seller", "community"), pk=pk)

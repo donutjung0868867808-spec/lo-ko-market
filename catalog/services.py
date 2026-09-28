@@ -11,7 +11,7 @@ from accounts.services import notify_user
 from .models import Product, ProductDetailImage, ProductImage, StockMovement
 
 
-def create_pending_product(*, seller, community, product, gallery_images, detail_images):
+def create_pending_product(*, seller, community, product, gallery_images, detail_images, detail_image_size):
     """Create a pending product and all inventory/media records as one database transaction."""
     gallery_images = list(gallery_images)
     detail_images = list(detail_images)
@@ -34,6 +34,7 @@ def create_pending_product(*, seller, community, product, gallery_images, detail
             ProductDetailImage.objects.create(
                 product=product,
                 image=image,
+                display_size=detail_image_size,
                 sort_order=index,
             )
         StockMovement.objects.create(

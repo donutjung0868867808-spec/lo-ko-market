@@ -440,6 +440,11 @@ class ProductImage(models.Model):
 
 
 class ProductDetailImage(models.Model):
+    class DisplaySize(models.TextChoices):
+        SMALL = "small", "เล็ก"
+        STANDARD = "standard", "มาตรฐาน"
+        WIDE = "wide", "เต็มความกว้าง"
+
     """Images that illustrate the written product description, not the product gallery."""
 
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="detail_images")
@@ -448,6 +453,7 @@ class ProductDetailImage(models.Model):
         upload_to="products/details/%Y/%m/",
         validators=[validate_image_file, validate_image_size],
     )
+    display_size = models.CharField(max_length=12, choices=DisplaySize.choices, default=DisplaySize.STANDARD)
     alt_text = models.CharField(max_length=180, blank=True)
     sort_order = models.PositiveSmallIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)

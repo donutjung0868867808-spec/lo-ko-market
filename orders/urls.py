@@ -17,6 +17,7 @@ urlpatterns = [
     path("checkout/<int:product_id>/", views.checkout, name="checkout"),
     path("<int:pk>/receipt/", views.order_receipt, name="order_receipt"),
     path("<int:pk>/tracking/", views.order_tracking, name="order_tracking"),
+    path("<int:pk>/review/", views.order_review, name="order_review"),
     path("<int:pk>/return/", views.request_return, name="request_return"),
     path("returns/<int:pk>/review/", views.review_return, name="review_return"),
     path("returns/<int:pk>/ship/", views.ship_return, name="ship_return"),

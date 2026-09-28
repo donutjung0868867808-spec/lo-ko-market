@@ -261,6 +261,7 @@ def change_order_status(
     carrier="",
     tracking_number="",
     buyer_confirmed=False,
+    notify_buyer=True,
 ):
     from payments.models import Payment
 
@@ -328,14 +329,15 @@ def change_order_status(
         f"\nเลขติดตาม: {tracking_number}" if tracking_number else ""
     )
     notification_link = order.get_absolute_url()
-    transaction.on_commit(
-        lambda: notify_user(
-            order.buyer,
-            notification_title,
-            notification_message,
-            notification_link,
+    if notify_buyer:
+        transaction.on_commit(
+            lambda: notify_user(
+                order.buyer,
+                notification_title,
+                notification_message,
+                notification_link,
+            )
         )
-    )
     if new_status == Order.Status.SHIPPED:
         from .tracking import register_aftership_tracking
 
@@ -354,7 +356,13 @@ def ship_order(order, changed_by, carrier, tracking_number):
     }
     while order.status in automatic_steps:
         next_status, note = automatic_steps[order.status]
-        order = change_order_status(order, next_status, changed_by, note=note)
+        order = change_order_status(
+            order,
+            next_status,
+            changed_by,
+            note=note,
+            notify_buyer=False,
+        )
 
     return change_order_status(
         order,

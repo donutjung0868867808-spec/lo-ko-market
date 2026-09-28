@@ -79,11 +79,11 @@ def save_product_gallery_images(product, images):
         ProductImage.objects.create(product=product, image=image)
 
 
-def save_product_detail_images(product, images):
+def save_product_detail_images(product, images, display_size=ProductDetailImage.DisplaySize.STANDARD):
     next_sort_order = product.detail_images.aggregate(last=Max("sort_order"))["last"] or 0
     for image in images:
         next_sort_order += 1
-        ProductDetailImage.objects.create(product=product, image=image, sort_order=next_sort_order)
+        ProductDetailImage.objects.create(product=product, image=image, display_size=display_size, sort_order=next_sort_order)
 
 
 def use_first_gallery_image_as_cover(product, images):
@@ -384,6 +384,7 @@ def product_create(request):
             product=product,
             gallery_images=form.cleaned_data["image"],
             detail_images=form.cleaned_data["detail_images"],
+            detail_image_size=form.cleaned_data["detail_image_size"],
         )
         if variant_formset.is_bound:
             variant_formset.instance = product
@@ -490,7 +491,7 @@ def product_update(request, pk):
                 product.status = Product.Status.PENDING
             product.save()
             save_product_gallery_images(product, gallery_images)
-            save_product_detail_images(product, detail_images)
+            save_product_detail_images(product, detail_images, form.cleaned_data["detail_image_size"])
             if variant_formset.is_bound:
                 variant_formset.save()
             if size_chart_formset.is_bound:

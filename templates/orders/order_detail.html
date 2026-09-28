@@ -28,7 +28,7 @@
         <form method="post" action="{% url 'orders:confirm_received' order.id %}">{% csrf_token %}<button class="rounded-md bg-leaf px-4 py-2 text-sm font-semibold text-white" type="submit">ได้รับสินค้าแล้ว</button></form>
       {% endif %}
       {% if user == order.buyer and order.status == 'completed' %}
-        {% for item in order.items.all %}{% if forloop.first %}<a class="inline-flex items-center gap-2 rounded-md border border-amber-500 bg-white px-4 py-2 text-sm font-semibold text-amber-800 hover:bg-amber-50" href="{{ item.product.get_absolute_url }}#review-title"><i data-lucide="star" class="h-4 w-4" aria-hidden="true"></i>ให้คะแนน / รีวิว</a>{% endif %}{% endfor %}
+        {% for item in order.items.all %}{% if forloop.first %}<a class="inline-flex items-center gap-2 rounded-md border border-amber-500 bg-white px-4 py-2 text-sm font-semibold text-amber-800 hover:bg-amber-50" href="{% url 'orders:order_review' order.id %}"><i data-lucide="star" class="h-4 w-4" aria-hidden="true"></i>ให้คะแนน / รีวิว</a>{% endif %}{% endfor %}
       {% endif %}
       {% if user == order.buyer and order.status == 'shipped' or user == order.buyer and order.status == 'completed' %}
         {% if not order.return_request %}<a class="rounded-md border border-amber-300 bg-white px-4 py-2 text-sm font-semibold text-amber-800" href="{% url 'orders:request_return' order.id %}">ขอคืนสินค้า</a>{% endif %}
