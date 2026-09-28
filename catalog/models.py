@@ -75,6 +75,13 @@ class ProductReview(models.Model):
         on_delete=models.CASCADE,
         related_name="product_reviews",
     )
+    order_item = models.ForeignKey(
+        "orders.OrderItem",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reviews",
+    )
     rating = models.PositiveSmallIntegerField(
         default=5,
         validators=[MinValueValidator(1), MaxValueValidator(5)],
@@ -444,6 +451,7 @@ class ProductDetailImage(models.Model):
         SMALL = "small", "เล็ก"
         STANDARD = "standard", "มาตรฐาน"
         WIDE = "wide", "เต็มความกว้าง"
+        FULL = "full", "เต็ม"
 
     """Images that illustrate the written product description, not the product gallery."""
 

@@ -10,14 +10,15 @@
     <a href="{{ order.get_absolute_url }}" class="inline-flex h-10 items-center gap-2 rounded-md border border-stone-300 px-4 text-sm font-semibold text-slate-700 hover:bg-stone-50"><i data-lucide="arrow-left" class="h-4 w-4" aria-hidden="true"></i>กลับคำสั่งซื้อ</a>
   </header>
   <div class="space-y-4">
-    {% for item in order.items.all %}
+    {% for item in review_items %}
       <article class="border border-stone-200 bg-white p-5 shadow-sm sm:p-6">
         <div class="flex flex-wrap gap-4">
           <div class="grid h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-md border border-stone-200 bg-stone-50">{% if item.product.image %}<img src="{{ item.product.image.url }}" alt="{{ item.product_name }}" class="h-full w-full object-cover" loading="lazy">{% else %}<i data-lucide="package" class="h-7 w-7 text-leaf" aria-hidden="true"></i>{% endif %}</div>
-          <div class="min-w-0 flex-1"><h2 class="font-semibold text-slate-950">{{ item.product_name }}</h2><p class="mt-1 text-sm text-slate-500">{{ item.quantity|floatformat:'-2' }} {{ item.unit }}</p></div>
+          <div class="min-w-0 flex-1"><h2 class="font-semibold text-slate-950">{{ item.product_name }}</h2>{% if item.variant_name %}<p class="mt-1 text-sm font-medium text-leaf">ตัวเลือก: {{ item.variant_name }}</p>{% endif %}<p class="mt-1 text-sm text-slate-500">{{ item.quantity|floatformat:'-2' }} {{ item.unit }}</p></div>
         </div>
         <form method="post" enctype="multipart/form-data" action="{% url 'catalog:submit_review' item.product_id %}" class="mt-5 border-t border-stone-100 pt-5">
           {% csrf_token %}
+          <input type="hidden" name="order_item_id" value="{{ item.id }}">
           <div class="grid gap-4 sm:grid-cols-[170px_minmax(0,1fr)]">
             <div><label class="mb-1.5 block text-sm font-semibold text-slate-800" for="rating-{{ item.id }}">คะแนน</label><select id="rating-{{ item.id }}" name="rating" class="h-11 w-full rounded-md border border-slate-300 bg-white px-3 text-sm"><option value="5">5 ดาว</option><option value="4">4 ดาว</option><option value="3">3 ดาว</option><option value="2">2 ดาว</option><option value="1">1 ดาว</option></select></div>
             <div><label class="mb-1.5 block text-sm font-semibold text-slate-800" for="comment-{{ item.id }}">ความคิดเห็น</label><input id="comment-{{ item.id }}" name="comment" class="h-11 w-full rounded-md border border-slate-300 px-3 text-sm" placeholder="แบ่งปันประสบการณ์เกี่ยวกับสินค้า"></div>
@@ -26,7 +27,7 @@
         </form>
       </article>
     {% empty %}
-      <p class="border border-dashed border-stone-300 py-12 text-center text-sm text-slate-600">ไม่พบสินค้าในคำสั่งซื้อนี้</p>
+      <p class="border border-dashed border-stone-300 py-12 text-center text-sm text-slate-600">คุณส่งรีวิวครบทุกสินค้าในคำสั่งซื้อนี้แล้ว</p>
     {% endfor %}
   </div>
 </section>

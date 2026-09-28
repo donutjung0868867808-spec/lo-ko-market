@@ -304,10 +304,20 @@ def submit_review(request, pk):
         messages.error(request, "กรุณาเข้าสู่ระบบก่อนเขียนรีวิว")
         return redirect(product)
 
-    if not can_review_product(request.user, product):
+    order_item_id = request.POST.get("order_item_id", "").strip()
+    order_item = None
+    if order_item_id:
+        order_item = get_object_or_404(
+            OrderItem.objects.select_related("order"),
+            pk=order_item_id,
+            product=product,
+            order__buyer=request.user,
+            order__payment_status=Order.PaymentStatus.PAID,
+            order__status=Order.Status.COMPLETED,
+        )
+    elif not can_review_product(request.user, product):
         messages.error(request, "รีวิวได้เฉพาะผู้ที่ซื้อสินค้านี้และชำระเงินเรียบร้อยแล้ว")
         return redirect(product)
-
     if request.method == "POST":
         try:
             rating = int(request.POST.get("rating", 5))
@@ -334,10 +344,10 @@ def submit_review(request, pk):
             messages.error(request, error.messages[0])
             return redirect(product)
 
+        review_lookup = {"order_item": order_item} if order_item else {"product": product, "user": request.user}
         review, _ = ProductReview.objects.update_or_create(
-            product=product,
-            user=request.user,
-            defaults={"rating": rating, "comment": comment},
+            **review_lookup,
+            defaults={"product": product, "user": request.user, "rating": rating, "comment": comment},
         )
         if media_files:
             review.media.all().delete()
@@ -345,7 +355,7 @@ def submit_review(request, pk):
                 media.review = review
                 media.save()
         messages.success(request, "ส่งรีวิวแล้ว")
-        return redirect(product)
+        return redirect("orders:order_review", pk=order_item.order_id) if order_item else redirect(product)
 
     return redirect(product)
 

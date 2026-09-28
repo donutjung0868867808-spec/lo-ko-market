@@ -12,7 +12,7 @@
   </nav>
 
   <section class="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(420px,0.92fr)] lg:gap-12" aria-labelledby="product-title">
-    <div class="min-w-0">
+    <div class="min-w-0" style="max-width: 550px;">
       <div class="flex aspect-square max-h-[620px] w-full items-center justify-center overflow-hidden rounded-md border border-stone-200 bg-white">
         {% if product.image %}
           <img id="main-product-image" class="h-full w-full object-contain p-3" src="{{ product.image.url }}" alt="{{ product.name }}">
@@ -209,8 +209,8 @@
       {% if product.detail_images.all %}
         <div class="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-3">
           {% for detail_image in product.detail_images.all %}
-            <a class="overflow-hidden rounded-md border border-stone-200 bg-stone-50" style="{% if detail_image.display_size == 'standard' %}grid-column: span 2;{% elif detail_image.display_size == 'wide' %}grid-column: 1 / -1;{% endif %}" href="{{ detail_image.image.url }}" target="_blank" rel="noopener">
-              <img class="w-full object-contain" style="max-height: {% if detail_image.display_size == 'small' %}256px{% elif detail_image.display_size == 'wide' %}560px{% else %}400px{% endif %};" src="{{ detail_image.image.url }}" alt="{{ detail_image.alt_text|default:product.name }} - รูปประกอบรายละเอียด {{ forloop.counter }}" loading="lazy">
+            <a class="overflow-hidden rounded-md border border-stone-200 bg-stone-50" style="{% if detail_image.display_size == 'standard' %}grid-column: span 2;{% elif detail_image.display_size == 'wide' or detail_image.display_size == 'full' %}grid-column: 1 / -1;{% endif %}" href="{{ detail_image.image.url }}" target="_blank" rel="noopener">
+              <img class="w-full object-contain" style="{% if detail_image.display_size != 'full' %}max-height: {% if detail_image.display_size == 'small' %}256px{% elif detail_image.display_size == 'wide' %}560px{% else %}400px{% endif %};{% endif %}" src="{{ detail_image.image.url }}" alt="{{ detail_image.alt_text|default:product.name }} - รูปประกอบรายละเอียด {{ forloop.counter }}" loading="lazy">
             </a>
           {% endfor %}
         </div>

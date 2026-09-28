@@ -14,7 +14,7 @@ from accounts.decorators import user_community
 from accounts.forms import ReportForm
 from accounts.models import Report, User
 from accounts.services import notify_user
-from catalog.models import Product, ProductVariant
+from catalog.models import Product, ProductReview, ProductVariant
 
 from .forms import (
     CancelOrderForm, CartCheckoutForm, CheckoutForm, OrderStatusForm, SellerShipmentForm,
@@ -1157,14 +1157,18 @@ def confirm_received(request, pk):
 @login_required
 def order_review(request, pk):
     order = get_object_or_404(
-        Order.objects.prefetch_related("items__product"),
+        Order.objects.prefetch_related("items__product", "items__variant"),
         pk=pk,
         buyer=request.user,
     )
     if order.status != Order.Status.COMPLETED:
         messages.error(request, "ให้คะแนนสินค้าได้หลังยืนยันว่าได้รับสินค้าแล้ว")
         return redirect(order)
-    return render(request, "orders/order_review.html", {"order": order})
+    reviewed_item_ids = set(
+        ProductReview.objects.filter(user=request.user, order_item__order=order).values_list("order_item_id", flat=True)
+    )
+    review_items = [item for item in order.items.all() if item.id not in reviewed_item_ids]
+    return render(request, "orders/order_review.html", {"order": order, "review_items": review_items})
 @login_required
 def report_buyer(request, pk):
     order = get_object_or_404(Order.objects.select_related("buyer", "seller", "community"), pk=pk)

@@ -38,7 +38,12 @@ class MultipleImageField(forms.FileField):
 class ProductForm(StyledFormMixin, forms.ModelForm):
     detail_image_size = forms.ChoiceField(
         label="ขนาดรูปประกอบรายละเอียด",
-        choices=ProductDetailImage.DisplaySize.choices,
+        choices=(
+            (ProductDetailImage.DisplaySize.SMALL, "เล็ก (สูงสุด 256px)"),
+            (ProductDetailImage.DisplaySize.STANDARD, "มาตรฐาน (สูงสุด 400px)"),
+            (ProductDetailImage.DisplaySize.WIDE, "เต็มความกว้าง (สูงสุด 560px)"),
+            (ProductDetailImage.DisplaySize.FULL, "เต็ม (ไม่จำกัดความสูง)"),
+        ),
         initial=ProductDetailImage.DisplaySize.STANDARD,
         help_text="ใช้กับรูปประกอบรายละเอียดที่เลือกในครั้งนี้",
     )
