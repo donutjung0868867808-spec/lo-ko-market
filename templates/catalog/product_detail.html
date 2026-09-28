@@ -198,6 +198,22 @@
           {% endfor %}
         </div>
       {% endif %}
+      {% if product.size_chart_rows.all or product.size_chart_image %}
+        <section class="mt-8 border-t border-stone-200 pt-7" aria-labelledby="size-chart-title">
+          <h2 id="size-chart-title" class="text-xl font-semibold text-ink">ตารางขนาดสินค้า</h2>
+          {% if product.size_chart_rows.all %}
+            <div class="mt-4 overflow-x-auto rounded-md border border-stone-200">
+              <table class="min-w-full divide-y divide-stone-200 text-left text-sm">
+                <thead class="bg-stone-50 text-slate-700"><tr><th class="px-4 py-3 font-semibold">ขนาด/ตัวเลือก</th><th class="px-4 py-3 font-semibold">ยาว</th><th class="px-4 py-3 font-semibold">กว้าง</th><th class="px-4 py-3 font-semibold">สูง</th><th class="px-4 py-3 font-semibold">น้ำหนัก</th><th class="px-4 py-3 font-semibold">หมายเหตุ</th></tr></thead>
+                <tbody class="divide-y divide-stone-100 text-slate-700">
+                  {% for row in product.size_chart_rows.all %}<tr><td class="px-4 py-3 font-semibold text-slate-900">{{ row.label }}</td><td class="px-4 py-3">{{ row.length_cm|default:"-" }}{% if row.length_cm %} ซม.{% endif %}</td><td class="px-4 py-3">{{ row.width_cm|default:"-" }}{% if row.width_cm %} ซม.{% endif %}</td><td class="px-4 py-3">{{ row.height_cm|default:"-" }}{% if row.height_cm %} ซม.{% endif %}</td><td class="px-4 py-3">{{ row.weight_grams|default:"-" }}{% if row.weight_grams %} กรัม{% endif %}</td><td class="px-4 py-3">{{ row.note|default:"-" }}</td></tr>{% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% endif %}
+          {% if product.size_chart_image %}<a class="mt-4 block overflow-hidden rounded-md border border-stone-200 bg-stone-50" href="{{ product.size_chart_image.url }}" target="_blank" rel="noopener"><img src="{{ product.size_chart_image.url }}" alt="ตารางขนาด {{ product.name }}" class="max-h-[560px] w-full object-contain" loading="lazy"></a>{% endif %}
+        </section>
+      {% endif %}
     </div>
     <dl class="grid grid-cols-2 gap-x-5 gap-y-4 text-sm">
       <div><dt class="text-slate-500">รหัสสินค้า</dt><dd class="mt-1 font-semibold text-slate-900">{{ product.sku|default:"-" }}</dd></div>

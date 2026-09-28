@@ -27,6 +27,9 @@
       {% if user == order.buyer and order.status == 'shipped' %}
         <form method="post" action="{% url 'orders:confirm_received' order.id %}">{% csrf_token %}<button class="rounded-md bg-leaf px-4 py-2 text-sm font-semibold text-white" type="submit">ได้รับสินค้าแล้ว</button></form>
       {% endif %}
+      {% if user == order.buyer and order.status == 'shipped' or user == order.buyer and order.status == 'completed' %}
+        {% if not order.return_request %}<a class="rounded-md border border-amber-300 bg-white px-4 py-2 text-sm font-semibold text-amber-800" href="{% url 'orders:request_return' order.id %}">ขอคืนสินค้า</a>{% endif %}
+      {% endif %}
       {% if user == order.buyer and order.payment_status == 'paid' %}
         <a class="rounded-md border border-amber-300 bg-white px-4 py-2 text-sm font-semibold text-amber-800" href="{% url 'payments:request_refund' order.id %}">ขอคืนเงิน</a>
       {% endif %}
@@ -112,6 +115,16 @@
             {% empty %}<p class="text-sm text-slate-500">ไม่มีคำขอคืนเงิน</p>{% endfor %}
           </div>
         </div>
+      {% endif %}
+      {% if order.return_request %}
+        {% with return_request=order.return_request %}
+          <section class="rounded-md border border-amber-200 bg-amber-50/40 p-5" aria-labelledby="return-title">
+            <div class="flex flex-wrap items-center justify-between gap-3"><h2 id="return-title" class="font-semibold text-slate-950">การคืนสินค้า</h2><span class="text-sm font-semibold text-amber-800">{{ return_request.get_status_display }}</span></div>
+            <dl class="mt-4 grid gap-3 text-sm sm:grid-cols-2"><div><dt class="text-slate-500">เลข RMA</dt><dd class="mt-1 font-semibold text-slate-900">{{ return_request.rma_number|default:"รอผู้ขายอนุมัติ" }}</dd></div>{% if return_request.return_tracking_number %}<div><dt class="text-slate-500">พัสดุขากลับ</dt><dd class="mt-1 font-semibold text-slate-900">{{ return_request.return_carrier }} · {{ return_request.return_tracking_number }}</dd></div>{% endif %}</dl>
+            {% if user == order.buyer and return_request.status == 'approved' %}<a class="mt-4 inline-flex min-h-10 items-center rounded-md bg-leaf px-4 text-sm font-semibold text-white hover:bg-emerald-800" href="{% url 'orders:ship_return' return_request.id %}">กรอกเลขพัสดุขากลับ</a>{% endif %}
+            {% if user == order.seller or user.is_owner or user.is_cooperative_staff %}{% if return_request.status == 'requested' %}<a class="mt-4 inline-flex min-h-10 items-center rounded-md bg-leaf px-4 text-sm font-semibold text-white hover:bg-emerald-800" href="{% url 'orders:review_return' return_request.id %}">พิจารณาคืนสินค้า</a>{% elif return_request.status == 'shipped' %}<form class="mt-4" method="post" action="{% url 'orders:receive_return' return_request.id %}">{% csrf_token %}<button class="min-h-10 rounded-md bg-leaf px-4 text-sm font-semibold text-white hover:bg-emerald-800" type="submit">ยืนยันรับสินค้าคืน</button></form>{% endif %}{% endif %}
+          </section>
+        {% endwith %}
       {% endif %}
     </main>
 

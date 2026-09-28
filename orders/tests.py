@@ -280,6 +280,23 @@ class CartWorkflowTests(TestCase):
         self.client.post(reverse("orders:order_reorder", args=[order.pk]))
         self.assertIn(line_key, self.client.session["cart"])
 
+    def test_cart_checkout_keeps_variant_line_key_between_steps(self):
+        yellow = ProductVariant.objects.create(product=self.product, name="สีเหลือง")
+        self.client.force_login(self.buyer)
+        self.client.post(
+            reverse("orders:cart_add", args=[self.product.pk]),
+            {"quantity": "1", "variant_id": yellow.pk},
+        )
+        line_key = f"{self.product.pk}:{yellow.pk}"
+
+        preview = self.client.get(
+            reverse("orders:cart_checkout"),
+            {"cart_selection": "1", "selected_items": line_key},
+        )
+
+        self.assertEqual(preview.status_code, 200)
+        self.assertEqual(preview.context["items"][0]["key"], line_key)
+        self.assertContains(preview, f'name="selected_items" value="{line_key}"')
     def test_maximum_order_quantity_limits_cart_and_direct_checkout(self):
         self.product.maximum_order_quantity = Decimal("2.00")
         self.product.save(update_fields=["maximum_order_quantity"])

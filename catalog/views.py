@@ -20,6 +20,7 @@ from .forms import (
     ProductForm,
     ProductImageForm,
     ProductReviewForm,
+    ProductSizeChartRowFormSet,
     ProductVariantFormSet,
 )
 from .services import create_pending_product
@@ -371,9 +372,11 @@ def product_create(request):
         request.FILES if variant_data is not None else None,
         instance=Product(),
     )
+    size_chart_data = request.POST if "size_chart_rows-TOTAL_FORMS" in request.POST else None
+    size_chart_formset = ProductSizeChartRowFormSet(size_chart_data, instance=Product())
     if request.method == "POST" and form.is_valid() and (
         not variant_formset.is_bound or variant_formset.is_valid()
-    ):
+    ) and (not size_chart_formset.is_bound or size_chart_formset.is_valid()):
         product = form.save(commit=False)
         product = create_pending_product(
             seller=request.user,
@@ -385,6 +388,9 @@ def product_create(request):
         if variant_formset.is_bound:
             variant_formset.instance = product
             variant_formset.save()
+        if size_chart_formset.is_bound:
+            size_chart_formset.instance = product
+            size_chart_formset.save()
         record_audit(
             request,
             AuditEvent.Action.CREATE,
@@ -408,6 +414,7 @@ def product_create(request):
         {
             "form": form,
             "variant_formset": variant_formset,
+            "size_chart_formset": size_chart_formset,
             "title": "เพิ่มสินค้า",
         },
     )
@@ -444,9 +451,11 @@ def product_update(request, pk):
         request.FILES if variant_data is not None else None,
         instance=product,
     )
+    size_chart_data = request.POST if "size_chart_rows-TOTAL_FORMS" in request.POST else None
+    size_chart_formset = ProductSizeChartRowFormSet(size_chart_data, instance=product)
     if request.method == "POST" and form.is_valid() and (
         not variant_formset.is_bound or variant_formset.is_valid()
-    ):
+    ) and (not size_chart_formset.is_bound or size_chart_formset.is_valid()):
         remove_image = request.POST.get("remove_image") == "1" and not request.FILES.get("image")
         gallery_images = form.cleaned_data["image"]
         detail_images = form.cleaned_data["detail_images"]
@@ -470,6 +479,8 @@ def product_update(request, pk):
             save_product_detail_images(product, detail_images)
             if variant_formset.is_bound:
                 variant_formset.save()
+            if size_chart_formset.is_bound:
+                size_chart_formset.save()
             if product.stock_quantity != old_stock:
                 StockMovement.objects.create(
                     product=product,
@@ -503,6 +514,7 @@ def product_update(request, pk):
         {
             "form": form,
             "variant_formset": variant_formset,
+            "size_chart_formset": size_chart_formset,
             "title": "แก้ไขสินค้า",
             "product": product,
             "is_staff_edit": request.user.is_cooperative_staff,

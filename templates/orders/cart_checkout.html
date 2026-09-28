@@ -31,7 +31,7 @@
     {{ form.shipping_postal_code.as_hidden }}
     <input type="hidden" name="cart_selection" value="1">
     {% for item in items %}
-      <input type="hidden" name="selected_items" value="{{ item.product.id }}">
+      <input type="hidden" name="selected_items" value="{{ item.key }}">
     {% endfor %}
 
     <div class="space-y-5">

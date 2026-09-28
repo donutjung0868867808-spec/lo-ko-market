@@ -4,7 +4,7 @@ from django import forms
 from django.conf import settings
 from django.forms import inlineformset_factory
 
-from .models import Product, ProductDetailImage, ProductImage, ProductVariant
+from .models import Product, ProductDetailImage, ProductImage, ProductSizeChartRow, ProductVariant
 
 
 class StyledFormMixin:
@@ -85,6 +85,7 @@ class ProductForm(StyledFormMixin, forms.ModelForm):
         "preparation_days",
         "gtin",
         "image",
+        "size_chart_image",
         "harvest_date",
         "expiry_date",
     ]
@@ -127,6 +128,7 @@ class ProductForm(StyledFormMixin, forms.ModelForm):
             "package_height_cm",
             "preparation_days",
             "gtin",
+            "size_chart_image",
             "harvest_date",
             "expiry_date",
         ]
@@ -147,6 +149,7 @@ class ProductForm(StyledFormMixin, forms.ModelForm):
             "package_height_cm": "ความสูงพัสดุ (ซม.)",
             "preparation_days": "ระยะเวลาเตรียมสินค้า (วัน)",
             "expiry_date": "วันที่ควรบริโภคก่อน",
+            "size_chart_image": "รูปตารางขนาดสินค้า (ถ้ามี)",
             "harvest_date": "วันที่เก็บเกี่ยว",
         }
         widgets = {
@@ -275,6 +278,30 @@ ProductVariantFormSet = inlineformset_factory(
     Product,
     ProductVariant,
     form=ProductVariantForm,
+    extra=3,
+    can_delete=True,
+)
+
+
+class ProductSizeChartRowForm(StyledFormMixin, forms.ModelForm):
+    class Meta:
+        model = ProductSizeChartRow
+        fields = ["label", "length_cm", "width_cm", "height_cm", "weight_grams", "note", "sort_order"]
+        widgets = {
+            "label": forms.TextInput(attrs={"placeholder": "เช่น S, M, L"}),
+            "length_cm": forms.NumberInput(attrs={"min": "0", "step": "0.01"}),
+            "width_cm": forms.NumberInput(attrs={"min": "0", "step": "0.01"}),
+            "height_cm": forms.NumberInput(attrs={"min": "0", "step": "0.01"}),
+            "weight_grams": forms.NumberInput(attrs={"min": "0"}),
+            "note": forms.TextInput(attrs={"placeholder": "หมายเหตุ (ถ้ามี)"}),
+            "sort_order": forms.NumberInput(attrs={"min": "0"}),
+        }
+
+
+ProductSizeChartRowFormSet = inlineformset_factory(
+    Product,
+    ProductSizeChartRow,
+    form=ProductSizeChartRowForm,
     extra=3,
     can_delete=True,
 )

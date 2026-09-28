@@ -254,6 +254,13 @@ class Product(models.Model):
         validators=[validate_image_file, validate_image_size],
         help_text="เลือกรูป JPG, PNG หรือ WEBP ได้ แม้ชื่อไฟล์ไม่มีนามสกุล",
     )
+    size_chart_image = models.FileField(
+        "รูปตารางขนาดสินค้า",
+        upload_to="products/size-charts/%Y/%m/",
+        blank=True,
+        validators=[validate_image_file, validate_image_size],
+        help_text="อัปโหลดรูปตารางขนาด (ถ้ามี)",
+    )
     harvest_date = models.DateField(null=True, blank=True)
     expiry_date = models.DateField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
@@ -349,6 +356,31 @@ class Product(models.Model):
         self.approved_at = timezone.now()
         self.rejection_reason = ""
         self.save(update_fields=["status", "approved_by", "approved_at", "rejection_reason"])
+
+
+class ProductSizeChartRow(models.Model):
+    """A flexible measurement row shown to shoppers beside an optional chart image."""
+
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name="size_chart_rows",
+    )
+    label = models.CharField("ขนาด/ตัวเลือก", max_length=60, help_text="เช่น S, M, L หรือ 500 กรัม")
+    length_cm = models.DecimalField("ความยาว (ซม.)", max_digits=7, decimal_places=2, null=True, blank=True)
+    width_cm = models.DecimalField("ความกว้าง (ซม.)", max_digits=7, decimal_places=2, null=True, blank=True)
+    height_cm = models.DecimalField("ความสูง (ซม.)", max_digits=7, decimal_places=2, null=True, blank=True)
+    weight_grams = models.PositiveIntegerField("น้ำหนัก (กรัม)", null=True, blank=True)
+    note = models.CharField("หมายเหตุ", max_length=160, blank=True)
+    sort_order = models.PositiveSmallIntegerField("ลำดับ", default=0)
+
+    class Meta:
+        verbose_name = "แถวตารางขนาดสินค้า"
+        verbose_name_plural = "ตารางขนาดสินค้า"
+        ordering = ["sort_order", "id"]
+
+    def __str__(self):
+        return f"{self.product} - {self.label}"
 
 
 class ProductVariant(models.Model):

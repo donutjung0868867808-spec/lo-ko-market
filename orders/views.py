@@ -6,16 +6,20 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 from django.utils.dateparse import parse_datetime
 
 from accounts.decorators import user_community
 from accounts.forms import ReportForm
-from accounts.models import Report
+from accounts.models import Report, User
 from catalog.models import Product, ProductVariant
 
-from .forms import CancelOrderForm, CartCheckoutForm, CheckoutForm, OrderStatusForm, SellerShipmentForm
-from .models import Order, OrderItem, Shipment
+from .forms import (
+    CancelOrderForm, CartCheckoutForm, CheckoutForm, OrderStatusForm, SellerShipmentForm,
+    ReturnApprovalForm, ReturnRequestForm, ReturnShipmentForm,
+)
+from .models import Order, OrderItem, ReturnRequest, Shipment
 from .services import (
     cancel_unpaid_order,
     change_order_status,
@@ -847,6 +851,96 @@ def order_tracking(request, pk):
     )
 
 
+@login_required
+def request_return(request, pk):
+    order = get_object_or_404(Order.objects.select_related("payment", "seller__farmer_profile"), pk=pk, buyer=request.user)
+    if order.status not in {Order.Status.SHIPPED, Order.Status.COMPLETED}:
+        messages.error(request, "ขอคืนสินค้าได้หลังผู้ขายจัดส่งสินค้าแล้ว")
+        return redirect(order)
+    if hasattr(order, "return_request"):
+        messages.info(request, "คำสั่งซื้อนี้มีคำขอคืนสินค้าแล้ว")
+        return redirect(order)
+    form = ReturnRequestForm(request.POST or None, request.FILES or None)
+    if request.method == "POST" and form.is_valid():
+        return_request = form.save(commit=False)
+        return_request.order = order
+        return_request.requested_by = request.user
+        return_request.save()
+        notify_user(order.seller, f"คำขอคืนสินค้า {order.reference}", return_request.reason, order.get_absolute_url())
+        messages.success(request, "ส่งคำขอคืนสินค้าแล้ว ผู้ขายจะระบุที่อยู่และเลข RMA ให้")
+        return redirect(order)
+    return render(request, "orders/return_request_form.html", {"form": form, "order": order})
+
+
+@login_required
+def review_return(request, pk):
+    return_request = get_object_or_404(ReturnRequest.objects.select_related("order__seller__farmer_profile", "requested_by"), pk=pk)
+    order = return_request.order
+    if not can_manage_order(request.user, order):
+        messages.error(request, "คุณไม่มีสิทธิ์จัดการคำขอคืนสินค้านี้")
+        return redirect(order)
+    if return_request.status != ReturnRequest.Status.REQUESTED:
+        messages.info(request, "คำขอคืนสินค้านี้ถูกพิจารณาแล้ว")
+        return redirect(order)
+    profile = getattr(order.seller, "farmer_profile", None)
+    initial = {"return_recipient": getattr(profile, "farm_name", "") or order.seller.display_name or order.seller.username, "return_phone": order.seller.phone, "return_address": getattr(profile, "address", ""), "return_province": getattr(profile, "province", "")}
+    form = ReturnApprovalForm(request.POST or None, instance=return_request, initial=initial)
+    if request.method == "POST":
+        if request.POST.get("decision") == "reject":
+            return_request.status = ReturnRequest.Status.REJECTED
+            return_request.seller_note = request.POST.get("seller_note", "").strip()
+            return_request.handled_by = request.user
+            return_request.resolved_at = timezone.now()
+            return_request.save(update_fields=["status", "seller_note", "handled_by", "resolved_at", "updated_at"])
+            notify_user(return_request.requested_by, f"คำขอคืนสินค้า {order.reference} ไม่ได้รับการอนุมัติ", return_request.seller_note, order.get_absolute_url())
+            messages.success(request, "ปฏิเสธคำขอคืนสินค้าแล้ว")
+            return redirect(order)
+        if form.is_valid():
+            approved = form.save(commit=False)
+            approved.status = ReturnRequest.Status.APPROVED
+            approved.approved_at = timezone.now()
+            approved.handled_by = request.user
+            approved.save()
+            notify_user(return_request.requested_by, f"อนุมัติคืนสินค้า {order.reference}", f"เลข RMA: {approved.rma_number}", order.get_absolute_url())
+            messages.success(request, "อนุมัติคืนสินค้าและส่งข้อมูล RMA ให้ผู้ซื้อแล้ว")
+            return redirect(order)
+    return render(request, "orders/return_review_form.html", {"form": form, "return_request": return_request, "order": order})
+
+
+@login_required
+def ship_return(request, pk):
+    return_request = get_object_or_404(ReturnRequest.objects.select_related("order"), pk=pk, requested_by=request.user)
+    if return_request.status != ReturnRequest.Status.APPROVED:
+        messages.error(request, "คำขอคืนสินค้านี้ยังไม่พร้อมให้ส่งกลับ")
+        return redirect(return_request.order)
+    form = ReturnShipmentForm(request.POST or None, instance=return_request)
+    if request.method == "POST" and form.is_valid():
+        shipped = form.save(commit=False)
+        shipped.status = ReturnRequest.Status.SHIPPED
+        shipped.tracking_status = "InfoReceived"
+        shipped.shipped_at = timezone.now()
+        shipped.save()
+        notify_user(shipped.order.seller, f"ผู้ซื้อส่งสินค้าคืน {shipped.order.reference}", f"{shipped.return_carrier} · {shipped.return_tracking_number}", shipped.order.get_absolute_url())
+        messages.success(request, "บันทึกเลขพัสดุขากลับแล้ว ผู้ขายติดตามสถานะได้ทันที")
+        return redirect(shipped.order)
+    return render(request, "orders/return_shipment_form.html", {"form": form, "return_request": return_request, "order": return_request.order})
+
+
+@login_required
+@require_POST
+def receive_return(request, pk):
+    return_request = get_object_or_404(ReturnRequest.objects.select_related("order"), pk=pk)
+    if not can_manage_order(request.user, return_request.order) or return_request.status != ReturnRequest.Status.SHIPPED:
+        messages.error(request, "ยังไม่สามารถยืนยันรับสินค้าคืนได้")
+        return redirect(return_request.order)
+    return_request.status = ReturnRequest.Status.RECEIVED
+    return_request.tracking_status = "Delivered"
+    return_request.received_at = timezone.now()
+    return_request.handled_by = request.user
+    return_request.save(update_fields=["status", "tracking_status", "received_at", "handled_by", "updated_at"])
+    notify_user(return_request.requested_by, f"ผู้ขายได้รับสินค้าคืน {return_request.order.reference}", "ผู้ดูแลจะดำเนินการคืนเงินตามคำขอ", return_request.order.get_absolute_url())
+    messages.success(request, "ยืนยันรับสินค้าคืนแล้ว")
+    return redirect(return_request.order)
 @login_required
 def order_receipt(request, pk):
     order = get_object_or_404(

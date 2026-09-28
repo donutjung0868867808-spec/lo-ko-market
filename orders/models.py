@@ -94,6 +94,53 @@ class Shipment(models.Model):
         verbose_name_plural = "การติดตามพัสดุ"
 
 
+class ReturnRequest(models.Model):
+    class Status(models.TextChoices):
+        REQUESTED = "requested", "รออนุมัติคืนสินค้า"
+        APPROVED = "approved", "รอส่งสินค้ากลับ"
+        SHIPPED = "shipped", "กำลังส่งสินค้ากลับ"
+        RECEIVED = "received", "ผู้ขายได้รับสินค้าคืนแล้ว"
+        REJECTED = "rejected", "ไม่อนุมัติคืนสินค้า"
+        REFUNDED = "refunded", "คืนเงินสำเร็จ"
+
+    order = models.OneToOneField("Order", on_delete=models.CASCADE, related_name="return_request")
+    requested_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="return_requests")
+    reason = models.TextField("เหตุผลที่ขอคืนสินค้า")
+    evidence = models.FileField("หลักฐาน", upload_to="return-evidence/%Y/%m/", blank=True)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.REQUESTED)
+    rma_number = models.CharField("เลข RMA", max_length=32, unique=True, blank=True)
+    return_recipient = models.CharField("ชื่อผู้รับคืน", max_length=180, blank=True)
+    return_phone = models.CharField("เบอร์โทรผู้รับคืน", max_length=30, blank=True)
+    return_address = models.TextField("ที่อยู่ส่งคืน", blank=True)
+    return_province = models.CharField("จังหวัด", max_length=120, blank=True)
+    return_postal_code = models.CharField("รหัสไปรษณีย์", max_length=10, blank=True)
+    seller_note = models.TextField("ข้อความจากผู้ขาย", blank=True)
+    return_carrier = models.CharField("บริษัทขนส่งขากลับ", max_length=120, blank=True)
+    return_tracking_number = models.CharField("เลขพัสดุขากลับ", max_length=120, blank=True)
+    tracking_status = models.CharField("สถานะพัสดุขากลับ", max_length=40, default="Pending")
+    tracking_checkpoints = models.JSONField(default=list, blank=True)
+    approved_at = models.DateTimeField(null=True, blank=True)
+    shipped_at = models.DateTimeField(null=True, blank=True)
+    received_at = models.DateTimeField(null=True, blank=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    handled_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="handled_return_requests")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "คำขอคืนสินค้า"
+        verbose_name_plural = "คำขอคืนสินค้า"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"คืนสินค้า {self.order.reference}"
+
+    def save(self, *args, **kwargs):
+        if not self.rma_number and self.order_id:
+            self.rma_number = f"RMA-{self.order.reference}"
+        super().save(*args, **kwargs)
+
+
 class ShipmentEvent(models.Model):
     event_id = models.CharField(max_length=128, unique=True)
     shipment = models.ForeignKey(Shipment, on_delete=models.CASCADE, related_name="events")

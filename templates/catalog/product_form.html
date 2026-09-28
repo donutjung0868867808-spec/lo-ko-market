@@ -21,11 +21,12 @@
         <button type="button" role="tab" aria-selected="false" data-product-form-tab="inventory" class="inline-flex min-h-11 shrink-0 items-center gap-2 border-b-2 border-transparent px-4 py-3 text-sm font-semibold text-slate-600 hover:text-leaf"><i data-lucide="warehouse" class="h-4 w-4" aria-hidden="true"></i>ราคาและสต็อก</button>
         <button type="button" role="tab" aria-selected="false" data-product-form-tab="shipping" class="inline-flex min-h-11 shrink-0 items-center gap-2 border-b-2 border-transparent px-4 py-3 text-sm font-semibold text-slate-600 hover:text-leaf"><i data-lucide="truck" class="h-4 w-4" aria-hidden="true"></i>การจัดส่ง</button>
         <button type="button" role="tab" aria-selected="false" data-product-form-tab="variants" class="inline-flex min-h-11 shrink-0 items-center gap-2 border-b-2 border-transparent px-4 py-3 text-sm font-semibold text-slate-600 hover:text-leaf"><i data-lucide="sliders-horizontal" class="h-4 w-4" aria-hidden="true"></i>ตัวเลือกสินค้า</button>
+        <button type="button" role="tab" aria-selected="false" data-product-form-tab="sizes" class="inline-flex min-h-11 shrink-0 items-center gap-2 border-b-2 border-transparent px-4 py-3 text-sm font-semibold text-slate-600 hover:text-leaf"><i data-lucide="ruler" class="h-4 w-4" aria-hidden="true"></i>ตารางขนาด</button>
         <button type="button" role="tab" aria-selected="false" data-product-form-tab="additional" class="inline-flex min-h-11 shrink-0 items-center gap-2 border-b-2 border-transparent px-4 py-3 text-sm font-semibold text-slate-600 hover:text-leaf"><i data-lucide="calendar-days" class="h-4 w-4" aria-hidden="true"></i>ข้อมูลเสริม</button>
       </div>
       <div class="grid gap-4 pt-2 sm:grid-cols-2" data-product-form-fields>
         {% for field in form %}
-          <div data-product-form-field data-product-form-group="{% if field.name == 'category' or field.name == 'name' or field.name == 'description' or field.name == 'detail_images' or field.name == 'image' %}product{% elif field.name == 'unit' or field.name == 'price' or field.name == 'stock_quantity' or field.name == 'minimum_order_quantity' or field.name == 'maximum_order_quantity' or field.name == 'low_stock_threshold' %}inventory{% elif field.name == 'weight_grams' or field.name == 'package_length_cm' or field.name == 'package_width_cm' or field.name == 'package_height_cm' or field.name == 'preparation_days' %}shipping{% else %}additional{% endif %}" class="{% if field.name == 'description' or field.name == 'detail_images' or field.name == 'image' %}sm:col-span-2{% endif %}">
+          <div data-product-form-field data-product-form-group="{% if field.name == 'category' or field.name == 'name' or field.name == 'description' or field.name == 'detail_images' or field.name == 'image' %}product{% elif field.name == 'unit' or field.name == 'price' or field.name == 'stock_quantity' or field.name == 'minimum_order_quantity' or field.name == 'maximum_order_quantity' or field.name == 'low_stock_threshold' %}inventory{% elif field.name == 'weight_grams' or field.name == 'package_length_cm' or field.name == 'package_width_cm' or field.name == 'package_height_cm' or field.name == 'preparation_days' %}shipping{% elif field.name == 'size_chart_image' %}sizes{% else %}additional{% endif %}" class="{% if field.name == 'description' or field.name == 'detail_images' or field.name == 'image' %}sm:col-span-2{% endif %}">
             <label class="text-sm font-semibold text-slate-700" for="{{ field.id_for_label }}">{{ field.label }}</label>
             {% if product and field.name == 'image' %}
               {% if product.image or product.images.all %}
@@ -60,6 +61,29 @@
               <div><label class="text-sm font-semibold text-slate-700" for="{{ variant_form.image.id_for_label }}">{{ variant_form.image.label }}</label><div class="mt-1.5">{{ variant_form.image }}</div>{% for error in variant_form.image.errors %}<p class="mt-1 text-sm text-red-700">{{ error }}</p>{% endfor %}</div>
               <label class="flex min-h-10 items-center gap-2 text-sm font-medium text-slate-700">{{ variant_form.is_active }} {{ variant_form.is_active.label }}</label>
               <div class="flex min-h-10 items-center gap-2 text-sm text-slate-700">{% if variant_form.DELETE %}{{ variant_form.DELETE }} <label for="{{ variant_form.DELETE.id_for_label }}">ลบ</label>{% endif %}</div>
+            </div>
+          {% endfor %}
+        </div>
+      </section>
+      <section data-product-form-field data-product-form-group="sizes" class="hidden border-t border-stone-200 pt-6">
+        {{ size_chart_formset.management_form }}
+        <div class="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 class="text-lg font-semibold text-slate-950">ตารางขนาดสินค้า</h2>
+            <p class="mt-1 text-sm text-slate-600">เพิ่มขนาดและมิติที่ผู้ซื้อใช้เปรียบเทียบได้ หรืออัปโหลดรูปตารางขนาดด้านบน</p>
+          </div>
+        </div>
+        {% if size_chart_formset.non_form_errors %}<div class="mt-4 text-sm text-red-700">{{ size_chart_formset.non_form_errors }}</div>{% endif %}
+        <div class="mt-5 space-y-3">
+          {% for size_form in size_chart_formset %}
+            <div class="grid gap-3 rounded-md border border-stone-200 bg-stone-50 p-4 sm:grid-cols-2 lg:grid-cols-4">
+              {% for hidden in size_form.hidden_fields %}{{ hidden }}{% endfor %}
+              {% for field in size_form.visible_fields %}
+                {% if field.name != 'DELETE' %}
+                  <div><label class="text-sm font-semibold text-slate-700" for="{{ field.id_for_label }}">{{ field.label }}</label><div class="mt-1.5">{{ field }}</div>{% for error in field.errors %}<p class="mt-1 text-sm text-red-700">{{ error }}</p>{% endfor %}</div>
+                {% endif %}
+              {% endfor %}
+              {% if size_form.DELETE %}<label class="flex min-h-10 items-center gap-2 text-sm font-medium text-slate-700">{{ size_form.DELETE }} ลบแถวนี้</label>{% endif %}
             </div>
           {% endfor %}
         </div>

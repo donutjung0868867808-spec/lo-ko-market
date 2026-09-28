@@ -5,7 +5,7 @@ from django.core.exceptions import ValidationError
 
 from catalog.forms import StyledFormMixin
 
-from .models import Order
+from .models import Order, ReturnRequest
 
 
 PAYMENT_METHOD_CHOICES = (
@@ -166,3 +166,29 @@ class SellerShipmentForm(StyledFormMixin, forms.Form):
 
     def clean_tracking_number(self):
         return self.cleaned_data["tracking_number"].strip().upper()
+
+class ReturnRequestForm(StyledFormMixin, forms.ModelForm):
+    class Meta:
+        model = ReturnRequest
+        fields = ["reason", "evidence"]
+        widgets = {"reason": forms.Textarea(attrs={"rows": 4, "placeholder": "อธิบายปัญหาสินค้าและเหตุผลที่ต้องการส่งคืน"})}
+
+
+class ReturnApprovalForm(StyledFormMixin, forms.ModelForm):
+    class Meta:
+        model = ReturnRequest
+        fields = ["return_recipient", "return_phone", "return_address", "return_province", "return_postal_code", "seller_note"]
+        widgets = {"return_address": forms.Textarea(attrs={"rows": 4}), "seller_note": forms.Textarea(attrs={"rows": 3})}
+
+
+class ReturnShipmentForm(StyledFormMixin, forms.ModelForm):
+    class Meta:
+        model = ReturnRequest
+        fields = ["return_carrier", "return_tracking_number"]
+        widgets = {
+            "return_carrier": forms.TextInput(attrs={"placeholder": "เช่น ไปรษณีย์ไทย, Flash Express"}),
+            "return_tracking_number": forms.TextInput(attrs={"placeholder": "กรอกเลขพัสดุขากลับ"}),
+        }
+
+    def clean_return_tracking_number(self):
+        return self.cleaned_data["return_tracking_number"].strip().upper()
