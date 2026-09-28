@@ -2,7 +2,7 @@ import json
 from datetime import timedelta
 from decimal import Decimal
 
-from django.test import RequestFactory, TestCase, override_settings
+from django.test import Client, RequestFactory, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -126,7 +126,7 @@ class PaymentWorkflowTests(TestCase):
 
         self.assertEqual(
             truemoney_sandbox_checkout_url(request, payment),
-            f"https://market.example.com{reverse('payments:truemoney_sandbox_scan', args=[payment.checkout_attempt_id])}",
+            f"https://market.example.com{reverse('payments:truemoney_sandbox_scan', args=[payment.checkout_attempt_id])}?silent=1",
         )
 
     @override_settings(DEBUG=True, PAYMENT_MODE="test", STRIPE_SECRET_KEY="")
@@ -137,22 +137,29 @@ class PaymentWorkflowTests(TestCase):
             {"payment_method": "truemoney"},
         )
         payment = Payment.objects.get(order=self.order)
-        self.client.logout()
+        status_url = reverse("payments:demo_checkout_status", args=[self.order.pk])
+        status_response = self.client.get(status_url)
+        self.assertFalse(status_response.json()["paid"])
 
-        response = self.client.get(
+        scanner = Client()
+        response = scanner.get(
             reverse("payments:truemoney_sandbox_scan", args=[payment.checkout_attempt_id])
+            + "?silent=1"
         )
-
-        self.assertRedirects(
-            response,
-            f"{reverse('payments:success')}?session_id={payment.checkout_session_id}",
-            fetch_redirect_response=False,
-        )
+        self.assertEqual(response.status_code, 204)
         payment.refresh_from_db()
         self.order.refresh_from_db()
         self.assertEqual(payment.status, Payment.Status.PAID)
         self.assertEqual(self.order.payment_status, Order.PaymentStatus.PAID)
         self.assertEqual(payment.raw_payload["confirmed_by"], "qr_scan")
+        status_response = self.client.get(status_url)
+        self.assertTrue(status_response.json()["paid"])
+        self.assertEqual(
+            status_response.json()["success_url"],
+            f"{reverse('payments:success')}?session_id={payment.checkout_session_id}",
+        )
+
+
     @override_settings(DEBUG=True, PAYMENT_MODE="test", STRIPE_SECRET_KEY="")
     def test_checkout_keeps_truemoney_selected_and_completes_in_demo_mode(self):
         self.client.force_login(self.buyer)

@@ -112,9 +112,9 @@ def stripe_client():
 
 def truemoney_sandbox_checkout_url(request, payment):
     """Return the one-time sandbox confirmation URL encoded in the TrueMoney QR."""
-    checkout_path = reverse(
-        "payments:truemoney_sandbox_scan",
-        args=[payment.checkout_attempt_id],
+    checkout_path = (
+        f"{reverse('payments:truemoney_sandbox_scan', args=[payment.checkout_attempt_id])}"
+        "?silent=1"
     )
     if settings.SITE_URL:
         return f"{settings.SITE_URL}{checkout_path}"
@@ -403,7 +403,7 @@ def truemoney_sandbox_scan(request, attempt_id):
     )
     order = payment.order
     if payment.status == Payment.Status.PAID:
-        return redirect(f"{reverse('payments:success')}?session_id={payment.checkout_session_id}")
+        return truemoney_sandbox_scan_response(request, payment)
     if (
         payment.status != Payment.Status.PROCESSING
         or not payment.checkout_session_id
@@ -425,7 +425,32 @@ def truemoney_sandbox_scan(request, attempt_id):
             "confirmed_by": "qr_scan",
         },
     )
+    return truemoney_sandbox_scan_response(request, payment)
+
+
+def truemoney_sandbox_scan_response(request, payment):
+    """Finish a QR scan without navigating the scanning device in silent mode."""
+    if request.GET.get("silent") == "1":
+        return HttpResponse(status=204)
     return redirect(f"{reverse('payments:success')}?session_id={payment.checkout_session_id}")
+
+@login_required
+@require_GET
+def demo_checkout_status(request, order_id):
+    """Return the current sandbox payment state for the open checkout page."""
+    order = get_object_or_404(Order, pk=order_id, buyer=request.user)
+    payment = get_object_or_404(Payment, order=order)
+    paid = payment.status == Payment.Status.PAID
+    return JsonResponse(
+        {
+            "paid": paid,
+            "success_url": (
+                f"{reverse('payments:success')}?session_id={payment.checkout_session_id}"
+                if paid
+                else ""
+            ),
+        }
+    )
 
 @login_required
 def demo_checkout(request, order_id):
