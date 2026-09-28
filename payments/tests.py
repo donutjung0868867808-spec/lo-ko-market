@@ -134,7 +134,9 @@ class PaymentWorkflowTests(TestCase):
             {"payment_method": "truemoney"},
         )
         self.assertEqual(response.context["selected_payment_method"], "truemoney")
-        self.assertContains(response, "TrueMoney Wallet")
+        self.assertContains(response, "ชำระเงินด้วย TrueMoney Wallet")
+        self.assertContains(response, "ยืนยันชำระด้วย TrueMoney Wallet")
+        self.assertNotContains(response, "เลือกวิธีชำระเงิน")
         self.assertContains(response, "data-truemoney-fields")
         self.assertContains(response, "'input[name=\"payment_method\"][value=\"' + method + '\"]'")
 

@@ -6,8 +6,13 @@
 <section class="mx-auto w-full max-w-5xl space-y-5">
   <header class="flex flex-wrap items-start justify-between gap-4 border-b border-stone-200 pb-5">
     <div>
-      <p class="text-sm font-semibold text-leaf">Secure checkout</p>
-      <h1 class="mt-1 text-2xl font-semibold text-slate-950">ชำระเงิน</h1>
+      {% if selected_payment_method == "truemoney" %}
+        <p class="text-sm font-semibold text-amber-700">TrueMoney Wallet Sandbox</p>
+        <h1 class="mt-1 text-2xl font-semibold text-slate-950">ชำระเงินด้วย TrueMoney Wallet</h1>
+      {% else %}
+        <p class="text-sm font-semibold text-leaf">Secure checkout</p>
+        <h1 class="mt-1 text-2xl font-semibold text-slate-950">ชำระเงิน</h1>
+      {% endif %}
       <p class="mt-1 text-sm text-slate-600">คำสั่งซื้อ {{ order.reference }}</p>
     </div>
     <p class="inline-flex items-center gap-2 rounded-md bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900"><i data-lucide="flask-conical" class="h-4 w-4" aria-hidden="true"></i>โหมดทดลอง ไม่มีการตัดเงินจริง</p>
@@ -17,11 +22,16 @@
     <form method="post" action="{% url 'payments:complete_demo_checkout' order.id %}" class="space-y-6 rounded-md border border-stone-200 bg-white p-6 shadow-sm" data-demo-payment-form>
       {% csrf_token %}
       <div>
-        <h2 class="text-lg font-semibold text-slate-950">เลือกวิธีชำระเงิน</h2>
-        <p class="mt-1 text-sm text-slate-600">ข้อมูลที่กรอกในหน้านี้ใช้เพื่อการจำลองเท่านั้น และจะไม่ถูกบันทึก</p>
+        {% if selected_payment_method == "truemoney" %}
+          <h2 class="text-lg font-semibold text-slate-950">ยืนยันการชำระเงินทดลอง</h2>
+          <p class="mt-1 text-sm text-slate-600">หน้าจำลองนี้แยกสำหรับ TrueMoney Wallet และไม่มีการบันทึกข้อมูลหรือหักเงินจริง</p>
+        {% else %}
+          <h2 class="text-lg font-semibold text-slate-950">เลือกวิธีชำระเงิน</h2>
+          <p class="mt-1 text-sm text-slate-600">ข้อมูลที่กรอกในหน้านี้ใช้เพื่อการจำลองเท่านั้น และจะไม่ถูกบันทึก</p>
+        {% endif %}
       </div>
 
-      <div class="grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label="วิธีชำระเงิน">
+      <div class="{% if selected_payment_method == 'truemoney' %}hidden {% endif %}grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label="วิธีชำระเงิน">
         <label class="cursor-pointer rounded-md border-2 border-leaf bg-emerald-50 p-4" data-payment-option="card">
           <input class="sr-only" type="radio" name="payment_method" value="card" checked>
           <span class="flex items-center gap-3"><span class="flex h-10 w-10 items-center justify-center rounded-md bg-white text-leaf"><i data-lucide="credit-card" class="h-5 w-5" aria-hidden="true"></i></span><span><span class="block font-semibold text-slate-950">บัตรเครดิต / เดบิต</span><span class="mt-0.5 block text-sm text-slate-600">จำลองการชำระด้วยบัตร</span></span></span>
@@ -35,7 +45,7 @@
         </label>
       </div>
 
-      <div class="space-y-4" data-card-fields>
+      <div class="{% if selected_payment_method == 'truemoney' %}hidden {% endif %}space-y-4" data-card-fields>
         <div>
           <label class="text-sm font-semibold text-slate-700" for="demo-card-number">หมายเลขบัตร</label>
           <div class="relative mt-1.5"><i data-lucide="credit-card" class="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" aria-hidden="true"></i><input id="demo-card-number" class="h-12 w-full rounded-md border border-stone-300 bg-white pr-3 text-slate-950 outline-none focus:border-leaf focus:ring-2 focus:ring-emerald-100" style="padding-left: 3rem;" type="text" inputmode="numeric" autocomplete="cc-number" placeholder="4242 4242 4242 4242" required></div>
@@ -47,18 +57,18 @@
         <div><label class="text-sm font-semibold text-slate-700" for="demo-card-name">ชื่อบนบัตร</label><input id="demo-card-name" class="mt-1.5 h-12 w-full rounded-md border border-stone-300 bg-white px-3 text-slate-950 outline-none focus:border-leaf focus:ring-2 focus:ring-emerald-100" type="text" autocomplete="cc-name" placeholder="TEST CUSTOMER" required></div>
       </div>
 
-      <div class="hidden rounded-md border border-emerald-200 bg-emerald-50 p-5 text-center" data-promptpay-fields>
+      <div hidden class="rounded-md border border-emerald-200 bg-emerald-50 p-5 text-center" data-promptpay-fields>
         <div class="mx-auto flex h-36 w-36 items-center justify-center rounded-md bg-white text-leaf shadow-sm"><i data-lucide="qr-code" class="h-24 w-24" aria-hidden="true"></i></div>
         <p class="mt-4 font-semibold text-slate-950">สแกนเพื่อชำระเงินทดลอง</p>
         <p class="mt-1 text-sm text-slate-600">กดยืนยันด้านล่างเพื่อจำลองว่าชำระสำเร็จ</p>
-      </div>      <div class="hidden rounded-md border border-amber-200 bg-amber-50 p-5 text-center" data-truemoney-fields>
+      </div>      <div {% if selected_payment_method != 'truemoney' %}hidden{% endif %} class="rounded-md border border-amber-200 bg-amber-50 p-5 text-center" data-truemoney-fields>
         <div class="mx-auto flex h-36 w-36 items-center justify-center rounded-md bg-white text-amber-700 shadow-sm"><i data-lucide="wallet" class="h-24 w-24" aria-hidden="true"></i></div>
         <p class="mt-4 font-semibold text-slate-950">ชำระผ่าน TrueMoney Wallet (ทดลอง)</p>
         <p class="mt-1 text-sm text-slate-600">ไม่มี QR จริงและไม่มีการตัดเงิน กดยืนยันด้านล่างเพื่อจำลองว่าชำระสำเร็จ</p>
       </div>
 
       <div class="flex flex-wrap items-center gap-3 border-t border-stone-100 pt-5">
-        <button class="inline-flex items-center justify-center gap-2 rounded-md bg-leaf px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-800" type="submit"><i data-lucide="lock-keyhole" class="h-4 w-4" aria-hidden="true"></i>ยืนยันการชำระเงิน ฿{{ payment.amount|floatformat:2 }}</button>
+        <button class="inline-flex items-center justify-center gap-2 rounded-md {% if selected_payment_method == 'truemoney' %}bg-amber-700 hover:bg-amber-800{% else %}bg-leaf hover:bg-emerald-800{% endif %} px-5 py-3 text-sm font-semibold text-white" type="submit">{% if selected_payment_method == 'truemoney' %}<i data-lucide="wallet" class="h-4 w-4" aria-hidden="true"></i>ยืนยันชำระด้วย TrueMoney Wallet ฿{{ payment.amount|floatformat:2 }}{% else %}<i data-lucide="lock-keyhole" class="h-4 w-4" aria-hidden="true"></i>ยืนยันการชำระเงิน ฿{{ payment.amount|floatformat:2 }}{% endif %}</button>
         <a class="px-3 py-2 text-sm font-semibold text-slate-600 hover:text-slate-950" href="{% url 'payments:cancel' order.id %}">ยกเลิก</a>
       </div>
     </form>
