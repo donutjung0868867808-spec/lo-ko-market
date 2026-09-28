@@ -65,11 +65,11 @@ def start_demo_checkout(order, payment, request):
         order.save(update_fields=["expires_at", "updated_at"])
 
     payment_method = request.GET.get("payment_method", "card")
-    if payment_method not in {"card", "promptpay"}:
+    if payment_method not in {"card", "promptpay", "truemoney"}:
         payment_method = "card"
     demo_url = reverse("payments:demo_checkout", args=[order.pk])
-    if payment_method == "promptpay":
-        demo_url = f"{demo_url}?payment_method=promptpay"
+    if payment_method in {"promptpay", "truemoney"}:
+        demo_url = f"{demo_url}?payment_method={payment_method}"
 
     payment.status = Payment.Status.PROCESSING
     payment.checkout_session_id = f"demo-{payment.checkout_attempt_id.hex}"
@@ -215,7 +215,7 @@ def mark_session_paid(session, payload=None):
 def create_checkout_session(request, order_id):
     accessible_order = get_object_or_404(Order, pk=order_id, buyer=request.user)
     payment_method = request.GET.get("payment_method", "card")
-    if payment_method not in {"card", "promptpay"}:
+    if payment_method not in {"card", "promptpay", "truemoney"}:
         payment_method = "card"
 
     with transaction.atomic():
@@ -268,6 +268,12 @@ def create_checkout_session(request, order_id):
                 "updated_at",
             ]
         )
+
+        if payment_method == "truemoney":
+            if settings.PAYMENT_MODE in {"demo", "test"}:
+                return start_demo_checkout(order, payment, request)
+            messages.error(request, "TrueMoney Wallet ยังเปิดใช้ได้เฉพาะโหมดทดลอง")
+            return redirect(order)
 
         stripe = stripe_client()
         if stripe is None:
@@ -377,7 +383,7 @@ def demo_checkout(request, order_id):
         messages.error(request, "รายการชำระเงินหมดเวลาแล้ว")
         return redirect(order)
     payment_method = request.GET.get("payment_method", "card")
-    if payment_method not in {"card", "promptpay"}:
+    if payment_method not in {"card", "promptpay", "truemoney"}:
         payment_method = "card"
     return render(
         request,
@@ -409,7 +415,7 @@ def complete_demo_checkout(request, order_id):
         return redirect(order)
 
     method = request.POST.get("payment_method", "card")
-    if method not in {"card", "promptpay"}:
+    if method not in {"card", "promptpay", "truemoney"}:
         messages.error(request, "กรุณาเลือกวิธีชำระเงิน")
         return redirect("payments:demo_checkout", order_id=order.pk)
 
@@ -427,6 +433,12 @@ def success(request):
     session_id = request.GET.get("session_id")
     payment = None
     if session_id:
+        if payment_method == "truemoney":
+            if settings.PAYMENT_MODE in {"demo", "test"}:
+                return start_demo_checkout(order, payment, request)
+            messages.error(request, "TrueMoney Wallet ยังเปิดใช้ได้เฉพาะโหมดทดลอง")
+            return redirect(order)
+
         stripe = stripe_client()
         payment = Payment.objects.filter(checkout_session_id=session_id).select_related("order").first()
         if stripe is not None:

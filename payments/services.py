@@ -28,6 +28,16 @@ def settlement_values(payment):
     return gross, fee_rate, platform_fee, _money(gross - platform_fee)
 
 
+def settlement_available_at(payment):
+    """Release seller funds on buyer confirmation or after the delivery window."""
+    order = payment.order
+    if order.received_confirmed_at:
+        return order.received_confirmed_at
+    if not order.delivered_at:
+        return None
+    return order.delivered_at + timedelta(days=settings.SETTLEMENT_HOLD_DAYS)
+
+
 @transaction.atomic
 def sync_settlement_for_payment(payment):
     payment = Payment.objects.select_for_update().select_related("order__seller").get(pk=payment.pk)
@@ -51,9 +61,13 @@ def sync_settlement_for_payment(payment):
         return settlement
 
     gross, fee_rate, platform_fee, net = settlement_values(payment)
-    available_at = payment.updated_at + timedelta(days=settings.SETTLEMENT_HOLD_DAYS)
+    available_at = settlement_available_at(payment)
     desired_status = SellerSettlement.Status.PENDING
-    if payment.order.status == payment.order.Status.COMPLETED and available_at <= timezone.now():
+    if (
+        payment.order.status == payment.order.Status.COMPLETED
+        and available_at is not None
+        and available_at <= timezone.now()
+    ):
         desired_status = SellerSettlement.Status.READY
 
     if settlement is None:
@@ -275,7 +289,7 @@ def process_demo_seller_settlement(settlement):
 
 
 def retry_due_settlements(limit=50):
-    demo_mode = settings.PAYMENT_MODE == "demo" and settings.DEMO_SETTLEMENTS_ENABLED
+    demo_mode = settings.PAYMENT_MODE in {"demo", "test"} and settings.DEMO_SETTLEMENTS_ENABLED
     if not settings.STRIPE_CONNECT_TRANSFERS_ENABLED and not demo_mode:
         return 0
     # Only release holds caused by missing payout onboarding, never refund or manual holds.

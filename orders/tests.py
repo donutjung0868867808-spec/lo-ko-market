@@ -5,7 +5,7 @@ from django.core.management import call_command
 from django.test import TestCase
 from django.urls import reverse
 
-from accounts.models import Community, DeliveryAddress, FarmerProfile, Report, User
+from accounts.models import Community, DeliveryAddress, FarmerProfile, Notification, Report, User
 from catalog.models import Product, ProductVariant
 from payments.models import Payment, Refund
 
@@ -144,10 +144,21 @@ class SellerShipmentWorkflowTests(TestCase):
         self.assertRedirects(response, self.order.get_absolute_url())
         self.order.refresh_from_db()
         self.assertEqual(self.order.status, Order.Status.COMPLETED)
+        self.assertIsNotNone(self.order.received_confirmed_at)
         self.assertTrue(
             OrderStatusHistory.objects.filter(order=self.order, status=Order.Status.COMPLETED).exists()
         )
+        self.assertTrue(
+            Notification.objects.filter(
+                user=self.seller,
+                title=f"ผู้ซื้อยืนยันรับสินค้าแล้ว {self.order.reference}",
+                link=self.order.get_absolute_url(),
+            ).exists()
+        )
         response = self.client.get(reverse("orders:order_list"))
+        self.assertContains(response, "#review-title")
+        response = self.client.get(self.order.get_absolute_url())
+        self.assertContains(response, "#review-title")
     def test_shop_center_shows_quick_shipment_form_for_paid_order(self):
         FarmerProfile.objects.create(
             user=self.seller,

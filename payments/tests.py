@@ -1,14 +1,17 @@
 import json
+from datetime import timedelta
 from decimal import Decimal
 
 from django.test import TestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 
 from accounts.models import Community, Notification, User
 from catalog.models import Product
 from orders.models import Order, OrderItem
 
 from .models import Payment, Refund, SellerSettlement, StripeEvent
+from .services import retry_due_settlements, sync_settlement_for_payment
 from .views import mark_session_paid
 
 
@@ -112,6 +115,96 @@ class PaymentWorkflowTests(TestCase):
         )
         self.assertEqual(response.context["selected_payment_method"], "promptpay")
 
+    @override_settings(DEBUG=True, PAYMENT_MODE="test", STRIPE_SECRET_KEY="")
+    def test_checkout_keeps_truemoney_selected_and_completes_in_demo_mode(self):
+        self.client.force_login(self.buyer)
+
+        response = self.client.get(
+            reverse("payments:create_checkout", args=[self.order.pk]),
+            {"payment_method": "truemoney"},
+        )
+
+        self.assertRedirects(
+            response,
+            f"{reverse('payments:demo_checkout', args=[self.order.pk])}?payment_method=truemoney",
+            fetch_redirect_response=False,
+        )
+        response = self.client.get(
+            reverse("payments:demo_checkout", args=[self.order.pk]),
+            {"payment_method": "truemoney"},
+        )
+        self.assertEqual(response.context["selected_payment_method"], "truemoney")
+        self.assertContains(response, "TrueMoney Wallet")
+
+        payment = Payment.objects.get(order=self.order)
+        response = self.client.post(
+            reverse("payments:complete_demo_checkout", args=[self.order.pk]),
+            {"payment_method": "truemoney"},
+        )
+        self.assertRedirects(
+            response,
+            f"{reverse('payments:success')}?session_id={payment.checkout_session_id}",
+            fetch_redirect_response=False,
+        )
+        payment.refresh_from_db()
+        self.assertEqual(payment.status, Payment.Status.PAID)
+        self.assertEqual(payment.raw_payload["payment_method"], "truemoney")
+    @override_settings(SETTLEMENT_HOLD_DAYS=10)
+    def test_buyer_confirmation_makes_seller_settlement_ready_immediately(self):
+        confirmed_at = timezone.now()
+        self.order.status = Order.Status.COMPLETED
+        self.order.delivered_at = confirmed_at
+        self.order.received_confirmed_at = confirmed_at
+        self.order.save(update_fields=["status", "delivered_at", "received_confirmed_at", "updated_at"])
+        payment = Payment.objects.create(
+            order=self.order,
+            amount=self.order.total_amount,
+            status=Payment.Status.PAID,
+        )
+
+        settlement = sync_settlement_for_payment(payment)
+
+        self.assertEqual(settlement.status, SellerSettlement.Status.READY)
+        self.assertEqual(settlement.available_at, confirmed_at)
+
+    @override_settings(SETTLEMENT_HOLD_DAYS=10)
+    def test_seller_settlement_waits_ten_days_without_buyer_confirmation(self):
+        self.order.status = Order.Status.COMPLETED
+        self.order.delivered_at = timezone.now() - timedelta(days=9)
+        self.order.save(update_fields=["status", "delivered_at", "updated_at"])
+        payment = Payment.objects.create(
+            order=self.order,
+            amount=self.order.total_amount,
+            status=Payment.Status.PAID,
+        )
+
+        settlement = sync_settlement_for_payment(payment)
+        self.assertEqual(settlement.status, SellerSettlement.Status.PENDING)
+
+        self.order.delivered_at = timezone.now() - timedelta(days=10, seconds=1)
+        self.order.save(update_fields=["delivered_at", "updated_at"])
+        settlement = sync_settlement_for_payment(payment)
+        self.assertEqual(settlement.status, SellerSettlement.Status.READY)
+        self.assertLessEqual(settlement.available_at, timezone.now())
+    @override_settings(PAYMENT_MODE="test", DEMO_SETTLEMENTS_ENABLED=True, SETTLEMENT_HOLD_DAYS=10)
+    def test_test_mode_records_simulated_seller_transfer_after_ten_days(self):
+        self.order.status = Order.Status.COMPLETED
+        self.order.delivered_at = timezone.now() - timedelta(days=10, seconds=1)
+        self.order.save(update_fields=["status", "delivered_at", "updated_at"])
+        payment = Payment.objects.create(
+            order=self.order,
+            amount=self.order.total_amount,
+            status=Payment.Status.PAID,
+        )
+        settlement = sync_settlement_for_payment(payment)
+        self.assertEqual(settlement.status, SellerSettlement.Status.READY)
+
+        with self.captureOnCommitCallbacks(execute=True):
+            self.assertEqual(retry_due_settlements(), 1)
+
+        settlement.refresh_from_db()
+        self.assertEqual(settlement.status, SellerSettlement.Status.TRANSFERRED)
+        self.assertEqual(settlement.stripe_transfer_id, f"demo-settlement-{settlement.pk}")
     @override_settings(DEBUG=False, PAYMENT_MODE="live", STRIPE_SECRET_KEY="", SECURE_SSL_REDIRECT=False)
     def test_checkout_without_provider_in_live_mode_fails_safely(self):
         self.client.force_login(self.buyer)

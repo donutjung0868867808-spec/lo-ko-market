@@ -13,6 +13,7 @@ from django.utils.dateparse import parse_datetime
 from accounts.decorators import user_community
 from accounts.forms import ReportForm
 from accounts.models import Report, User
+from accounts.services import notify_user
 from catalog.models import Product, ProductVariant
 
 from .forms import (
@@ -254,8 +255,8 @@ def preview_shipping_fee(items, province):
 
 def checkout_payment_redirect(order, payment_method):
     url = reverse("payments:create_checkout", args=[order.pk])
-    if payment_method == "promptpay":
-        url = f"{url}?payment_method=promptpay"
+    if payment_method in {"promptpay", "truemoney"}:
+        url = f"{url}?payment_method={payment_method}"
     return redirect(url)
 
 
@@ -1073,11 +1074,23 @@ def confirm_received(request, pk):
     order = get_object_or_404(Order, pk=pk, buyer=request.user)
     if request.method == "POST":
         try:
-            change_order_status(order, Order.Status.COMPLETED, request.user, note="ผู้ซื้อยืนยันว่าได้รับสินค้าแล้ว")
+            change_order_status(
+                order,
+                Order.Status.COMPLETED,
+                request.user,
+                note="ผู้ซื้อยืนยันว่าได้รับสินค้าแล้ว",
+                buyer_confirmed=True,
+            )
+            notify_user(
+                order.seller,
+                f"ผู้ซื้อยืนยันรับสินค้าแล้ว {order.reference}",
+                "สินค้าถึงมือผู้ซื้อแล้ว คำสั่งซื้อเสร็จสมบูรณ์",
+                order.get_absolute_url(),
+            )
         except ValidationError as exc:
             messages.error(request, exc.message)
         else:
-            messages.success(request, "ยืนยันการรับสินค้าแล้ว")
+            messages.success(request, "ยืนยันการรับสินค้าแล้ว คุณสามารถให้คะแนนหรือเขียนรีวิวสินค้าได้ทันที")
     return redirect(order)
 
 

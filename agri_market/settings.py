@@ -314,12 +314,12 @@ STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
 STRIPE_CONNECT_WEBHOOK_SECRET = os.environ.get("STRIPE_CONNECT_WEBHOOK_SECRET", "")
 DEFAULT_CURRENCY = os.environ.get("DEFAULT_CURRENCY", "thb")
 PLATFORM_FEE_PERCENT = os.environ.get("PLATFORM_FEE_PERCENT", "5.00")
-# Keep seller funds on hold for one week before automatic transfer.
-SETTLEMENT_HOLD_DAYS = int(os.environ.get("SETTLEMENT_HOLD_DAYS", "7"))
+# Release after buyer confirmation, or ten days after carrier-confirmed delivery.
+SETTLEMENT_HOLD_DAYS = int(os.environ.get("SETTLEMENT_HOLD_DAYS", "10"))
 STRIPE_CONNECT_TRANSFERS_ENABLED = env_bool("STRIPE_CONNECT_TRANSFERS_ENABLED", default=False)
-DEMO_SETTLEMENTS_ENABLED = env_bool("DEMO_SETTLEMENTS_ENABLED", default=PAYMENT_MODE == "demo")
+DEMO_SETTLEMENTS_ENABLED = env_bool("DEMO_SETTLEMENTS_ENABLED", default=PAYMENT_MODE in {"demo", "test"})
 SETTLEMENT_MAX_ATTEMPTS = int(os.environ.get("SETTLEMENT_MAX_ATTEMPTS", "5"))
-DELIVERY_CONFIRMATION_DAYS = int(os.environ.get("DELIVERY_CONFIRMATION_DAYS", "7"))
+DELIVERY_CONFIRMATION_DAYS = int(os.environ.get("DELIVERY_CONFIRMATION_DAYS", "10"))
 AFTERSHIP_WEBHOOK_SECRET = os.environ.get("AFTERSHIP_WEBHOOK_SECRET", "")
 AFTERSHIP_MAX_ATTEMPTS = int(os.environ.get("AFTERSHIP_MAX_ATTEMPTS", "8"))
 

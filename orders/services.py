@@ -253,7 +253,15 @@ def expire_stale_orders():
 
 
 @transaction.atomic
-def change_order_status(order, new_status, changed_by, note="", carrier="", tracking_number=""):
+def change_order_status(
+    order,
+    new_status,
+    changed_by,
+    note="",
+    carrier="",
+    tracking_number="",
+    buyer_confirmed=False,
+):
     from payments.models import Payment
 
     Payment.objects.select_for_update().filter(order_id=order.pk).first()
@@ -269,8 +277,11 @@ def change_order_status(order, new_status, changed_by, note="", carrier="", trac
         order.shipping_carrier = carrier
         order.tracking_number = tracking_number
         order.shipped_at = timezone.now()
-    elif new_status == Order.Status.COMPLETED and not order.delivered_at:
-        order.delivered_at = timezone.now()
+    elif new_status == Order.Status.COMPLETED:
+        if not order.delivered_at:
+            order.delivered_at = timezone.now()
+        if buyer_confirmed:
+            order.received_confirmed_at = timezone.now()
     elif new_status == Order.Status.CANCELLED:
         if order.payment_status == Order.PaymentStatus.PAID:
             raise ValidationError("กรุณาคืนเงินก่อนยกเลิกคำสั่งซื้อ")
@@ -284,6 +295,7 @@ def change_order_status(order, new_status, changed_by, note="", carrier="", trac
             "tracking_number",
             "shipped_at",
             "delivered_at",
+            "received_confirmed_at",
             "updated_at",
         ]
     )

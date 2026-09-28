@@ -11,6 +11,7 @@ from .models import Order, ReturnRequest
 PAYMENT_METHOD_CHOICES = (
     ("card", "บัตรเครดิต / เดบิต"),
     ("promptpay", "PromptPay QR"),
+    ("truemoney", "TrueMoney Wallet"),
 )
 
 

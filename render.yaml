@@ -38,7 +38,7 @@ services:
       - key: PLATFORM_FEE_PERCENT
         value: "5.00"
       - key: SETTLEMENT_HOLD_DAYS
-        value: "7"
+        value: "10"
       - key: STRIPE_CONNECT_TRANSFERS_ENABLED
         value: "False"
       - key: PAYMENT_MODE
@@ -48,7 +48,7 @@ services:
       - key: SETTLEMENT_MAX_ATTEMPTS
         value: "5"
       - key: DELIVERY_CONFIRMATION_DAYS
-        value: "7"
+        value: "10"
       - key: AFTERSHIP_MAX_ATTEMPTS
         value: "8"
       - key: TERMS_VERSION
