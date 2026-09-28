@@ -315,6 +315,15 @@ def checkout_payment_redirect(order, payment_method):
     return redirect(url)
 
 
+def notify_seller_of_new_order(order):
+    notify_user(
+        order.seller,
+        f"คำสั่งซื้อใหม่ {order.reference}",
+        f"มีคำสั่งซื้อสินค้า {order.items.count()} รายการ โปรดตรวจสอบและเตรียมสินค้า",
+        order.get_absolute_url(),
+        send_email_message=False,
+    )
+
 def finalize_order(order):
     order.refresh_total()
     order.shipping_fee = shipping_fee_for(order)
@@ -657,6 +666,7 @@ def cart_checkout(request):
                         transaction.set_rollback(True)
                         break
                     created_orders.append(order)
+                    notify_seller_of_new_order(order)
 
         if errors:
             for error in errors:
@@ -788,6 +798,7 @@ def checkout(request, product_id):
                     form.add_error(None, exc.message)
                     transaction.set_rollback(True)
                 else:
+                    notify_seller_of_new_order(order)
                     checkout_quantities.pop(checkout_key, None)
                     request.session[CHECKOUT_QUANTITY_SESSION_KEY] = checkout_quantities
                     request.session.modified = True

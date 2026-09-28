@@ -745,6 +745,13 @@ class CartWorkflowTests(TestCase):
         self.product.refresh_from_db()
         self.assertEqual(self.product.stock_quantity, Decimal("7.00"))
         self.assertEqual(self.client.session.get("cart"), {})
+        self.assertTrue(
+            Notification.objects.filter(
+                user=self.seller,
+                title=f"คำสั่งซื้อใหม่ {order.reference}",
+                link=order.get_absolute_url(),
+            ).exists()
+        )
 
     def test_cart_checkout_uses_saved_delivery_address(self):
         self.client.force_login(self.buyer)
