@@ -7,7 +7,7 @@ from django.urls import reverse
 
 from accounts.models import Community, DeliveryAddress, FarmerProfile, Notification, Report, User
 from catalog.models import Product, ProductVariant
-from payments.models import Payment, Refund
+from payments.models import Payment, PaymentBatch, Refund
 
 from .models import Order, OrderItem, OrderStatusHistory, Shipment, ShippingRate
 from .services import shipping_fee_for_values
@@ -753,6 +753,32 @@ class CartWorkflowTests(TestCase):
             ).exists()
         )
 
+    def test_cart_checkout_combines_multiple_seller_orders_into_one_payment_batch(self):
+        other_seller = User.objects.create_user(username="second-cart-seller", password="pass", role=User.Roles.FARMER)
+        other_product = Product.objects.create(
+            seller=other_seller,
+            community=self.community,
+            name="Second seller product",
+            description="Second seller item.",
+            price=Decimal("40.00"),
+            stock_quantity=Decimal("10.00"),
+            status=Product.Status.ACTIVE,
+        )
+        self.client.force_login(self.buyer)
+        self.client.post(reverse("orders:cart_add", args=[self.product.pk]), {"quantity": "1"})
+        self.client.post(reverse("orders:cart_add", args=[other_product.pk]), {"quantity": "1"})
+
+        response = self.client.post(
+            reverse("orders:cart_checkout"),
+            {"shipping_name": "Buyer", "shipping_phone": "0811111111", "shipping_address": "Address", "shipping_province": "Chiang Mai", "shipping_postal_code": "50000", "note": ""},
+        )
+
+        batch = PaymentBatch.objects.get(buyer=self.buyer)
+        self.assertRedirects(response, f"{reverse('payments:batch_checkout', args=[batch.pk])}?payment_method=card", fetch_redirect_response=False)
+        self.assertEqual(batch.orders.count(), 2)
+        response = self.client.post(reverse("payments:complete_batch_checkout", args=[batch.pk]))
+        self.assertRedirects(response, reverse("orders:order_list"))
+        self.assertTrue(batch.orders.filter(payment_status=Order.PaymentStatus.PAID).count() == 2)
     def test_cart_checkout_uses_saved_delivery_address(self):
         self.client.force_login(self.buyer)
         self.client.post(reverse("orders:cart_add", args=[self.product.pk]), {"quantity": "1"})

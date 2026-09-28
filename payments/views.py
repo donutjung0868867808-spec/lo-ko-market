@@ -34,7 +34,7 @@ from orders.services import (
 )
 
 from .forms import RefundDecisionForm, RefundRequestForm
-from .models import CustomerPaymentProfile, Payment, Refund, SavedPaymentMethod, SellerPaymentAccount, StripeEvent
+from .models import CustomerPaymentProfile, Payment, PaymentBatch, Refund, SavedPaymentMethod, SellerPaymentAccount, StripeEvent
 from .services import hold_settlement_for_refund, release_refund_hold, sync_settlement_for_payment
 
 
@@ -237,6 +237,52 @@ def mark_session_paid(session, payload=None):
         )
     return payment
 
+
+@login_required
+def batch_checkout(request, pk):
+    batch = get_object_or_404(PaymentBatch.objects.prefetch_related("orders__items"), pk=pk, buyer=request.user)
+    if settings.PAYMENT_MODE not in {"demo", "test"}:
+        messages.error(request, "การชำระเงินรวมหลายร้านกำลังเปิดใช้ในโหมดทดลอง")
+        return redirect("orders:order_list")
+    orders = list(batch.orders.all())
+    if batch.status == PaymentBatch.Status.PAID:
+        return redirect("orders:order_list")
+    if len(orders) < 2 or any(order.payment_status == Order.PaymentStatus.PAID or order.is_expired for order in orders):
+        messages.error(request, "ชุดคำสั่งซื้อนี้ไม่พร้อมชำระเงินรวม")
+        return redirect("orders:order_list")
+    if not batch.checkout_session_id:
+        batch.checkout_session_id = f"demo-batch-{batch.checkout_attempt_id.hex}"
+        batch.status = PaymentBatch.Status.PROCESSING
+        batch.save(update_fields=["checkout_session_id", "status", "updated_at"])
+    return render(request, "payments/batch_checkout.html", {"batch": batch, "orders": orders})
+
+
+@login_required
+@require_POST
+def complete_batch_checkout(request, pk):
+    batch = get_object_or_404(PaymentBatch.objects.prefetch_related("orders"), pk=pk, buyer=request.user)
+    if settings.PAYMENT_MODE not in {"demo", "test"}:
+        messages.error(request, "การชำระเงินรวมหลายร้านกำลังเปิดใช้ในโหมดทดลอง")
+        return redirect("orders:order_list")
+    with transaction.atomic():
+        batch = PaymentBatch.objects.select_for_update().get(pk=batch.pk)
+        orders = list(batch.orders.select_for_update().all())
+        if batch.status == PaymentBatch.Status.PAID or not orders or any(order.payment_status == Order.PaymentStatus.PAID or order.is_expired for order in orders):
+            messages.error(request, "ชุดคำสั่งซื้อนี้ไม่พร้อมชำระเงินรวม")
+            return redirect("orders:order_list")
+        for order in orders:
+            payment, _ = Payment.objects.get_or_create(order=order, defaults={"amount": order.total_amount, "currency": batch.currency})
+            payment.status = Payment.Status.PAID
+            payment.raw_payload = {"batch_id": batch.pk}
+            payment.save(update_fields=["status", "raw_payload", "updated_at"])
+            order.mark_paid()
+            OrderStatusHistory.objects.get_or_create(order=order, status=Order.Status.PAID, defaults={"note": "ยืนยันการชำระเงินรวมแล้ว"})
+            sync_settlement_for_payment(payment)
+            notify_user(order.seller, f"มีคำสั่งซื้อใหม่ {order.reference}", "ผู้ซื้อชำระเงินรวมแล้ว กรุณาเตรียมสินค้า", order.get_absolute_url())
+        batch.status = PaymentBatch.Status.PAID
+        batch.save(update_fields=["status", "updated_at"])
+    messages.success(request, "ชำระเงินทุกคำสั่งซื้อสำเร็จแล้ว")
+    return redirect("orders:order_list")
 
 @login_required
 def create_checkout_session(request, order_id):

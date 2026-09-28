@@ -71,6 +71,33 @@ class Payment(models.Model):
     def __str__(self):
         return f"การชำระเงินคำสั่งซื้อ #{self.order_id} - {self.get_status_display()}"
 
+class PaymentBatch(models.Model):
+    class Status(models.TextChoices):
+        CREATED = "created", "สร้างรายการแล้ว"
+        PROCESSING = "processing", "กำลังดำเนินการ"
+        PAID = "paid", "ชำระแล้ว"
+        FAILED = "failed", "ไม่สำเร็จ"
+
+    buyer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="payment_batches")
+    orders = models.ManyToManyField("orders.Order", related_name="payment_batches")
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.CREATED)
+    amount = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(0.01)])
+    currency = models.CharField(max_length=10, default="thb")
+    checkout_session_id = models.CharField(max_length=255, blank=True, unique=True)
+    checkout_attempt_id = models.UUIDField(default=uuid.uuid4, editable=False)
+    checkout_url = models.URLField(max_length=1000, blank=True)
+    checkout_expires_at = models.DateTimeField(null=True, blank=True)
+    payment_intent_id = models.CharField(max_length=255, blank=True)
+    raw_payload = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"ชุดชำระเงิน #{self.pk} ({self.get_status_display()})"
+
 class StripeEvent(models.Model):
     event_id = models.CharField(max_length=255, unique=True)
     event_type = models.CharField(max_length=120)

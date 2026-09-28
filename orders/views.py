@@ -15,6 +15,7 @@ from accounts.forms import ReportForm
 from accounts.models import Report, User
 from accounts.services import notify_user
 from catalog.models import Product, ProductReview, ProductVariant
+from payments.models import PaymentBatch
 
 from .forms import (
     CancelOrderForm, CartCheckoutForm, CheckoutForm, OrderStatusForm, SellerShipmentForm,
@@ -681,8 +682,15 @@ def cart_checkout(request):
                     created_orders[0],
                     form.cleaned_data.get("payment_method") or "card",
                 )
-            messages.success(request, f"สร้างคำสั่งซื้อ {len(created_orders)} รายการแล้ว กรุณาชำระเงินแยกตามผู้ขาย")
-            return redirect("orders:order_list")
+            batch = PaymentBatch.objects.create(
+                buyer=request.user,
+                amount=sum((order.total_amount for order in created_orders), Decimal("0.00")),
+                currency="thb",
+            )
+            batch.orders.set(created_orders)
+            return redirect(
+                f"{reverse('payments:batch_checkout', args=[batch.pk])}?payment_method={form.cleaned_data.get('payment_method') or 'card'}"
+            )
 
     return render(
         request,
