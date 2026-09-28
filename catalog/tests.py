@@ -660,7 +660,7 @@ class ProductReviewTests(TestCase):
         self.assertTrue(ProductReview.objects.filter(product=self.product, user=self.buyer).exists())
         self.assertEqual(self.product.average_rating, 5)
 
-    def test_order_review_removes_only_the_submitted_item_and_keeps_variant_details(self):
+    def test_order_review_groups_same_product_and_removes_the_group_after_submission(self):
         order = Order.objects.create(
             buyer=self.buyer,
             seller=self.farmer,
@@ -699,9 +699,8 @@ class ProductReviewTests(TestCase):
         self.assertRedirects(response, reverse("orders:order_review", args=[order.pk]))
         self.assertTrue(ProductReview.objects.filter(order_item=reviewed_item).exists())
         response = self.client.get(reverse("orders:order_review", args=[order.pk]))
-        self.assertEqual([item.pk for item in response.context["review_items"]], [pending_item.pk])
-        self.assertContains(response, "Option B")
-        self.assertNotContains(response, "Option A")
+        self.assertEqual(response.context["review_items"], [])
+        self.assertContains(response, "ครบทุกสินค้า")
     def test_buyer_can_attach_an_image_and_video_to_a_review(self):
         order = Order.objects.create(
             buyer=self.buyer,

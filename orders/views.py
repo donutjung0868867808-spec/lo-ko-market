@@ -1164,11 +1164,35 @@ def order_review(request, pk):
     if order.status != Order.Status.COMPLETED:
         messages.error(request, "ให้คะแนนสินค้าได้หลังยืนยันว่าได้รับสินค้าแล้ว")
         return redirect(order)
-    reviewed_item_ids = set(
-        ProductReview.objects.filter(user=request.user, order_item__order=order).values_list("order_item_id", flat=True)
+    reviewed_product_ids = set(
+        ProductReview.objects.filter(user=request.user, order_item__order=order).values_list(
+            "order_item__product_id", flat=True
+        )
     )
-    review_items = [item for item in order.items.all() if item.id not in reviewed_item_ids]
-    return render(request, "orders/order_review.html", {"order": order, "review_items": review_items})
+    review_items_by_product = {}
+    for item in order.items.all():
+        if item.product_id in reviewed_product_ids:
+            continue
+        review_item = review_items_by_product.setdefault(
+            item.product_id,
+            {
+                "order_item_id": item.id,
+                "product_id": item.product_id,
+                "product": item.product,
+                "product_name": item.product_name,
+                "unit": item.unit,
+                "quantity": Decimal("0"),
+                "variant_names": [],
+            },
+        )
+        review_item["quantity"] += item.quantity
+        if item.variant_name and item.variant_name not in review_item["variant_names"]:
+            review_item["variant_names"].append(item.variant_name)
+    return render(
+        request,
+        "orders/order_review.html",
+        {"order": order, "review_items": list(review_items_by_product.values())},
+    )
 @login_required
 def report_buyer(request, pk):
     order = get_object_or_404(Order.objects.select_related("buyer", "seller", "community"), pk=pk)

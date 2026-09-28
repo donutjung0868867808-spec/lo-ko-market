@@ -1,7 +1,11 @@
+from uuid import uuid4
+
 from django.contrib import admin
 from django import forms
 from django.db.models import Prefetch
+from django.core.validators import validate_slug
 from django.utils.html import format_html
+from django.utils.text import slugify
 from django.utils import timezone
 
 from accounts.admin_permissions import CsvExportAdminMixin, OwnerOnlyAdminMixin, RoleScopedAdminMixin, render_status_badge
@@ -21,6 +25,23 @@ from .models import (
 
 
 class CategoryAdminForm(forms.ModelForm):
+    slug = forms.CharField(max_length=140, required=False)
+
+    def clean_slug(self):
+        raw_slug = self.cleaned_data["slug"].strip()
+        raw_slug = "".join(
+            "-" if 0x2010 <= ord(character) <= 0x2015 or ord(character) == 0x2212 else character
+            for character in raw_slug
+            if ord(character) != 0x200B
+        )
+        slug = slugify(raw_slug)
+        if not slug:
+            slug = slugify(self.cleaned_data.get("name", ""))
+        if not slug:
+            slug = self.instance.slug if self.instance.pk else f"category-{uuid4().hex[:8]}"
+        validate_slug(slug)
+        return slug
+
     class Meta:
         model = Category
         fields = "__all__"
