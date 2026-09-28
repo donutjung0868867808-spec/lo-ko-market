@@ -16,7 +16,7 @@ from accounts.models import Community, CommunityStaffProfile, FarmerProfile, Not
 from orders.models import Order, OrderItem
 
 from .forms import ProductForm
-from .models import Category, HomeSlide, Product, ProductClick, ProductDetailImage, ProductReview, ProductReviewMedia, ProductVariant, SellerStoreVisit, StockMovement
+from .models import Category, HomeSlide, Product, ProductClick, ProductDetailImage, ProductReview, ProductReviewMedia, ProductSizeChartRow, ProductVariant, SellerStoreVisit, StockMovement
 
 
 def test_image_bytes():
@@ -209,11 +209,21 @@ class ProductCatalogTests(TestCase):
         self.assertContains(response, "ลากรูปมาวางได้หลายรูป")
         self.assertContains(response, 'data-product-detail-image-input="true"')
         self.assertContains(response, 'data-product-form-tab="product"')
+        self.assertContains(response, 'data-product-form-tab="details"')
+        self.assertContains(response, 'data-add-variant')
+        self.assertContains(response, 'data-variant-empty-form')
+        self.assertContains(response, 'name="variants-TOTAL_FORMS" value="0"')
+        self.assertContains(response, 'data-remove-variant')
+        self.assertContains(response, 'data-add-size-chart-row')
+        self.assertContains(response, 'data-size-chart-empty-form')
+        self.assertContains(response, 'name="size_chart_rows-TOTAL_FORMS" value="0"')
+        self.assertContains(response, 'data-remove-size-chart-row')
         self.assertContains(response, 'data-product-form-tab="inventory"')
         self.assertContains(response, 'data-product-form-tab="shipping"')
         self.assertContains(response, 'data-product-form-tab="variants"')
         self.assertContains(response, 'data-product-form-tab="additional"')
         markup = response.content.decode()
+        self.assertLess(markup.index('data-product-form-tab="details"'), markup.index('data-product-form-tab="inventory"'))
         self.assertLess(markup.index('id_description'), markup.index('data-product-detail-image-input="true"'))
 
     def test_farmer_can_add_product_variants(self):
@@ -246,6 +256,108 @@ class ProductCatalogTests(TestCase):
             ["สีเหลือง"],
         )
 
+    def test_farmer_can_save_more_than_three_product_variants(self):
+        self.client.force_login(self.farmer)
+
+        response = self.client.post(
+            reverse("catalog:product_create"),
+            {
+                "name": "Variant-rich product",
+                "description": "Product with four selectable variants.",
+                "unit": Product.Unit.KG,
+                "price": "35.00",
+                "stock_quantity": "10.00",
+                "minimum_order_quantity": "0.50",
+                "low_stock_threshold": "5.00",
+                "weight_grams": "1000",
+                "variants-TOTAL_FORMS": "4",
+                "variants-INITIAL_FORMS": "0",
+                "variants-MIN_NUM_FORMS": "0",
+                "variants-MAX_NUM_FORMS": "1000",
+                "variants-0-name": "Yellow",
+                "variants-0-is_active": "on",
+                "variants-1-name": "Purple",
+                "variants-1-is_active": "on",
+                "variants-2-name": "Large",
+                "variants-2-is_active": "on",
+                "variants-3-name": "Small",
+                "variants-3-is_active": "on",
+            },
+        )
+
+        product = Product.objects.get(name="Variant-rich product")
+        self.assertRedirects(response, product.get_absolute_url(), fetch_redirect_response=False)
+        self.assertEqual(ProductVariant.objects.filter(product=product).count(), 4)
+    def test_farmer_can_save_multiple_size_chart_rows(self):
+        self.client.force_login(self.farmer)
+
+        response = self.client.post(
+            reverse("catalog:product_create"),
+            {
+                "name": "Product with size rows",
+                "description": "Product with several measurements.",
+                "unit": Product.Unit.KG,
+                "price": "35.00",
+                "stock_quantity": "10.00",
+                "minimum_order_quantity": "0.50",
+                "low_stock_threshold": "5.00",
+                "weight_grams": "1000",
+                "size_chart_rows-TOTAL_FORMS": "4",
+                "size_chart_rows-INITIAL_FORMS": "0",
+                "size_chart_rows-MIN_NUM_FORMS": "0",
+                "size_chart_rows-MAX_NUM_FORMS": "1000",
+                "size_chart_rows-0-label": "S",
+                "size_chart_rows-0-sort_order": "0",
+                "size_chart_rows-1-label": "M",
+                "size_chart_rows-1-sort_order": "1",
+                "size_chart_rows-2-label": "L",
+                "size_chart_rows-2-sort_order": "2",
+                "size_chart_rows-3-label": "XL",
+                "size_chart_rows-3-sort_order": "3",
+            },
+        )
+
+        product = Product.objects.get(name="Product with size rows")
+        self.assertRedirects(response, product.get_absolute_url(), fetch_redirect_response=False)
+        self.assertEqual(ProductSizeChartRow.objects.filter(product=product).count(), 4)
+    def test_farmer_can_delete_an_existing_product_variant(self):
+        product = Product.objects.create(
+            seller=self.farmer,
+            community=self.community,
+            name="Product with removable variant",
+            description="Variant removal test.",
+            price=Decimal("35.00"),
+            stock_quantity=Decimal("10.00"),
+            status=Product.Status.ACTIVE,
+        )
+        variant = ProductVariant.objects.create(product=product, name="Yellow")
+        self.client.force_login(self.farmer)
+
+        response = self.client.post(
+            reverse("catalog:product_update", args=[product.pk]),
+            {
+                "name": product.name,
+                "description": product.description,
+                "unit": product.unit,
+                "price": product.price,
+                "stock_quantity": product.stock_quantity,
+                "minimum_order_quantity": product.minimum_order_quantity,
+                "low_stock_threshold": product.low_stock_threshold,
+                "variants-TOTAL_FORMS": "1",
+                "variants-INITIAL_FORMS": "1",
+                "variants-MIN_NUM_FORMS": "0",
+                "variants-MAX_NUM_FORMS": "1000",
+                "variants-0-id": variant.pk,
+                "variants-0-name": variant.name,
+                "variants-0-is_active": "on",
+                "variants-0-DELETE": "on",
+            },
+        )
+
+        self.assertRedirects(response, product.get_absolute_url(), fetch_redirect_response=False)
+        self.assertFalse(ProductVariant.objects.filter(pk=variant.pk).exists())
+        product.refresh_from_db()
+        self.assertEqual(product.status, Product.Status.ACTIVE)
     def test_new_product_requires_weight_and_notifies_community_reviewer(self):
         reviewer = User.objects.create_user(
             username="product-reviewer",
@@ -716,6 +828,27 @@ class ProductDetailInteractionTests(TestCase):
             status=Product.Status.ACTIVE,
         )
 
+    def test_product_detail_shows_product_specifications(self):
+        category = Category.objects.create(name="ผักสด", slug="fresh-vegetables")
+        self.product.category = category
+        self.product.save(update_fields=["category"])
+
+
+        response = self.client.get(reverse("catalog:product_detail", args=[self.product.pk]))
+
+        self.assertContains(response, 'data-product-specifications')
+        self.assertContains(response, "ข้อมูลจำเพาะของสินค้า")
+        self.assertContains(response, category.name)
+        self.assertContains(response, "สินค้าพร้อมส่ง")
+        self.assertContains(response, self.community.province)
+        self.assertNotContains(response, "น้ำหนักต่อหน่วย")
+        self.assertNotContains(response, "วันที่เก็บเกี่ยว")
+        self.assertNotContains(response, "ควรบริโภคก่อน")
+        page = response.content.decode()
+        self.assertLess(
+            page.index('data-product-specifications'),
+            page.index('id="product-information-title"'),
+        )
     def test_consumer_sees_cart_favorite_and_report_actions(self):
         self.client.force_login(self.buyer)
 

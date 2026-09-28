@@ -278,7 +278,8 @@ ProductVariantFormSet = inlineformset_factory(
     Product,
     ProductVariant,
     form=ProductVariantForm,
-    extra=3,
+    extra=0,
+    max_num=1000,
     can_delete=True,
 )
 
@@ -302,7 +303,8 @@ ProductSizeChartRowFormSet = inlineformset_factory(
     Product,
     ProductSizeChartRow,
     form=ProductSizeChartRowForm,
-    extra=3,
+    extra=0,
+    max_num=1000,
     can_delete=True,
 )
 

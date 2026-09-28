@@ -185,8 +185,25 @@
       </dl>
     </div>
   </section>
-  <section class="mt-12 grid gap-8 border-t border-stone-200 pt-9 lg:grid-cols-[minmax(0,1fr)_340px]" aria-labelledby="product-information-title">
-    <div>
+  <section class="mt-12 border-t border-stone-200 pt-9" aria-labelledby="product-information-title">
+    <aside data-product-specifications class="">
+      <h2 class="text-lg font-semibold text-ink">ข้อมูลจำเพาะของสินค้า</h2>
+      <dl class="mt-5 grid gap-y-5 text-sm">
+        <div class="grid gap-1 border-b border-stone-100 pb-5 sm:grid-cols-[200px_minmax(0,1fr)] sm:gap-5">
+          <dt class="text-slate-500">หมวดหมู่</dt>
+          <dd class="font-semibold text-slate-900">{{ product.category.name|default:"-" }}</dd>
+        </div>
+        <div class="grid gap-1 border-b border-stone-100 pb-5 sm:grid-cols-[200px_minmax(0,1fr)] sm:gap-5">
+          <dt class="text-slate-500">คลังสินค้า</dt>
+          <dd class="font-semibold text-slate-900">{% if product.stock_quantity > 0 %}สินค้าพร้อมส่ง{% else %}สินค้าหมด{% endif %}<span class="mt-1 block text-xs font-normal text-slate-500">คงเหลือ {{ product.stock_quantity|floatformat:"-2" }} {{ product.get_unit_display }}</span></dd>
+        </div>
+        <div class="grid gap-1 sm:grid-cols-[200px_minmax(0,1fr)] sm:gap-5">
+          <dt class="text-slate-500">ส่งจาก</dt>
+          <dd class="font-semibold text-slate-900">{{ product.community.province|default:"-" }}</dd>
+        </div>
+      </dl>
+    </aside>
+    <div class="mt-9 border-t border-stone-200 pt-9">
       <h2 id="product-information-title" class="text-xl font-semibold text-ink">รายละเอียดสินค้า</h2>
       <p class="mt-4 whitespace-pre-line text-sm leading-7 text-slate-700">{{ product.description|default:"ผู้ขายยังไม่ได้เพิ่มรายละเอียดสินค้า" }}</p>
       {% if product.detail_images.all %}
@@ -215,15 +232,7 @@
         </section>
       {% endif %}
     </div>
-    <dl class="grid grid-cols-2 gap-x-5 gap-y-4 text-sm">
-      <div><dt class="text-slate-500">รหัสสินค้า</dt><dd class="mt-1 font-semibold text-slate-900">{{ product.sku|default:"-" }}</dd></div>
-      {% if product.gtin %}<div><dt class="text-slate-500">GTIN</dt><dd class="mt-1 font-semibold text-slate-900">{{ product.gtin }}</dd></div>{% endif %}
-      {% if product.package_length_cm %}<div><dt class="text-slate-500">ขนาดพัสดุ</dt><dd class="mt-1 font-semibold text-slate-900">{{ product.package_length_cm }} x {{ product.package_width_cm }} x {{ product.package_height_cm }} ซม.</dd></div>{% endif %}
-      <div><dt class="text-slate-500">เตรียมสินค้า</dt><dd class="mt-1 font-semibold text-slate-900">{{ product.preparation_days }} วัน</dd></div>
-      <div><dt class="text-slate-500">สถานะ</dt><dd class="mt-1 font-semibold text-slate-900">{{ product.get_status_display }}</dd></div>
-      <div><dt class="text-slate-500">วันที่เก็บเกี่ยว</dt><dd class="mt-1 font-semibold text-slate-900">{{ product.harvest_date|date:"d/m/Y"|default:"-" }}</dd></div>
-      <div><dt class="text-slate-500">ควรบริโภคก่อน</dt><dd class="mt-1 font-semibold text-slate-900">{{ product.expiry_date|date:"d/m/Y"|default:"-" }}</dd></div>
-    </dl>
+
   </section>
 
   {% if recommended_products %}

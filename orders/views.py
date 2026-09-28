@@ -189,6 +189,61 @@ def tracking_events(order):
     return events
 
 
+def order_progress_steps(order):
+    """Build the buyer-facing milestone timeline from the order lifecycle."""
+    status_times = {}
+    for history in order.status_history.all():
+        status_times.setdefault(history.status, history.created_at)
+
+    payment = getattr(order, "payment", None)
+    paid_at = status_times.get(Order.Status.PAID)
+    if not paid_at and payment and order.payment_status == Order.PaymentStatus.PAID:
+        paid_at = payment.updated_at
+
+    shipped_at = order.shipped_at or status_times.get(Order.Status.SHIPPED)
+    received_at = order.received_confirmed_at or (
+        order.delivered_at if order.status == Order.Status.COMPLETED else None
+    )
+    steps = [
+        {
+            "label": "คำสั่งซื้อใหม่",
+            "timestamp": order.created_at,
+            "icon": "receipt-text",
+            "completed": True,
+        },
+        {
+            "label": "ยืนยันการชำระเงิน",
+            "timestamp": paid_at,
+            "icon": "banknote",
+            "completed": bool(paid_at),
+        },
+        {
+            "label": "ผู้ขายจัดส่งสินค้า",
+            "timestamp": shipped_at,
+            "icon": "truck",
+            "completed": bool(shipped_at),
+        },
+        {
+            "label": "ยืนยันได้รับสินค้า",
+            "timestamp": received_at,
+            "icon": "package-check",
+            "completed": bool(received_at),
+        },
+        {
+            "label": "ให้คะแนนสินค้า",
+            "timestamp": None,
+            "icon": "star",
+            "completed": False,
+        },
+    ]
+    first_pending = True
+    for step in steps:
+        step["is_current"] = first_pending and not step["completed"]
+        if step["is_current"]:
+            first_pending = False
+    return steps
+
+
 def can_manage_order(user, order):
     return user.is_owner or (user.is_farmer and order.seller_id == user.id) or (
         user.is_cooperative_staff and user_community(user) == order.community
@@ -837,7 +892,7 @@ def order_detail(request, pk):
 @login_required
 def order_tracking(request, pk):
     order = get_object_or_404(
-        Order.objects.select_related("buyer", "seller", "seller__farmer_profile", "community", "shipment").prefetch_related(
+        Order.objects.select_related("buyer", "seller", "seller__farmer_profile", "community", "shipment", "payment").prefetch_related(
             "items__product", "status_history__changed_by"
         ),
         pk=pk,
@@ -848,7 +903,11 @@ def order_tracking(request, pk):
     return render(
         request,
         "orders/order_tracking.html",
-        {"order": order, "tracking_events": tracking_events(order)},
+        {
+            "order": order,
+            "tracking_events": tracking_events(order),
+            "order_progress_steps": order_progress_steps(order),
+        },
     )
 
 

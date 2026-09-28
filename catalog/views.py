@@ -444,6 +444,15 @@ def product_update(request, pk):
     old_image_name = product.image.name if product.image else ""
     old_harvest_date = product.harvest_date
     old_expiry_date = product.expiry_date
+    reviewable_product_values = {
+        field: getattr(product, field)
+        for field in (
+            "category_id", "name", "description", "unit", "price", "stock_quantity",
+            "minimum_order_quantity", "maximum_order_quantity", "low_stock_threshold",
+            "weight_grams", "package_length_cm", "package_width_cm", "package_height_cm",
+            "preparation_days", "gtin", "harvest_date", "expiry_date",
+        )
+    }
     form = ProductForm(request.POST or None, request.FILES or None, instance=product)
     variant_data = request.POST if "variants-TOTAL_FORMS" in request.POST else None
     variant_formset = ProductVariantFormSet(
@@ -472,7 +481,12 @@ def product_update(request, pk):
             elif not product.image and old_image_name:
                 product.image = old_image_name
             gallery_images = use_first_gallery_image_as_cover(product, gallery_images)
-            if request.user.is_farmer:
+            product_details_changed = any(
+                getattr(product, field) != value
+                for field, value in reviewable_product_values.items()
+            )
+            # Changing only selectable options must not take an already listed product offline.
+            if request.user.is_farmer and product_details_changed:
                 product.status = Product.Status.PENDING
             product.save()
             save_product_gallery_images(product, gallery_images)

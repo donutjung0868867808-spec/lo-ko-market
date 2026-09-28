@@ -566,6 +566,11 @@ class CartWorkflowTests(TestCase):
         self.assertContains(response, "อยู่ระหว่างขนส่ง")
         self.assertContains(response, "พัสดุกำลังเดินทาง")
 
+        self.assertContains(response, "คำสั่งซื้อใหม่")
+        self.assertContains(response, "ยืนยันการชำระเงิน")
+        self.assertContains(response, "ผู้ขายจัดส่งสินค้า")
+        self.assertContains(response, "ให้คะแนนสินค้า")
+
     def test_paid_order_shows_shipping_status_before_seller_adds_tracking_number(self):
         order = Order.objects.create(
             buyer=self.buyer,

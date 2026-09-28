@@ -18,6 +18,7 @@
       {% csrf_token %}
       <div class="flex gap-1 overflow-x-auto border-b border-stone-200" role="tablist" aria-label="หมวดข้อมูลสินค้า" data-product-form-tabs>
         <button type="button" role="tab" aria-selected="true" data-product-form-tab="product" class="inline-flex min-h-11 shrink-0 items-center gap-2 border-b-2 border-leaf px-4 py-3 text-sm font-semibold text-leaf"><i data-lucide="package" class="h-4 w-4" aria-hidden="true"></i>ข้อมูลสินค้า</button>
+        <button type="button" role="tab" aria-selected="false" data-product-form-tab="details" class="inline-flex min-h-11 shrink-0 items-center gap-2 border-b-2 border-transparent px-4 py-3 text-sm font-semibold text-slate-600 hover:text-leaf"><i data-lucide="file-text" class="h-4 w-4" aria-hidden="true"></i>รายละเอียดสินค้า</button>
         <button type="button" role="tab" aria-selected="false" data-product-form-tab="inventory" class="inline-flex min-h-11 shrink-0 items-center gap-2 border-b-2 border-transparent px-4 py-3 text-sm font-semibold text-slate-600 hover:text-leaf"><i data-lucide="warehouse" class="h-4 w-4" aria-hidden="true"></i>ราคาและสต็อก</button>
         <button type="button" role="tab" aria-selected="false" data-product-form-tab="shipping" class="inline-flex min-h-11 shrink-0 items-center gap-2 border-b-2 border-transparent px-4 py-3 text-sm font-semibold text-slate-600 hover:text-leaf"><i data-lucide="truck" class="h-4 w-4" aria-hidden="true"></i>การจัดส่ง</button>
         <button type="button" role="tab" aria-selected="false" data-product-form-tab="variants" class="inline-flex min-h-11 shrink-0 items-center gap-2 border-b-2 border-transparent px-4 py-3 text-sm font-semibold text-slate-600 hover:text-leaf"><i data-lucide="sliders-horizontal" class="h-4 w-4" aria-hidden="true"></i>ตัวเลือกสินค้า</button>
@@ -26,7 +27,7 @@
       </div>
       <div class="grid gap-4 pt-2 sm:grid-cols-2" data-product-form-fields>
         {% for field in form %}
-          <div data-product-form-field data-product-form-group="{% if field.name == 'category' or field.name == 'name' or field.name == 'description' or field.name == 'detail_images' or field.name == 'image' %}product{% elif field.name == 'unit' or field.name == 'price' or field.name == 'stock_quantity' or field.name == 'minimum_order_quantity' or field.name == 'maximum_order_quantity' or field.name == 'low_stock_threshold' %}inventory{% elif field.name == 'weight_grams' or field.name == 'package_length_cm' or field.name == 'package_width_cm' or field.name == 'package_height_cm' or field.name == 'preparation_days' %}shipping{% elif field.name == 'size_chart_image' %}sizes{% else %}additional{% endif %}" class="{% if field.name == 'description' or field.name == 'detail_images' or field.name == 'image' %}sm:col-span-2{% endif %}">
+          <div data-product-form-field data-product-form-group="{% if field.name == 'category' or field.name == 'name' or field.name == 'image' %}product{% elif field.name == 'description' or field.name == 'detail_images' %}details{% elif field.name == 'unit' or field.name == 'price' or field.name == 'stock_quantity' or field.name == 'minimum_order_quantity' or field.name == 'maximum_order_quantity' or field.name == 'low_stock_threshold' %}inventory{% elif field.name == 'weight_grams' or field.name == 'package_length_cm' or field.name == 'package_width_cm' or field.name == 'package_height_cm' or field.name == 'preparation_days' %}shipping{% elif field.name == 'size_chart_image' %}sizes{% else %}additional{% endif %}" class="{% if field.name == 'description' or field.name == 'detail_images' or field.name == 'image' %}sm:col-span-2{% endif %}">
             <label class="text-sm font-semibold text-slate-700" for="{{ field.id_for_label }}">{{ field.label }}</label>
             {% if product and field.name == 'image' %}
               {% if product.image or product.images.all %}
@@ -48,22 +49,36 @@
       </div>
       <section data-product-form-field data-product-form-group="variants" class="hidden border-t border-stone-200 pt-6">
         {{ variant_formset.management_form }}
-        <div>
-          <h2 class="text-lg font-semibold text-slate-950">ตัวเลือกสินค้า</h2>
-          <p class="mt-1 text-sm text-slate-600">เพิ่มตัวเลือก เช่น สีเหลือง สีม่วง หรือขนาดใหญ่ พร้อมรูปกำกับแต่ละตัวเลือกได้</p>
+        <div class="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 class="text-lg font-semibold text-slate-950">ตัวเลือกสินค้า</h2>
+            <p class="mt-1 text-sm text-slate-600">เพิ่มตัวเลือก เช่น สีเหลือง สีม่วง หรือขนาดใหญ่ พร้อมรูปกำกับแต่ละตัวเลือกได้</p>
+          </div>
+          <button type="button" data-add-variant class="inline-flex h-10 items-center gap-2 rounded-md border border-leaf px-3 text-sm font-semibold text-leaf hover:bg-emerald-50"><i data-lucide="plus" class="h-4 w-4" aria-hidden="true"></i>เพิ่มตัวเลือก</button>
         </div>
         {% if variant_formset.non_form_errors %}<div class="mt-4 text-sm text-red-700">{{ variant_formset.non_form_errors }}</div>{% endif %}
-        <div class="mt-5 space-y-3">
+        <div class="mt-5 space-y-3" data-variant-forms>
           {% for variant_form in variant_formset %}
-            <div class="grid gap-3 rounded-md border border-stone-200 bg-stone-50 p-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto] sm:items-end">
+            <div data-variant-form class="grid gap-3 rounded-md border border-stone-200 bg-stone-50 p-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto] sm:items-end">
               {% for hidden in variant_form.hidden_fields %}{{ hidden }}{% endfor %}
               <div><label class="text-sm font-semibold text-slate-700" for="{{ variant_form.name.id_for_label }}">{{ variant_form.name.label }}</label><div class="mt-1.5">{{ variant_form.name }}</div>{% for error in variant_form.name.errors %}<p class="mt-1 text-sm text-red-700">{{ error }}</p>{% endfor %}</div>
               <div><label class="text-sm font-semibold text-slate-700" for="{{ variant_form.image.id_for_label }}">{{ variant_form.image.label }}</label><div class="mt-1.5">{{ variant_form.image }}</div>{% for error in variant_form.image.errors %}<p class="mt-1 text-sm text-red-700">{{ error }}</p>{% endfor %}</div>
               <label class="flex min-h-10 items-center gap-2 text-sm font-medium text-slate-700">{{ variant_form.is_active }} {{ variant_form.is_active.label }}</label>
-              <div class="flex min-h-10 items-center gap-2 text-sm text-slate-700">{% if variant_form.DELETE %}{{ variant_form.DELETE }} <label for="{{ variant_form.DELETE.id_for_label }}">ลบ</label>{% endif %}</div>
+              <div class="flex min-h-10 items-center">{% if variant_form.DELETE %}{{ variant_form.DELETE.as_hidden }}{% endif %}<button type="button" data-remove-variant class="inline-flex h-9 items-center gap-1.5 rounded-md border border-red-200 px-3 text-sm font-semibold text-red-700 hover:bg-red-50" title="ลบตัวเลือก"><i data-lucide="trash-2" class="h-4 w-4" aria-hidden="true"></i>ลบตัวเลือก</button></div>
             </div>
           {% endfor %}
         </div>
+        <template data-variant-empty-form>
+          {% with variant_form=variant_formset.empty_form %}
+            <div data-variant-form class="grid gap-3 rounded-md border border-stone-200 bg-stone-50 p-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto] sm:items-end">
+              {% for hidden in variant_form.hidden_fields %}{{ hidden }}{% endfor %}
+              <div><label class="text-sm font-semibold text-slate-700" for="{{ variant_form.name.id_for_label }}">{{ variant_form.name.label }}</label><div class="mt-1.5">{{ variant_form.name }}</div></div>
+              <div><label class="text-sm font-semibold text-slate-700" for="{{ variant_form.image.id_for_label }}">{{ variant_form.image.label }}</label><div class="mt-1.5">{{ variant_form.image }}</div></div>
+              <label class="flex min-h-10 items-center gap-2 text-sm font-medium text-slate-700">{{ variant_form.is_active }} {{ variant_form.is_active.label }}</label>
+              <div class="flex min-h-10 items-center">{% if variant_form.DELETE %}{{ variant_form.DELETE.as_hidden }}{% endif %}<button type="button" data-remove-variant class="inline-flex h-9 items-center gap-1.5 rounded-md border border-red-200 px-3 text-sm font-semibold text-red-700 hover:bg-red-50" title="ลบตัวเลือก"><i data-lucide="trash-2" class="h-4 w-4" aria-hidden="true"></i>ลบตัวเลือก</button></div>
+            </div>
+          {% endwith %}
+        </template>
       </section>
       <section data-product-form-field data-product-form-group="sizes" class="hidden border-t border-stone-200 pt-6">
         {{ size_chart_formset.management_form }}
@@ -72,23 +87,36 @@
             <h2 class="text-lg font-semibold text-slate-950">ตารางขนาดสินค้า</h2>
             <p class="mt-1 text-sm text-slate-600">เพิ่มขนาดและมิติที่ผู้ซื้อใช้เปรียบเทียบได้ หรืออัปโหลดรูปตารางขนาดด้านบน</p>
           </div>
+          <button type="button" data-add-size-chart-row class="inline-flex h-10 items-center gap-2 rounded-md border border-leaf px-3 text-sm font-semibold text-leaf hover:bg-emerald-50"><i data-lucide="plus" class="h-4 w-4" aria-hidden="true"></i>เพิ่มแถวขนาด</button>
         </div>
         {% if size_chart_formset.non_form_errors %}<div class="mt-4 text-sm text-red-700">{{ size_chart_formset.non_form_errors }}</div>{% endif %}
-        <div class="mt-5 space-y-3">
+        <div class="mt-5 space-y-3" data-size-chart-forms>
           {% for size_form in size_chart_formset %}
-            <div class="grid gap-3 rounded-md border border-stone-200 bg-stone-50 p-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div data-size-chart-form class="grid gap-3 rounded-md border border-stone-200 bg-stone-50 p-4 sm:grid-cols-2 lg:grid-cols-4">
               {% for hidden in size_form.hidden_fields %}{{ hidden }}{% endfor %}
               {% for field in size_form.visible_fields %}
                 {% if field.name != 'DELETE' %}
                   <div><label class="text-sm font-semibold text-slate-700" for="{{ field.id_for_label }}">{{ field.label }}</label><div class="mt-1.5">{{ field }}</div>{% for error in field.errors %}<p class="mt-1 text-sm text-red-700">{{ error }}</p>{% endfor %}</div>
                 {% endif %}
               {% endfor %}
-              {% if size_form.DELETE %}<label class="flex min-h-10 items-center gap-2 text-sm font-medium text-slate-700">{{ size_form.DELETE }} ลบแถวนี้</label>{% endif %}
+              <div class="flex min-h-10 items-center">{% if size_form.DELETE %}{{ size_form.DELETE.as_hidden }}{% endif %}<button type="button" data-remove-size-chart-row class="inline-flex h-9 items-center gap-1.5 rounded-md border border-red-200 px-3 text-sm font-semibold text-red-700 hover:bg-red-50" title="ลบแถวขนาด"><i data-lucide="trash-2" class="h-4 w-4" aria-hidden="true"></i>ลบแถว</button></div>
             </div>
           {% endfor %}
         </div>
-      </section>
-      <button class="rounded-md bg-leaf px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800" type="submit">บันทึกสินค้า</button>
+        <template data-size-chart-empty-form>
+          {% with size_form=size_chart_formset.empty_form %}
+            <div data-size-chart-form class="grid gap-3 rounded-md border border-stone-200 bg-stone-50 p-4 sm:grid-cols-2 lg:grid-cols-4">
+              {% for hidden in size_form.hidden_fields %}{{ hidden }}{% endfor %}
+              {% for field in size_form.visible_fields %}
+                {% if field.name != 'DELETE' %}
+                  <div><label class="text-sm font-semibold text-slate-700" for="{{ field.id_for_label }}">{{ field.label }}</label><div class="mt-1.5">{{ field }}</div></div>
+                {% endif %}
+              {% endfor %}
+              <div class="flex min-h-10 items-center">{% if size_form.DELETE %}{{ size_form.DELETE.as_hidden }}{% endif %}<button type="button" data-remove-size-chart-row class="inline-flex h-9 items-center gap-1.5 rounded-md border border-red-200 px-3 text-sm font-semibold text-red-700 hover:bg-red-50" title="ลบแถวขนาด"><i data-lucide="trash-2" class="h-4 w-4" aria-hidden="true"></i>ลบแถว</button></div>
+            </div>
+          {% endwith %}
+        </template>
+      </section>      <button class="rounded-md bg-leaf px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800" type="submit">บันทึกสินค้า</button>
     </form>
   </div>
 </section>
@@ -100,22 +128,78 @@
     const stock = document.getElementById("id_stock_quantity");
     const minimum = document.getElementById("id_minimum_order_quantity");
     const maximum = document.getElementById("id_maximum_order_quantity");
-    if (!unit || !stock || !minimum) return;
+    if (unit && stock && minimum) {
+      function updateQuantityFields() {
+        const isKg = unit.value === "kg";
+        const step = isKg ? "0.50" : "1";
+        stock.step = step;
+        minimum.step = step;
+        if (maximum) maximum.step = step;
+        minimum.min = step;
+        if (!isKg && Number(minimum.value || 0) < 1) minimum.value = "1";
+        if (isKg && (!minimum.value || Number(minimum.value) < 0.5)) minimum.value = "0.50";
+      }
 
-    function updateQuantityFields() {
-      const isKg = unit.value === "kg";
-      const step = isKg ? "0.50" : "1";
-      stock.step = step;
-      minimum.step = step;
-      if (maximum) maximum.step = step;
-      minimum.min = step;
-      if (!isKg && Number(minimum.value || 0) < 1) minimum.value = "1";
-      if (isKg && (!minimum.value || Number(minimum.value) < 0.5)) minimum.value = "0.50";
+      unit.addEventListener("change", updateQuantityFields);
+      updateQuantityFields();
     }
 
-    unit.addEventListener("change", updateQuantityFields);
-    updateQuantityFields();
-
+    const variantAddButton = document.querySelector("[data-add-variant]");
+    const variantForms = document.querySelector("[data-variant-forms]");
+    const variantTemplate = document.querySelector("[data-variant-empty-form]");
+    const variantTotalForms = document.getElementById("id_variants-TOTAL_FORMS");
+    if (variantAddButton && variantForms && variantTemplate && variantTotalForms) {
+      variantAddButton.addEventListener("click", function () {
+        const index = Number(variantTotalForms.value);
+        variantForms.insertAdjacentHTML(
+          "beforeend",
+          variantTemplate.innerHTML.replace(/__prefix__/g, String(index)),
+        );
+        variantTotalForms.value = String(index + 1);
+        if (window.lucide) window.lucide.createIcons();
+        variantForms.lastElementChild.querySelector("input, select, textarea")?.focus();
+      });
+    }
+    variantForms?.addEventListener("click", function (event) {
+      const clickedElement = event.target instanceof Element ? event.target : null;
+      const removeButton = clickedElement?.closest("[data-remove-variant]");
+      if (!removeButton) return;
+      event.preventDefault();
+      const variantForm = removeButton.closest("[data-variant-form]");
+      const deleteInput = variantForm?.querySelector('input[name$="-DELETE"]');
+      if (variantForm && deleteInput) {
+        deleteInput.checked = true;
+        variantForm.hidden = true;
+      }
+    });
+    const sizeChartAddButton = document.querySelector("[data-add-size-chart-row]");
+    const sizeChartForms = document.querySelector("[data-size-chart-forms]");
+    const sizeChartTemplate = document.querySelector("[data-size-chart-empty-form]");
+    const sizeChartTotalForms = document.getElementById("id_size_chart_rows-TOTAL_FORMS");
+    if (sizeChartAddButton && sizeChartForms && sizeChartTemplate && sizeChartTotalForms) {
+      sizeChartAddButton.addEventListener("click", function () {
+        const index = Number(sizeChartTotalForms.value);
+        sizeChartForms.insertAdjacentHTML(
+          "beforeend",
+          sizeChartTemplate.innerHTML.replace(/__prefix__/g, String(index)),
+        );
+        sizeChartTotalForms.value = String(index + 1);
+        if (window.lucide) window.lucide.createIcons();
+        sizeChartForms.lastElementChild.querySelector("input, select, textarea")?.focus();
+      });
+    }
+    sizeChartForms?.addEventListener("click", function (event) {
+      const clickedElement = event.target instanceof Element ? event.target : null;
+      const removeButton = clickedElement?.closest("[data-remove-size-chart-row]");
+      if (!removeButton) return;
+      event.preventDefault();
+      const sizeChartForm = removeButton.closest("[data-size-chart-form]");
+      const deleteInput = sizeChartForm?.querySelector('input[name$="-DELETE"]');
+      if (sizeChartForm && deleteInput) {
+        deleteInput.checked = true;
+        sizeChartForm.hidden = true;
+      }
+    });
     const tabButtons = Array.from(document.querySelectorAll("[data-product-form-tab]"));
     const formFields = Array.from(document.querySelectorAll("[data-product-form-field]"));
     function activateProductFormTab(group) {

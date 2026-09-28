@@ -10,6 +10,28 @@
   </header>
 
   <section class="overflow-hidden rounded-md border border-stone-200 bg-white shadow-sm">
+    <div class="overflow-x-auto px-5 py-6 sm:px-6">
+      <ol class="flex" style="min-width: 680px;">
+        {% for step in order_progress_steps %}
+          <li class="relative flex flex-1 flex-col items-center text-center">
+            {% if not forloop.last %}<span class="absolute top-8 h-1 {% if step.completed or step.is_current %}bg-emerald-500{% else %}bg-stone-200{% endif %}" style="left: 50%; right: -50%;" aria-hidden="true"></span>{% endif %}
+            <span class="relative z-10 grid h-16 w-16 place-items-center rounded-full {% if step.is_current %}bg-emerald-500 text-white{% elif step.completed %}border-4 border-emerald-500 bg-white text-emerald-500{% else %}border-4 border-stone-200 bg-white text-stone-400{% endif %}">
+              <i data-lucide="{{ step.icon }}" class="h-7 w-7" aria-hidden="true"></i>
+            </span>
+            <p class="mt-3 text-sm font-semibold {% if step.completed or step.is_current %}text-slate-900{% else %}text-slate-500{% endif %}" style="max-width: 130px;">{{ step.label }}</p>
+            {% if step.timestamp %}
+              <time class="mt-1 text-xs leading-5 text-slate-400">{{ step.timestamp|date:"d/m/Y" }}<br>{{ step.timestamp|date:"H:i" }}</time>
+            {% elif step.is_current %}
+              <span class="mt-1 text-xs text-leaf">กำลังดำเนินการ</span>
+            {% else %}
+              <span class="mt-1 text-xs text-slate-400">รอดำเนินการ</span>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ol>
+    </div>
+  </section>
+  <section class="overflow-hidden rounded-md border border-stone-200 bg-white shadow-sm">
     <div class="bg-leaf px-5 py-5 text-white sm:px-6"><p class="text-xl font-semibold">{% if order.status == 'completed' %}คำสั่งซื้อเสร็จสมบูรณ์{% elif order.shipment.status == 'Delivered' %}พัสดุถูกนำจ่ายแล้ว{% elif order.shipment.status == 'OutForDelivery' %}พัสดุกำลังนำจ่าย{% elif order.shipment %}{{ order.shipment.status_label }}{% else %}ผู้ขายกำลังเตรียมจัดส่ง{% endif %}</p><p class="mt-1 text-sm text-green-100">คำสั่งซื้อ {{ order.reference }}</p></div>
     {% if order.status == 'completed' %}<p class="border-b border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-semibold text-leaf sm:px-6">&#xE2A;&#xE33;&#xE40;&#xE23;&#xE47;&#xE08; &middot; &#xE1C;&#xE39;&#xE49;&#xE0B;&#xE37;&#xE49;&#xE2D;&#xE22;&#xE37;&#xE19;&#xE22;&#xE31;&#xE19;&#xE27;&#xE48;&#xE32;&#xE44;&#xE14;&#xE49;&#xE23;&#xE31;&#xE1A;&#xE2A;&#xE34;&#xE19;&#xE04;&#xE49;&#xE32;&#xE41;&#xE25;&#xE49;&#xE27;</p>{% endif %}
     <div class="divide-y divide-stone-100">
