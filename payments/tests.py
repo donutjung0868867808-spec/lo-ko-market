@@ -138,6 +138,7 @@ class PaymentWorkflowTests(TestCase):
         self.assertContains(response, "ยืนยันชำระด้วย TrueMoney Wallet")
         self.assertNotContains(response, "เลือกวิธีชำระเงิน")
         self.assertContains(response, "data-truemoney-fields")
+        self.assertContains(response, 'src="data:image/png;base64,')
         self.assertContains(response, "'input[name=\"payment_method\"][value=\"' + method + '\"]'")
 
         payment = Payment.objects.get(order=self.order)

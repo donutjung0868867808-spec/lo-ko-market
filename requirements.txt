@@ -8,6 +8,7 @@ stripe==12.5.0
 gunicorn==23.0.0
 whitenoise==6.9.0
 Pillow==11.3.0
+qrcode[pil]==8.2
 sentry-sdk==2.66.0
 channels==4.3.2
 channels-redis==4.3.0

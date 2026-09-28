@@ -1,9 +1,13 @@
+import base64
 import hashlib
 import json
 import logging
 import uuid
+from io import BytesIO
 from datetime import timedelta
 from decimal import Decimal
+
+import qrcode
 
 from django.conf import settings
 from django.contrib import messages
@@ -105,6 +109,20 @@ def stripe_client():
     stripe.api_key = secret_key
     return stripe
 
+
+def truemoney_sandbox_qr_data_uri(request, order):
+    """Build a scannable, local-only QR for the TrueMoney demonstration page."""
+    sandbox_url = request.build_absolute_uri(
+        f"{reverse('payments:demo_checkout', args=[order.pk])}?payment_method=truemoney&sandbox_scan=1"
+    )
+    qr = qrcode.QRCode(version=None, box_size=8, border=3)
+    qr.add_data(sandbox_url)
+    qr.make(fit=True)
+    image = qr.make_image(fill_color="#c65d00", back_color="white")
+    buffer = BytesIO()
+    image.save(buffer, format="PNG")
+    encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
+    return f"data:image/png;base64,{encoded}"
 
 def validate_checkout_amount(session, payment):
     amount_total = session.get("amount_total")
@@ -391,6 +409,11 @@ def demo_checkout(request, order_id):
             "order": order,
             "payment": payment,
             "selected_payment_method": payment_method,
+            "truemoney_qr_image": (
+                truemoney_sandbox_qr_data_uri(request, order)
+                if payment_method == "truemoney"
+                else ""
+            ),
         },
     )
 
