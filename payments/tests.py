@@ -1,4 +1,5 @@
 import json
+from unittest.mock import patch
 from datetime import timedelta
 from decimal import Decimal
 
@@ -115,6 +116,22 @@ class PaymentWorkflowTests(TestCase):
         )
         self.assertEqual(response.context["selected_payment_method"], "promptpay")
 
+    @override_settings(PAYMENT_MODE="test", STRIPE_SECRET_KEY="sk_test_unused")
+    def test_demo_success_does_not_verify_with_stripe(self):
+        payment = Payment.objects.create(
+            order=self.order,
+            amount=self.order.total_amount,
+            status=Payment.Status.PAID,
+            checkout_session_id="demo-success-session",
+        )
+
+        with patch("payments.views.stripe_client") as stripe_client:
+            response = self.client.get(
+                f"{reverse('payments:success')}?session_id={payment.checkout_session_id}"
+            )
+
+        stripe_client.assert_not_called()
+        self.assertNotContains(response, "ยังตรวจสอบสถานะชำระเงินจาก Stripe ไม่สำเร็จ")
     @override_settings(SITE_URL="https://market.example.com")
     def test_truemoney_qr_uses_the_canonical_public_url(self):
         payment = Payment.objects.create(
@@ -126,40 +143,48 @@ class PaymentWorkflowTests(TestCase):
 
         self.assertEqual(
             truemoney_sandbox_checkout_url(request, payment),
-            f"https://market.example.com{reverse('payments:truemoney_sandbox_scan', args=[payment.checkout_attempt_id])}?silent=1",
+            f"https://market.example.com{reverse('payments:truemoney_sandbox_scan', args=[payment.checkout_attempt_id])}",
         )
 
     @override_settings(DEBUG=True, PAYMENT_MODE="test", STRIPE_SECRET_KEY="")
-    def test_scanning_truemoney_qr_completes_demo_payment(self):
+    def test_scanning_truemoney_qr_requires_confirmation_before_payment(self):
         self.client.force_login(self.buyer)
         self.client.get(
             reverse("payments:create_checkout", args=[self.order.pk]),
             {"payment_method": "truemoney"},
         )
         payment = Payment.objects.get(order=self.order)
+        scan_url = reverse("payments:truemoney_sandbox_scan", args=[payment.checkout_attempt_id])
         status_url = reverse("payments:demo_checkout_status", args=[self.order.pk])
-        status_response = self.client.get(status_url)
-        self.assertFalse(status_response.json()["paid"])
 
         scanner = Client()
-        response = scanner.get(
-            reverse("payments:truemoney_sandbox_scan", args=[payment.checkout_attempt_id])
-            + "?silent=1"
+        response = scanner.get(scan_url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "TrueMoney Wallet Sandbox")
+        self.assertContains(response, "ยืนยันการชำระเงิน")
+        payment.refresh_from_db()
+        self.assertEqual(payment.status, Payment.Status.PROCESSING)
+        self.assertFalse(self.client.get(status_url).json()["paid"])
+
+        response = scanner.post(scan_url)
+
+        self.assertRedirects(
+            response,
+            f"{reverse('payments:success')}?session_id={payment.checkout_session_id}",
+            fetch_redirect_response=False,
         )
-        self.assertEqual(response.status_code, 204)
         payment.refresh_from_db()
         self.order.refresh_from_db()
         self.assertEqual(payment.status, Payment.Status.PAID)
         self.assertEqual(self.order.payment_status, Order.PaymentStatus.PAID)
-        self.assertEqual(payment.raw_payload["confirmed_by"], "qr_scan")
+        self.assertEqual(payment.raw_payload["confirmed_by"], "qr_confirmation")
         status_response = self.client.get(status_url)
         self.assertTrue(status_response.json()["paid"])
         self.assertEqual(
             status_response.json()["success_url"],
             f"{reverse('payments:success')}?session_id={payment.checkout_session_id}",
         )
-
-
     @override_settings(DEBUG=True, PAYMENT_MODE="test", STRIPE_SECRET_KEY="")
     def test_checkout_keeps_truemoney_selected_and_completes_in_demo_mode(self):
         self.client.force_login(self.buyer)

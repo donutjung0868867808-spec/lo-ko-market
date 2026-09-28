@@ -19,7 +19,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_GET, require_POST
+from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
 from accounts.models import AuditEvent, User
 from accounts.services import notify_user
@@ -112,9 +112,9 @@ def stripe_client():
 
 def truemoney_sandbox_checkout_url(request, payment):
     """Return the one-time sandbox confirmation URL encoded in the TrueMoney QR."""
-    checkout_path = (
-        f"{reverse('payments:truemoney_sandbox_scan', args=[payment.checkout_attempt_id])}"
-        "?silent=1"
+    checkout_path = reverse(
+        "payments:truemoney_sandbox_scan",
+        args=[payment.checkout_attempt_id],
     )
     if settings.SITE_URL:
         return f"{settings.SITE_URL}{checkout_path}"
@@ -391,9 +391,9 @@ def create_checkout_session(request, order_id):
         order.save(update_fields=["payment_status", "updated_at"])
         return redirect(session.url)
 
-@require_GET
+@require_http_methods(["GET", "POST"])
 def truemoney_sandbox_scan(request, attempt_id):
-    """Complete a demo payment when its short-lived QR is scanned."""
+    """Show and confirm a one-time TrueMoney sandbox QR payment."""
     if settings.PAYMENT_MODE not in {"demo", "test"}:
         raise Http404
 
@@ -403,7 +403,7 @@ def truemoney_sandbox_scan(request, attempt_id):
     )
     order = payment.order
     if payment.status == Payment.Status.PAID:
-        return truemoney_sandbox_scan_response(request, payment)
+        return redirect(f"{reverse('payments:success')}?session_id={payment.checkout_session_id}")
     if (
         payment.status != Payment.Status.PROCESSING
         or not payment.checkout_session_id
@@ -413,26 +413,26 @@ def truemoney_sandbox_scan(request, attempt_id):
     ):
         raise Http404
 
-    mark_session_paid(
-        {
-            "id": payment.checkout_session_id,
-            "payment_intent": f"demo-intent-{payment.checkout_attempt_id.hex}",
-        },
-        {
-            "provider": "truemoney_sandbox",
-            "payment_method": "truemoney",
-            "order_id": order.pk,
-            "confirmed_by": "qr_scan",
-        },
+    if request.method == "POST":
+        mark_session_paid(
+            {
+                "id": payment.checkout_session_id,
+                "payment_intent": f"demo-intent-{payment.checkout_attempt_id.hex}",
+            },
+            {
+                "provider": "truemoney_sandbox",
+                "payment_method": "truemoney",
+                "order_id": order.pk,
+                "confirmed_by": "qr_confirmation",
+            },
+        )
+        return redirect(f"{reverse('payments:success')}?session_id={payment.checkout_session_id}")
+
+    return render(
+        request,
+        "payments/truemoney_scan_confirm.html",
+        {"order": order, "payment": payment},
     )
-    return truemoney_sandbox_scan_response(request, payment)
-
-
-def truemoney_sandbox_scan_response(request, payment):
-    """Finish a QR scan without navigating the scanning device in silent mode."""
-    if request.GET.get("silent") == "1":
-        return HttpResponse(status=204)
-    return redirect(f"{reverse('payments:success')}?session_id={payment.checkout_session_id}")
 
 @login_required
 @require_GET
@@ -524,8 +524,8 @@ def success(request):
     session_id = request.GET.get("session_id")
     payment = None
     if session_id:
-        stripe = stripe_client()
         payment = Payment.objects.filter(checkout_session_id=session_id).select_related("order").first()
+        stripe = None if session_id.startswith("demo-") else stripe_client()
         if stripe is not None:
             try:
                 session = stripe.checkout.Session.retrieve(session_id)
