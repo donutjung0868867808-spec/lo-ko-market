@@ -244,6 +244,19 @@ class FarmerShopCenterTests(TestCase):
             'href="?section=orders" class="block px-6 py-2 text-slate-700 hover:bg-emerald-50 hover:text-leaf"',
         )
 
+    def test_shop_center_product_create_uses_the_unified_product_form(self):
+        center_url = reverse("accounts:farmer_shop_center")
+
+        legacy_response = self.client.get(f"{center_url}?section=products&mode=create")
+        self.assertRedirects(
+            legacy_response,
+            reverse("catalog:product_create"),
+            fetch_redirect_response=False,
+        )
+
+        products_response = self.client.get(f"{center_url}?section=products")
+        self.assertContains(products_response, reverse("catalog:product_create"))
+        self.assertNotContains(products_response, 'href="?section=products&mode=create"')
     def test_seller_center_product_create_requires_weight_and_records_initial_stock(self):
         payload = {
             "shop_action": "create_product",

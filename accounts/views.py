@@ -369,6 +369,9 @@ def account_history(request):
 
 @role_required(User.Roles.FARMER)
 def farmer_shop_center(request):
+    if request.method == "GET" and request.GET.get("section") == "products" and request.GET.get("mode") == "create":
+        return redirect("catalog:product_create")
+
     products = (
         Product.objects.filter(seller=request.user)
         .select_related("category")
