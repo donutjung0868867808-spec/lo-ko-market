@@ -4,7 +4,7 @@ from django.db.models import Prefetch
 from django.utils.html import format_html
 from django.utils import timezone
 
-from accounts.admin_permissions import CsvExportAdminMixin, OwnerOnlyAdminMixin, RoleScopedAdminMixin
+from accounts.admin_permissions import CsvExportAdminMixin, OwnerOnlyAdminMixin, RoleScopedAdminMixin, render_status_badge
 
 from .models import (
     Category,
@@ -153,7 +153,7 @@ class ProductAdmin(CsvExportAdminMixin, RoleScopedAdminMixin, admin.ModelAdmin):
         "community",
         "price",
         "stock_quantity",
-        "status",
+        "status_badge",
     )
     list_filter = ("status", "community", "category")
     search_fields = ("name", "sku", "seller__username", "community__name")
@@ -204,6 +204,16 @@ class ProductAdmin(CsvExportAdminMixin, RoleScopedAdminMixin, admin.ModelAdmin):
         StockMovementInline,
     ]
     actions = ("approve_selected", "block_selected", "unblock_selected", "export_as_csv")
+
+    @admin.display(description="สถานะสินค้า", ordering="status")
+    def status_badge(self, product):
+        tone = {
+            Product.Status.ACTIVE: "success",
+            Product.Status.PENDING: "warning",
+            Product.Status.REJECTED: "danger",
+            Product.Status.BLOCKED: "danger",
+        }.get(product.status, "neutral")
+        return render_status_badge(product.get_status_display(), tone)
 
     def get_queryset(self, request):
         return super().get_queryset(request).prefetch_related(

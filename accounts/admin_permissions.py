@@ -5,7 +5,16 @@ from urllib.parse import quote
 from django.contrib import admin
 from django.http import HttpResponse
 from django.utils import timezone
+from django.utils.html import format_html
 
+
+def render_status_badge(label, tone):
+    """Render a consistently coloured status label for Django admin lists."""
+    return format_html(
+        '<span class="admin-status-badge admin-status-badge--{}">{}</span>',
+        tone,
+        label,
+    )
 
 class CsvExportAdminMixin:
     """Export explicitly approved fields from selected admin rows."""

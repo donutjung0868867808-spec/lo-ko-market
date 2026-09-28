@@ -1777,3 +1777,20 @@ ul.errorlist {
     margin-top: 16px;
   }
 }
+.admin-status-badge {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 800;
+  line-height: 1;
+  padding: 6px 9px;
+  white-space: nowrap;
+}
+
+.admin-status-badge--success { border-color: #b9e5c3; background: #edf9f0; color: #176b2c; }
+.admin-status-badge--warning { border-color: #f4d58a; background: #fff8e6; color: #8a5b00; }
+.admin-status-badge--danger { border-color: #f0b7b7; background: #fff0f0; color: #ad1f1f; }
+.admin-status-badge--neutral { border-color: #d5dbe0; background: #f2f4f6; color: #53606b; }

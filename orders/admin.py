@@ -3,7 +3,7 @@ from django.contrib import admin
 from django.urls import reverse
 from django.utils.html import format_html, format_html_join
 
-from accounts.admin_permissions import CsvExportAdminMixin, OwnerOnlyAdminMixin, RoleScopedAdminMixin
+from accounts.admin_permissions import CsvExportAdminMixin, OwnerOnlyAdminMixin, RoleScopedAdminMixin, render_status_badge
 
 from .models import Order, OrderItem, OrderStatusHistory, Shipment, ShipmentEvent, ShippingRate
 from .services import ALLOWED_STATUS_TRANSITIONS, change_order_status
@@ -240,8 +240,8 @@ class OrderAdmin(CsvExportAdminMixin, RoleScopedAdminMixin, admin.ModelAdmin):
         "buyer",
         "seller",
         "community",
-        "status",
-        "payment_status",
+        "status_badge",
+        "payment_status_badge",
         "shipment_status",
         "total_amount",
         "created_at",
@@ -350,6 +350,30 @@ class OrderAdmin(CsvExportAdminMixin, RoleScopedAdminMixin, admin.ModelAdmin):
         ),
     )
 
+    @admin.display(description="สถานะคำสั่งซื้อ", ordering="status")
+    def status_badge(self, order):
+        tone = {
+            Order.Status.PAID: "success",
+            Order.Status.CONFIRMED: "success",
+            Order.Status.SHIPPED: "success",
+            Order.Status.COMPLETED: "success",
+            Order.Status.CANCELLED: "danger",
+            Order.Status.PENDING_PAYMENT: "neutral",
+            Order.Status.PREPARING: "neutral",
+            Order.Status.REFUNDED: "neutral",
+        }.get(order.status, "neutral")
+        return render_status_badge(order.get_status_display(), tone)
+
+    @admin.display(description="สถานะการชำระเงิน", ordering="payment_status")
+    def payment_status_badge(self, order):
+        tone = {
+            Order.PaymentStatus.PAID: "success",
+            Order.PaymentStatus.UNPAID: "neutral",
+            Order.PaymentStatus.PROCESSING: "neutral",
+            Order.PaymentStatus.FAILED: "neutral",
+            Order.PaymentStatus.REFUNDED: "neutral",
+        }.get(order.payment_status, "neutral")
+        return render_status_badge(order.get_payment_status_display(), tone)
     def has_add_permission(self, request):
         return False
 

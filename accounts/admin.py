@@ -18,6 +18,7 @@ from .admin_permissions import (
     CsvExportAdminMixin,
     OwnerOnlyAdminMixin,
     RoleScopedAdminMixin,
+    render_status_badge,
     staff_community,
 )
 from .forms import NotificationForm, SupportMessageForm
@@ -423,7 +424,7 @@ class FarmerProfileAdmin(CsvExportAdminMixin, RoleScopedAdminMixin, admin.ModelA
     staff_can_change = True
     community_filter = "community"
 
-    list_display = ("avatar_thumbnail", "farm_name", "user", "community", "verification_status")
+    list_display = ("avatar_thumbnail", "farm_name", "user", "community", "verification_status_badge")
     list_filter = ("verification_status", "community")
     search_fields = ("farm_name", "user__username", "user__email")
     list_select_related = ("user", "community")
@@ -461,6 +462,14 @@ class FarmerProfileAdmin(CsvExportAdminMixin, RoleScopedAdminMixin, admin.ModelA
             profile.user.avatar.url,
         )
 
+    @admin.display(description="สถานะการตรวจสอบ", ordering="verification_status")
+    def verification_status_badge(self, profile):
+        tone = {
+            FarmerProfile.VerificationStatus.VERIFIED: "success",
+            FarmerProfile.VerificationStatus.REJECTED: "danger",
+            FarmerProfile.VerificationStatus.PENDING: "neutral",
+        }.get(profile.verification_status, "neutral")
+        return render_status_badge(profile.get_verification_status_display(), tone)
     def get_readonly_fields(self, request, obj=None):
         if self._is_owner(request.user):
             return self.readonly_fields
