@@ -110,15 +110,21 @@ def stripe_client():
     return stripe
 
 
+def truemoney_sandbox_checkout_url(request, order):
+    """Return the public sandbox URL encoded in the TrueMoney demonstration QR."""
+    checkout_path = f"{reverse('payments:demo_checkout', args=[order.pk])}?payment_method=truemoney"
+    if settings.SITE_URL:
+        return f"{settings.SITE_URL}{checkout_path}"
+    return request.build_absolute_uri(checkout_path)
+
+
 def truemoney_sandbox_qr_data_uri(request, order):
-    """Build a scannable, local-only QR for the TrueMoney demonstration page."""
-    sandbox_url = request.build_absolute_uri(
-        f"{reverse('payments:demo_checkout', args=[order.pk])}?payment_method=truemoney&sandbox_scan=1"
-    )
-    qr = qrcode.QRCode(version=None, box_size=8, border=3)
+    """Build a scannable QR for the TrueMoney demonstration page."""
+    sandbox_url = truemoney_sandbox_checkout_url(request, order)
+    qr = qrcode.QRCode(version=None, box_size=6, border=4)
     qr.add_data(sandbox_url)
     qr.make(fit=True)
-    image = qr.make_image(fill_color="#c65d00", back_color="white")
+    image = qr.make_image(fill_color="#2f6f1d", back_color="white")
     buffer = BytesIO()
     image.save(buffer, format="PNG")
     encoded = base64.b64encode(buffer.getvalue()).decode("ascii")

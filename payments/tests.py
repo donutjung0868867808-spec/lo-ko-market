@@ -2,7 +2,7 @@ import json
 from datetime import timedelta
 from decimal import Decimal
 
-from django.test import TestCase, override_settings
+from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -12,7 +12,7 @@ from orders.models import Order, OrderItem
 
 from .models import Payment, Refund, SellerSettlement, StripeEvent
 from .services import retry_due_settlements, sync_settlement_for_payment
-from .views import mark_session_paid
+from .views import mark_session_paid, truemoney_sandbox_checkout_url
 
 
 class PaymentWorkflowTests(TestCase):
@@ -114,6 +114,16 @@ class PaymentWorkflowTests(TestCase):
             {"payment_method": "promptpay"},
         )
         self.assertEqual(response.context["selected_payment_method"], "promptpay")
+
+    @override_settings(SITE_URL="https://market.example.com")
+    def test_truemoney_qr_uses_the_canonical_public_url(self):
+        request = RequestFactory().get("/", HTTP_HOST="127.0.0.1:8000")
+
+        self.assertEqual(
+            truemoney_sandbox_checkout_url(request, self.order),
+            f"https://market.example.com{reverse('payments:demo_checkout', args=[self.order.pk])}?payment_method=truemoney",
+        )
+
 
     @override_settings(DEBUG=True, PAYMENT_MODE="test", STRIPE_SECRET_KEY="")
     def test_checkout_keeps_truemoney_selected_and_completes_in_demo_mode(self):

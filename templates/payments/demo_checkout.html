@@ -62,8 +62,8 @@
         <p class="mt-4 font-semibold text-slate-950">สแกนเพื่อชำระเงินทดลอง</p>
         <p class="mt-1 text-sm text-slate-600">กดยืนยันด้านล่างเพื่อจำลองว่าชำระสำเร็จ</p>
       </div>      <div {% if selected_payment_method != 'truemoney' %}hidden{% endif %} class="rounded-md border border-amber-200 bg-amber-50 p-5 text-center" data-truemoney-fields>
-        <div class="mx-auto flex h-44 w-44 items-center justify-center rounded-md bg-white p-3 shadow-sm">
-          {% if truemoney_qr_image %}<img src="{{ truemoney_qr_image }}" alt="QR ทดสอบ TrueMoney สำหรับคำสั่งซื้อ {{ order.reference }}" class="h-full w-full object-contain">{% else %}<i data-lucide="wallet" class="h-24 w-24 text-amber-700" aria-hidden="true"></i>{% endif %}
+        <div class="mx-auto flex items-center justify-center rounded-md bg-white p-2 shadow-sm" style="height: 164px; width: 164px;">
+          {% if truemoney_qr_image %}<img src="{{ truemoney_qr_image }}" alt="QR ทดสอบ TrueMoney สำหรับคำสั่งซื้อ {{ order.reference }}" class="object-contain" style="height: 148px; width: 148px;" width="148" height="148">{% else %}<i data-lucide="wallet" class="h-24 w-24 text-amber-700" aria-hidden="true"></i>{% endif %}
         </div>
         <p class="mt-4 font-semibold text-slate-950">สแกน QR เพื่อเปิด TrueMoney Wallet Sandbox</p>
         <p class="mt-1 text-sm text-slate-600">QR นี้ใช้ทดสอบการสแกนและเปิดหน้าคำสั่งซื้อเท่านั้น ไม่มีการตัดเงินจริงหรือส่งข้อมูลไปยัง TrueMoney</p>
