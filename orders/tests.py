@@ -17,8 +17,23 @@ class OrderModelTests(TestCase):
     def test_standard_shipping_fee_applies_without_a_province_rate(self):
         self.assertEqual(
             shipping_fee_for_values("สกลนคร", Decimal("1000.00"), Decimal("0.00")),
-            Decimal("50.00"),
+            Decimal("39.00"),
         )
+
+    def test_shipping_fee_uses_selected_weight_tiers(self):
+        expected_fees = {
+            Decimal("1000.00"): Decimal("39.00"),
+            Decimal("1001.00"): Decimal("49.00"),
+            Decimal("3000.00"): Decimal("59.00"),
+            Decimal("5000.00"): Decimal("79.00"),
+            Decimal("10000.00"): Decimal("129.00"),
+            Decimal("10001.00"): Decimal("139.00"),
+        }
+        for weight_grams, expected_fee in expected_fees.items():
+            self.assertEqual(
+                shipping_fee_for_values("", Decimal("100.00"), weight_grams),
+                expected_fee,
+            )
 
     def test_shipping_rate_seed_adds_province_defaults_without_overwriting_existing_rate(self):
         ShippingRate.objects.create(
@@ -34,8 +49,8 @@ class OrderModelTests(TestCase):
         bangkok = ShippingRate.objects.get(province="กรุงเทพมหานคร")
         self.assertEqual(sakon_nakhon.base_fee, Decimal("99.00"))
         self.assertEqual(sakon_nakhon.fee_per_kg, Decimal("11.00"))
-        self.assertEqual(bangkok.base_fee, Decimal("35.00"))
-        self.assertEqual(bangkok.fee_per_kg, Decimal("5.00"))
+        self.assertEqual(bangkok.base_fee, Decimal("39.00"))
+        self.assertEqual(bangkok.fee_per_kg, Decimal("10.00"))
 
     def test_refresh_total_sums_line_items(self):
         community = Community.objects.create(
@@ -808,7 +823,8 @@ class CartWorkflowTests(TestCase):
             sum((group["shipping_fee"] for group in checkout_groups), Decimal("0.00")),
             preview.context["preview_shipping"],
         )
-        self.assertContains(preview, "ค่าจัดส่งรวม")
+        self.assertContains(preview, "จัดส่งมาตรฐาน")
+        self.assertNotContains(preview, "ค่าส่งรวม")
         self.assertContains(preview, other_seller.username)
 
         response = self.client.post(
@@ -991,8 +1007,8 @@ class CartWorkflowTests(TestCase):
             reverse("orders:cart_checkout"),
             {"cart_selection": "1", "selected_items": str(self.product.pk)},
         )
-        self.assertEqual(preview_response.context["preview_shipping"], Decimal("90.00"))
-        self.assertEqual(preview_response.context["preview_grand_total"], Decimal("165.00"))
+        self.assertEqual(preview_response.context["preview_shipping"], Decimal("120.00"))
+        self.assertEqual(preview_response.context["preview_grand_total"], Decimal("195.00"))
 
         self.client.post(
             reverse("orders:cart_checkout"),
@@ -1007,8 +1023,8 @@ class CartWorkflowTests(TestCase):
         )
 
         order = Order.objects.get(buyer=self.buyer, seller=self.seller)
-        self.assertEqual(order.shipping_fee, Decimal("90.00"))
-        self.assertEqual(order.total_amount, Decimal("165.00"))
+        self.assertEqual(order.shipping_fee, Decimal("120.00"))
+        self.assertEqual(order.total_amount, Decimal("195.00"))
 
     def test_cart_checkout_shows_saved_address_instead_of_edit_fields(self):
         self.client.force_login(self.buyer)

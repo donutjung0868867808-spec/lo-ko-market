@@ -1,5 +1,5 @@
 from datetime import timedelta
-from decimal import Decimal
+from decimal import Decimal, ROUND_CEILING
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -36,13 +36,26 @@ def shipping_fee_for_values(province, subtotal, weight_grams):
     if rule is None:
         rule = ShippingRate.objects.filter(province="", is_active=True).first()
 
-    if rule is None:
-        return Decimal(settings.FLAT_SHIPPING_FEE)
-    if rule.free_shipping_threshold is not None and subtotal >= rule.free_shipping_threshold:
+    if rule is not None and rule.free_shipping_threshold is not None and subtotal >= rule.free_shipping_threshold:
         return Decimal("0.00")
 
+    # Weight tiers: <=1kg, <=2kg, <=3kg, <=5kg, <=10kg, then each started kg.
+    base_fee = rule.base_fee if rule is not None else Decimal("39.00")
+    fee_per_kg = rule.fee_per_kg if rule is not None else Decimal("10.00")
     weight_kg = Decimal(weight_grams) / Decimal("1000")
-    return (rule.base_fee + (rule.fee_per_kg * weight_kg)).quantize(Decimal("0.01"))
+    if weight_kg <= 1:
+        additional_steps = 0
+    elif weight_kg <= 2:
+        additional_steps = 1
+    elif weight_kg <= 3:
+        additional_steps = 2
+    elif weight_kg <= 5:
+        additional_steps = 4
+    elif weight_kg <= 10:
+        additional_steps = 9
+    else:
+        additional_steps = 9 + int((weight_kg - Decimal("10")).to_integral_value(rounding=ROUND_CEILING))
+    return (base_fee + (fee_per_kg * additional_steps)).quantize(Decimal("0.01"))
 
 
 def shipping_fee_for(order):

@@ -5,11 +5,14 @@ from django.core.management.base import BaseCommand
 from orders.models import ShippingRate
 
 
-# Project defaults for each delivery area. Administrators can adjust these values
-# in the ShippingRate admin without this command overwriting their changes.
+# Project defaults use whole-kilogram tiers: 39 baht for the first kilogram,
+# with tier prices through 10kg, then 10 baht for every additional started kilogram. Administrators can adjust
+# these values in the ShippingRate admin without this command overwriting them.
 REGIONAL_RATES = (
-    (("กรุงเทพมหานคร",), Decimal("35.00"), Decimal("5.00")),
-    (("นนทบุรี", "ปทุมธานี", "สมุทรปราการ"), Decimal("40.00"), Decimal("6.00")),
+    (("กรุงเทพมหานคร",), Decimal("39.00"),
+        Decimal("10.00")),
+    (("นนทบุรี", "ปทุมธานี", "สมุทรปราการ"), Decimal("39.00"),
+        Decimal("10.00")),
     (
         (
             "อ่างทอง",
@@ -27,8 +30,8 @@ REGIONAL_RATES = (
             "เพชรบุรี",
             "ประจวบคีรีขันธ์",
         ),
-        Decimal("45.00"),
-        Decimal("7.00"),
+        Decimal("39.00"),
+        Decimal("10.00"),
     ),
     (
         (
@@ -41,8 +44,8 @@ REGIONAL_RATES = (
             "สระแก้ว",
             "นครนายก",
         ),
-        Decimal("50.00"),
-        Decimal("8.00"),
+        Decimal("39.00"),
+        Decimal("10.00"),
     ),
     (
         (
@@ -64,8 +67,8 @@ REGIONAL_RATES = (
             "นครสวรรค์",
             "อุทัยธานี",
         ),
-        Decimal("55.00"),
-        Decimal("8.00"),
+        Decimal("39.00"),
+        Decimal("10.00"),
     ),
     (
         (
@@ -90,8 +93,8 @@ REGIONAL_RATES = (
             "อุดรธานี",
             "อุบลราชธานี",
         ),
-        Decimal("60.00"),
-        Decimal("9.00"),
+        Decimal("39.00"),
+        Decimal("10.00"),
     ),
     (
         (
@@ -110,7 +113,7 @@ REGIONAL_RATES = (
             "สุราษฎร์ธานี",
             "ยะลา",
         ),
-        Decimal("65.00"),
+        Decimal("39.00"),
         Decimal("10.00"),
     ),
 )

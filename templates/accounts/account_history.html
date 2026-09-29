@@ -242,6 +242,8 @@
         button.addEventListener("click", () => {
           selected = { year: displayedYear, month: displayedMonth, day };
           input.value = `${displayedYear}-${String(displayedMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+          picker.dataset.value = input.value;
+          input.dispatchEvent(new Event("change", { bubbles: true }));
           updateLabel();
           popover.hidden = true;
           toggle.setAttribute("aria-expanded", "false");
@@ -278,6 +280,8 @@
     clear.addEventListener("click", () => {
       selected = null;
       input.value = "";
+      picker.dataset.value = "";
+      input.dispatchEvent(new Event("change", { bubbles: true }));
       updateLabel();
       popover.hidden = true;
       toggle.setAttribute("aria-expanded", "false");
