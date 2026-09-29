@@ -133,6 +133,29 @@ def truemoney_sandbox_qr_data_uri(request, payment):
     encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
     return f"data:image/png;base64,{encoded}"
 
+def batch_truemoney_sandbox_checkout_url(request, batch):
+    """Return the one-time sandbox confirmation URL for a batch payment."""
+    checkout_path = reverse(
+        "payments:batch_truemoney_sandbox_scan",
+        args=[batch.checkout_attempt_id],
+    )
+    if settings.SITE_URL:
+        return f"{settings.SITE_URL}{checkout_path}"
+    return request.build_absolute_uri(checkout_path)
+
+
+def batch_truemoney_sandbox_qr_data_uri(request, batch):
+    """Build a QR for confirming one TrueMoney sandbox batch payment."""
+    sandbox_url = batch_truemoney_sandbox_checkout_url(request, batch)
+    qr = qrcode.QRCode(version=None, box_size=6, border=4)
+    qr.add_data(sandbox_url)
+    qr.make(fit=True)
+    image = qr.make_image(fill_color="#2f6f1d", back_color="white")
+    buffer = BytesIO()
+    image.save(buffer, format="PNG")
+    encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
+    return f"data:image/png;base64,{encoded}"
+
 def validate_checkout_amount(session, payment):
     amount_total = session.get("amount_total")
     currency = session.get("currency")
@@ -339,12 +362,32 @@ def batch_checkout(request, pk):
     return complete_batch_checkout(request, pk)
 
 
+def start_batch_truemoney_demo_checkout(batch, orders, request):
+    """Prepare one QR-confirmed TrueMoney sandbox checkout for a payment batch."""
+    now = timezone.now()
+    checkout_expires_at = now + timedelta(minutes=30)
+    for order in orders:
+        if not order.stock_reserved:
+            reserve_order_stock(order)
+        if order.expires_at != checkout_expires_at:
+            order.expires_at = checkout_expires_at
+            order.save(update_fields=["expires_at", "updated_at"])
+        order.payment_status = Order.PaymentStatus.PROCESSING
+        order.save(update_fields=["payment_status", "updated_at"])
+
+    demo_url = reverse("payments:batch_demo_checkout", args=[batch.pk])
+    batch.status = PaymentBatch.Status.PROCESSING
+    batch.checkout_session_id = f"demo-batch-{batch.checkout_attempt_id.hex}"
+    batch.checkout_url = demo_url
+    batch.checkout_expires_at = checkout_expires_at
+    batch.save(update_fields=["status", "checkout_session_id", "checkout_url", "checkout_expires_at", "updated_at"])
+    return redirect(demo_url)
 @login_required
 @require_http_methods(["GET", "POST"])
 def complete_batch_checkout(request, pk):
     batch = get_object_or_404(PaymentBatch.objects.prefetch_related("orders"), pk=pk, buyer=request.user)
     payment_method = request.POST.get("payment_method") or request.GET.get("payment_method", "card")
-    if payment_method not in {"card", "promptpay"}:
+    if payment_method not in {"card", "promptpay", "truemoney"}:
         payment_method = "card"
 
     with transaction.atomic():
@@ -352,6 +395,12 @@ def complete_batch_checkout(request, pk):
         orders = list(batch.orders.select_for_update().all())
         if batch.status == PaymentBatch.Status.PAID or not orders or any(order.payment_status == Order.PaymentStatus.PAID or order.is_expired for order in orders):
             messages.error(request, "ชุดคำสั่งซื้อนี้ไม่พร้อมชำระเงินรวม")
+            return redirect("orders:order_list")
+
+        if payment_method == "truemoney":
+            if settings.PAYMENT_MODE in {"demo", "test"}:
+                return start_batch_truemoney_demo_checkout(batch, orders, request)
+            messages.error(request, "TrueMoney Wallet ยังเปิดใช้ได้เฉพาะโหมดทดลอง")
             return redirect("orders:order_list")
 
         now = timezone.now()
@@ -454,6 +503,73 @@ def complete_batch_checkout(request, pk):
     messages.success(request, "ชำระเงินทุกคำสั่งซื้อสำเร็จแล้ว")
     return redirect("orders:order_list")
 
+@login_required
+def batch_demo_checkout(request, pk):
+    if settings.PAYMENT_MODE not in {"demo", "test"}:
+        messages.error(request, "หน้าชำระเงินจำลองใช้ได้เฉพาะโหมดทดลอง")
+        return redirect("orders:order_list")
+
+    batch = get_object_or_404(PaymentBatch.objects.prefetch_related("orders"), pk=pk, buyer=request.user)
+    if batch.status == PaymentBatch.Status.PAID:
+        return redirect(f"{reverse('payments:success')}?session_id={batch.checkout_session_id}")
+    if (
+        batch.status != PaymentBatch.Status.PROCESSING
+        or not batch.checkout_session_id
+        or batch.checkout_expires_at is None
+        or batch.checkout_expires_at <= timezone.now()
+    ):
+        return redirect("payments:batch_checkout", pk=batch.pk)
+    return render(
+        request,
+        "payments/batch_demo_checkout.html",
+        {
+            "batch": batch,
+            "orders": batch.orders.all(),
+            "truemoney_qr_image": batch_truemoney_sandbox_qr_data_uri(request, batch),
+        },
+    )
+
+
+@login_required
+@require_GET
+def batch_demo_checkout_status(request, pk):
+    batch = get_object_or_404(PaymentBatch, pk=pk, buyer=request.user)
+    paid = batch.status == PaymentBatch.Status.PAID
+    return JsonResponse({"paid": paid, "success_url": f"{reverse('payments:success')}?session_id={batch.checkout_session_id}" if paid else ""})
+
+
+@require_http_methods(["GET", "POST"])
+def batch_truemoney_sandbox_scan(request, attempt_id):
+    """Show and confirm a one-time TrueMoney sandbox payment for a batch."""
+    if settings.PAYMENT_MODE not in {"demo", "test"}:
+        raise Http404
+
+    batch = get_object_or_404(PaymentBatch.objects.prefetch_related("orders"), checkout_attempt_id=attempt_id)
+    if batch.status == PaymentBatch.Status.PAID:
+        return redirect(f"{reverse('payments:success')}?session_id={batch.checkout_session_id}")
+    if (
+        batch.status != PaymentBatch.Status.PROCESSING
+        or not batch.checkout_session_id
+        or batch.checkout_expires_at is None
+        or batch.checkout_expires_at <= timezone.now()
+        or any(order.is_expired for order in batch.orders.all())
+    ):
+        raise Http404
+
+    if request.method == "POST":
+        mark_batch_session_paid(
+            {
+                "id": batch.checkout_session_id,
+                "amount_total": int(batch.amount * Decimal("100")),
+                "currency": batch.currency,
+                "payment_intent": f"demo-intent-{batch.checkout_attempt_id.hex}",
+                "metadata": {"payment_batch_id": str(batch.pk), "transfer_group": f"batch-{batch.pk}"},
+            },
+            {"provider": "truemoney_sandbox", "payment_method": "truemoney", "payment_batch_id": batch.pk, "confirmed_by": "qr_confirmation"},
+        )
+        return redirect(f"{reverse('payments:success')}?session_id={batch.checkout_session_id}")
+
+    return render(request, "payments/truemoney_batch_scan_confirm.html", {"batch": batch, "orders": batch.orders.all()})
 @login_required
 def create_checkout_session(request, order_id):
     accessible_order = get_object_or_404(Order, pk=order_id, buyer=request.user)

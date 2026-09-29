@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block title %}ยืนยันการชำระ TrueMoney Wallet{% endblock %}
+
+{% block content %}
+<section class="mx-auto w-full max-w-md py-5 sm:py-8">
+  <div class="rounded-md border border-amber-200 bg-white p-5 shadow-sm sm:p-6">
+    <p class="text-sm font-semibold text-amber-700">TrueMoney Wallet Sandbox</p>
+    <h1 class="mt-1 text-xl font-semibold text-slate-950">ยืนยันการชำระเงิน</h1>
+    <p class="mt-2 text-sm text-slate-600">ตรวจสอบยอดชำระก่อนยืนยันรายการ</p>
+    <dl class="mt-5 divide-y divide-stone-100 border-y border-stone-200 text-sm">
+      <div class="flex items-center justify-between gap-4 py-3"><dt class="text-slate-600">คำสั่งซื้อ</dt><dd class="font-semibold text-slate-950">{{ orders|length }} รายการ</dd></div>
+      <div class="flex items-center justify-between gap-4 py-3"><dt class="font-semibold text-slate-950">ยอดชำระรวม</dt><dd class="text-2xl font-semibold text-leaf">฿{{ batch.amount|floatformat:2 }}</dd></div>
+    </dl>
+    <form method="post" class="mt-5 space-y-3">{% csrf_token %}<button class="flex h-12 w-full items-center justify-center gap-2 rounded-md bg-amber-700 px-4 text-sm font-semibold text-white hover:bg-amber-800" type="submit"><i data-lucide="wallet" class="h-5 w-5" aria-hidden="true"></i>ยืนยันการชำระ ฿{{ batch.amount|floatformat:2 }}</button><button class="w-full px-4 py-2 text-sm font-semibold text-slate-600 hover:text-slate-950" type="button" onclick="history.back()">ย้อนกลับ</button></form>
+    <p class="mt-4 text-center text-xs leading-5 text-slate-500">โหมดทดลอง ไม่มีการตัดเงินจริง</p>
+  </div>
+</section>
+{% endblock %}

@@ -160,6 +160,66 @@ class PaymentWorkflowTests(TestCase):
             1,
         )
     @override_settings(DEBUG=True, PAYMENT_MODE="test", STRIPE_SECRET_KEY="")
+    def test_batch_truemoney_uses_the_sandbox_qr_and_pays_every_order(self):
+        second_order = Order.objects.create(
+            buyer=self.buyer,
+            seller=self.seller,
+            community=self.community,
+            shipping_name="Second receiver",
+            shipping_phone="0800000001",
+            shipping_address="Second address",
+        )
+        OrderItem.objects.create(
+            order=second_order,
+            product=self.product,
+            product_name=self.product.name,
+            unit=self.product.unit,
+            quantity=Decimal("1.00"),
+            unit_price=self.product.price,
+        )
+        second_order.refresh_total()
+        batch = PaymentBatch.objects.create(
+            buyer=self.buyer,
+            amount=self.order.total_amount + second_order.total_amount,
+            currency="thb",
+        )
+        batch.orders.set([self.order, second_order])
+        self.client.force_login(self.buyer)
+
+        response = self.client.get(
+            reverse("payments:batch_checkout", args=[batch.pk]),
+            {"payment_method": "truemoney"},
+        )
+
+        self.assertRedirects(
+            response,
+            reverse("payments:batch_demo_checkout", args=[batch.pk]),
+            fetch_redirect_response=False,
+        )
+        batch.refresh_from_db()
+        self.assertEqual(batch.status, PaymentBatch.Status.PROCESSING)
+        self.assertTrue(batch.checkout_session_id.startswith("demo-batch-"))
+        response = self.client.get(reverse("payments:batch_demo_checkout", args=[batch.pk]))
+        self.assertContains(response, "TrueMoney Wallet Sandbox")
+        self.assertContains(response, 'src="data:image/png;base64,')
+
+        scan_url = reverse("payments:batch_truemoney_sandbox_scan", args=[batch.checkout_attempt_id])
+        scanner = Client()
+        self.assertEqual(scanner.get(scan_url).status_code, 200)
+        response = scanner.post(scan_url)
+        self.assertRedirects(
+            response,
+            f"{reverse('payments:success')}?session_id={batch.checkout_session_id}",
+            fetch_redirect_response=False,
+        )
+        batch.refresh_from_db()
+        self.order.refresh_from_db()
+        second_order.refresh_from_db()
+        self.assertEqual(batch.status, PaymentBatch.Status.PAID)
+        self.assertEqual(self.order.payment_status, Order.PaymentStatus.PAID)
+        self.assertEqual(second_order.payment_status, Order.PaymentStatus.PAID)
+        self.assertEqual(batch.raw_payload["payment_method"], "truemoney")
+    @override_settings(DEBUG=True, PAYMENT_MODE="test", STRIPE_SECRET_KEY="")
     def test_checkout_uses_interactive_demo_payment_in_test_mode(self):
         self.client.force_login(self.buyer)
 
