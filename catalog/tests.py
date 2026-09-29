@@ -669,6 +669,18 @@ class ProductReviewTests(TestCase):
         self.assertContains(detail_response, 'data-review-stars="3.5"')
         self.assertContains(detail_response, 'data-rating-picker')
 
+    def test_whole_star_reviews_render_without_a_decimal_zero(self):
+        ProductReview.objects.create(
+            product=self.product,
+            user=self.buyer,
+            rating=Decimal("5.0"),
+            comment="Great",
+        )
+
+        response = self.client.get(reverse("catalog:product_detail", args=[self.product.pk]))
+
+        self.assertContains(response, "5 \u0e08\u0e32\u0e01 1 \u0e23\u0e35\u0e27\u0e34\u0e27")
+        self.assertContains(response, "5/5")
     def test_order_review_groups_same_product_and_removes_the_group_after_submission(self):
         order = Order.objects.create(
             buyer=self.buyer,

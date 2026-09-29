@@ -21,7 +21,7 @@
             <p class="min-w-0 font-semibold text-leaf"><span class="text-base sm:text-lg">฿{{ product.price|floatformat:2 }}</span><span class="ml-1 text-xs font-normal text-slate-500">/{{ product.get_unit_display }}</span></p>
           </div>
           <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600">
-            <span class="inline-flex items-center gap-1 font-semibold text-slate-800"><i data-lucide="star" class="h-3.5 w-3.5 fill-amber-400 text-amber-400" aria-hidden="true"></i>{{ product.card_average_rating|default:0|floatformat:1 }}</span>
+            <span class="inline-flex items-center gap-1 font-semibold text-slate-800"><i data-lucide="star" class="h-3.5 w-3.5 fill-amber-400 text-amber-400" aria-hidden="true"></i>{{ product.card_average_rating|default:0|floatformat:"-1" }}</span>
             <span>{{ product.card_review_count }} รีวิว</span>
             <span>ขายแล้ว {{ product.card_sold_quantity|floatformat:"-2" }} {{ product.get_unit_display }}</span>
           </div>

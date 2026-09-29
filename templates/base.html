@@ -288,8 +288,18 @@
         visibleOptions[activeIndex].scrollIntoView({ block: "nearest" });
       }
 
-      input.addEventListener("focus", updateSuggestions);
-      input.addEventListener("input", updateSuggestions);
+      const showsSuggestionsOnFocus = container.hasAttribute("data-province-autocomplete");
+
+      input.addEventListener("focus", function () {
+        if (showsSuggestionsOnFocus) updateSuggestions();
+      });
+      input.addEventListener("input", function () {
+        if (!showsSuggestionsOnFocus && !input.value.trim()) {
+          closeSuggestions();
+          return;
+        }
+        updateSuggestions();
+      });
       input.addEventListener("keydown", function (event) {
         const visibleOptions = options.filter(function (option) { return !option.hidden; });
         if (event.key === "ArrowDown") {
@@ -346,7 +356,7 @@
       function renderRating(value) {
         const rating = Math.min(5, Math.max(0.5, Math.round(value * 2) / 2));
         input.value = rating.toFixed(1);
-        output.textContent = rating.toFixed(1) + " ดาว";
+        output.textContent = (Number.isInteger(rating) ? String(rating) : rating.toFixed(1)) + " ดาว";
         buttons.forEach(function (button) {
           const star = Number(button.dataset.ratingStar);
           const fill = Math.max(0, Math.min(100, (rating - star + 1) * 100));

@@ -78,7 +78,7 @@
       </div>
 
       <div class="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 border-y border-stone-200 py-4 text-sm">
-        <span class="inline-flex items-center gap-1 font-semibold text-slate-900"><i data-lucide="star" class="h-4 w-4 fill-amber-400 text-amber-400" aria-hidden="true"></i>{{ product.average_rating|floatformat:1 }}</span>
+        <span class="inline-flex items-center gap-1 font-semibold text-slate-900"><i data-lucide="star" class="h-4 w-4 fill-amber-400 text-amber-400" aria-hidden="true"></i>{{ product.average_rating|floatformat:"-1" }}</span>
         <span class="text-slate-600"><strong class="font-semibold text-slate-900">{{ review_count }}</strong> รีวิว</span>
         <span class="text-slate-600">ขายแล้ว <strong class="font-semibold text-slate-900">{{ sold_quantity|floatformat:"-2" }}</strong> {{ product.get_unit_display }}</span>
       </div>
@@ -178,7 +178,7 @@
         </div>
       </div>
       <dl class="grid grid-cols-2 gap-x-4 gap-y-5 border-t border-stone-200 pt-5 text-sm sm:grid-cols-4 lg:border-l lg:border-t-0 lg:pl-7 lg:pt-0">
-        <div><dt class="text-slate-500">คะแนน</dt><dd class="mt-1 font-semibold text-slate-950">{{ seller_rating|floatformat:1 }}</dd></div>
+        <div><dt class="text-slate-500">คะแนน</dt><dd class="mt-1 font-semibold text-slate-950">{{ seller_rating|floatformat:"-1" }}</dd></div>
         <div><dt class="text-slate-500">เปิดร้านเมื่อ</dt><dd class="mt-1 font-semibold text-slate-950">{{ product.seller.date_joined|date:"m/Y" }}</dd></div>
         <div><dt class="text-slate-500">รายการสินค้า</dt><dd class="mt-1 font-semibold text-slate-950">{{ seller_product_count }}</dd></div>
         <div><dt class="text-slate-500">ผู้ติดตาม</dt><dd class="mt-1 font-semibold text-slate-950">{{ seller_follower_count }}</dd></div>
@@ -253,7 +253,7 @@
   <section class="mt-10 border-t border-stone-200 pt-9" aria-labelledby="review-title">
     <div class="flex flex-wrap items-end justify-between gap-3">
       <div><h2 id="review-title" class="text-xl font-semibold text-ink">รีวิวสินค้า</h2><p class="mt-1 text-sm text-slate-600">ความคิดเห็นจากผู้ซื้อที่ชำระเงินแล้ว</p></div>
-      <p class="inline-flex items-center gap-2 text-sm font-semibold">{% include "catalog/_review_stars.html" with rating=product.average_rating %}<span>{{ product.average_rating|floatformat:1 }} จาก {{ review_count }} รีวิว</span></p>
+      <p class="inline-flex items-center gap-2 text-sm font-semibold">{% include "catalog/_review_stars.html" with rating=product.average_rating %}<span>{{ product.average_rating|floatformat:"-1" }} จาก {{ review_count }} รีวิว</span></p>
     </div>
     <div class="mt-6 divide-y divide-stone-200 border-y border-stone-200">
       {% for review in reviews %}
@@ -267,7 +267,7 @@
               {% endif %}
               <p class="truncate font-semibold text-slate-900">{{ review.user.display_name|default:review.user.username }}</p>
             </div>
-            <p class="inline-flex items-center gap-2 text-sm font-semibold text-leaf">{% include "catalog/_review_stars.html" with rating=review.rating %}<span>{{ review.rating|floatformat:1 }}/5</span></p>
+            <p class="inline-flex items-center gap-2 text-sm font-semibold text-leaf">{% include "catalog/_review_stars.html" with rating=review.rating %}<span>{{ review.rating|floatformat:"-1" }}/5</span></p>
           </div>
           {% if review.comment %}<p class="mt-2 text-sm leading-6 text-slate-700">{{ review.comment }}</p>{% endif %}
           {% if review.media.all %}

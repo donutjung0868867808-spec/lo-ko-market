@@ -109,10 +109,11 @@ if os.environ.get("DJANGO_SETTINGS_MODULE") == "agri_market.browser_test_setting
                 input_element = page.locator("#global-product-search")
                 suggestions = page.locator("#product-suggestions")
                 input_element.click()
-                expect(suggestions).to_be_visible()
-                expect(suggestions.locator("[data-product-option]")).to_have_count(2)
+                expect(suggestions).to_be_hidden()
 
                 input_element.fill("Mango")
+                expect(suggestions).to_be_visible()
+                expect(suggestions.locator("[data-product-option]")).to_have_count(2)
                 option = suggestions.locator('[data-product-value="Fresh Mango"]')
                 expect(option).to_be_visible()
                 expect(suggestions.locator('[data-product-value="Fresh Banana"]')).to_be_hidden()
