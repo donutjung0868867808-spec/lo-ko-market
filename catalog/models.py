@@ -1,4 +1,4 @@
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -36,6 +36,15 @@ def validate_image_file(upload):
 
 REVIEW_VIDEO_EXTENSIONS = {".mp4", ".mov", ".webm"}
 REVIEW_VIDEO_MAX_SIZE = 25 * 1024 * 1024
+
+
+def validate_half_star_rating(value):
+    try:
+        rating = Decimal(str(value))
+    except (InvalidOperation, TypeError, ValueError) as error:
+        raise ValidationError("คะแนนรีวิวไม่ถูกต้อง") from error
+    if rating < Decimal("0.5") or rating > Decimal("5.0") or (rating * 2) != (rating * 2).to_integral_value():
+        raise ValidationError("คะแนนรีวิวต้องอยู่ระหว่าง 0.5 ถึง 5.0 และเพิ่มครั้งละ 0.5")
 
 
 def review_media_type_for_upload(upload):
@@ -82,9 +91,11 @@ class ProductReview(models.Model):
         blank=True,
         related_name="reviews",
     )
-    rating = models.PositiveSmallIntegerField(
-        default=5,
-        validators=[MinValueValidator(1), MaxValueValidator(5)],
+    rating = models.DecimalField(
+        max_digits=2,
+        decimal_places=1,
+        default=Decimal("5.0"),
+        validators=[MinValueValidator(Decimal("0.5")), MaxValueValidator(Decimal("5.0")), validate_half_star_rating],
     )
     comment = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -95,7 +106,7 @@ class ProductReview(models.Model):
         ordering = ["-created_at"]
         constraints = [
             models.CheckConstraint(
-                condition=models.Q(rating__gte=1, rating__lte=5),
+                condition=models.Q(rating__gte=Decimal("0.5"), rating__lte=Decimal("5.0")),
                 name="product_review_rating_between_1_and_5",
             ),
         ]

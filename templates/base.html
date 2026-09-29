@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
-  <title>{% block title %}ถิ่นดี{% endblock %}</title>
+  <title>{% block title %}Thin Dee{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'css/tailwind.css' %}">
   <script src="{% static 'vendor/htmx.min.js' %}"></script>
   <script src="{% static 'vendor/lucide.min.js' %}"></script>
@@ -13,6 +13,14 @@
     summary::-webkit-details-marker { display: none; }
     .icon-fallback { display: inline-flex; font-size: 0.75rem; font-weight: 600; line-height: 1; }
     :where(button, a, summary, span):has(> svg[data-lucide]) > .icon-fallback { display: none; }
+    .star-rating-picker-button { display: grid; height: 2.5rem; width: 2.25rem; place-items: center; border-radius: 0.375rem; }
+    .star-rating-picker-button:hover { background: #fffbeb; }
+    .star-rating-picker-button:focus-visible { outline: 2px solid #2f6f1b; outline-offset: 2px; }
+    .rating-star-glyph { display: inline-block; color: transparent; font-size: 2rem; line-height: 1; background: linear-gradient(90deg, #fbbf24 0 var(--star-fill), #d1d5db var(--star-fill) 100%); -webkit-background-clip: text; background-clip: text; }
+    .review-stars .rating-star-glyph { font-size: 1.125rem; }
+    @media (min-width: 1024px) {
+      .site-header-layout { grid-template-columns: 88px minmax(420px, 1fr) auto; }
+    }
     @media (max-width: 1199px) {
       main.market-login > section,
       main.market-signup > section,
@@ -34,14 +42,10 @@
 </head>
 <body class="flex min-h-screen flex-col bg-white text-ink">
   <header class="sticky top-0 z-40 bg-leaf text-white shadow-sm">
-    <div class="relative mx-auto grid w-full max-w-[1500px] grid-cols-1 items-center gap-x-3 gap-y-2 px-4 py-2 sm:px-6 lg:grid-cols-[220px_minmax(420px,1fr)_auto] lg:px-8" style="min-height: 84px;">
-      <a href="{% url 'catalog:product_list' %}" class="flex min-w-0 items-center gap-2.5" aria-label="หน้าหลักถิ่นดี">
+    <div class="site-header-layout relative mx-auto grid w-full max-w-[1500px] grid-cols-1 items-center gap-x-3 gap-y-2 px-4 py-2 sm:px-6 lg:px-8" style="min-height: 84px;">
+      <a href="{% url 'catalog:product_list' %}" class="flex min-w-0 items-center gap-2.5" aria-label="หน้าหลักThin Dee">
         <span class="flex h-16 w-16 shrink-0 items-center justify-center">
-          <img src="{% static 'images/thin-dee-logo.png' %}" alt="โลโก้ถิ่นดี" class="h-full w-full object-contain">
-        </span>
-        <span class="hidden min-w-0 sm:block">
-          <span class="block whitespace-nowrap text-base font-semibold leading-tight">ถิ่นดี</span>
-          <span class="block whitespace-nowrap text-xs text-green-100">ซื้อขายตรงจากชุมชน</span>
+          <img src="{% static 'images/thin-dee-logo.png' %}" alt="โลโก้Thin Dee" class="h-full w-full object-contain">
         </span>
       </a>
 
@@ -213,7 +217,7 @@
 
   <footer class="mt-auto border-t border-stone-200 bg-white">
     <div class="mx-auto flex w-full max-w-[1500px] items-center px-4 py-5 text-sm text-slate-600 sm:px-6 lg:px-8">
-      <p>ถิ่นดี</p>
+      <p>Thin Dee</p>
     </div>
   </footer>
 
@@ -323,6 +327,52 @@
       toggle.querySelector("[data-password-eye-off]").classList.toggle("hidden", !isHidden);
     });
 
+    document.querySelectorAll("[data-rating-picker]").forEach(function (picker) {
+      const input = picker.querySelector("[data-rating-input]");
+      const output = picker.querySelector("[data-rating-output]");
+      const buttons = Array.from(picker.querySelectorAll("[data-rating-star]"));
+
+      function renderRating(value) {
+        const rating = Math.min(5, Math.max(0.5, Math.round(value * 2) / 2));
+        input.value = rating.toFixed(1);
+        output.textContent = rating.toFixed(1) + " ดาว";
+        buttons.forEach(function (button) {
+          const star = Number(button.dataset.ratingStar);
+          const fill = Math.max(0, Math.min(100, (rating - star + 1) * 100));
+          button.querySelector("[data-rating-glyph]").style.setProperty("--star-fill", fill + "%");
+          button.setAttribute("aria-pressed", String(rating > star - 1 && rating <= star));
+        });
+      }
+
+      buttons.forEach(function (button) {
+        button.addEventListener("click", function (event) {
+          const star = Number(button.dataset.ratingStar);
+          const bounds = button.getBoundingClientRect();
+          const isKeyboardClick = event.detail === 0;
+          const value = isKeyboardClick || event.clientX - bounds.left >= bounds.width / 2 ? star : star - 0.5;
+          renderRating(value);
+        });
+      });
+
+      picker.addEventListener("keydown", function (event) {
+        if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+        event.preventDefault();
+        const current = Number(input.value) || 5;
+        if (event.key === "Home") renderRating(0.5);
+        else if (event.key === "End") renderRating(5);
+        else renderRating(current + (event.key === "ArrowRight" ? 0.5 : -0.5));
+      });
+
+      renderRating(Number(input.value) || 5);
+    });
+    document.querySelectorAll("[data-review-stars]").forEach(function (container) {
+      const rating = Number(container.dataset.reviewStars) || 0;
+      container.querySelectorAll("[data-review-star]").forEach(function (starElement) {
+        const star = Number(starElement.dataset.reviewStar);
+        const fill = Math.max(0, Math.min(100, (rating - star + 1) * 100));
+        starElement.style.setProperty("--star-fill", fill + "%");
+      });
+    });
     document.querySelectorAll("[data-product-image-input]").forEach(function (input) {
       const currentImageUrl = input.dataset.productImageCurrent || "";
       const removeInput = document.createElement("input");

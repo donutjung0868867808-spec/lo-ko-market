@@ -48,7 +48,7 @@
         {% endif %}
         <div class="min-w-0 flex-1">
           <div class="flex flex-wrap items-center gap-2"><h1 class="truncate text-xl font-semibold text-ink">{{ seller_profile.farm_name|default:seller }}</h1>{% if seller_profile.is_verified %}<span class="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-1 text-xs font-semibold text-leaf"><i data-lucide="badge-check" class="h-3.5 w-3.5" aria-hidden="true"></i>ยืนยันแล้ว</span>{% endif %}</div>
-          <p class="mt-1 truncate text-sm text-slate-600">{{ seller_profile.community.name|default:"ถิ่นดี" }}</p>
+          <p class="mt-1 truncate text-sm text-slate-600">{{ seller_profile.community.name|default:"Thin Dee" }}</p>
           <p class="mt-2 line-clamp-2 text-sm leading-6 text-slate-600">{{ seller_profile.bio|default:"ร้านค้าเกษตรชุมชน คัดสรรผลผลิตสดส่งตรงถึงผู้บริโภค" }}</p>
         </div>
       </div>

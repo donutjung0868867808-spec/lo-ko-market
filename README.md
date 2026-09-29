@@ -1,4 +1,4 @@
-# ถิ่นดี
+# Thin Dee
 
 คู่มือ Production รุ่นปัจจุบัน: [DEPLOY_PRODUCTION.md](DEPLOY_PRODUCTION.md)
 ใช้ Blueprint ที่รวม ASGI, Redis และ Cron แทนขั้นตอนแผนฟรี/WSGI ด้านล่าง

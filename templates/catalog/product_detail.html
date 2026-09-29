@@ -253,12 +253,22 @@
   <section class="mt-10 border-t border-stone-200 pt-9" aria-labelledby="review-title">
     <div class="flex flex-wrap items-end justify-between gap-3">
       <div><h2 id="review-title" class="text-xl font-semibold text-ink">รีวิวสินค้า</h2><p class="mt-1 text-sm text-slate-600">ความคิดเห็นจากผู้ซื้อที่ชำระเงินแล้ว</p></div>
-      <p class="inline-flex items-center gap-1 text-sm font-semibold"><i data-lucide="star" class="h-4 w-4 fill-amber-400 text-amber-400" aria-hidden="true"></i>{{ product.average_rating|floatformat:1 }} จาก {{ review_count }} รีวิว</p>
+      <p class="inline-flex items-center gap-2 text-sm font-semibold">{% include "catalog/_review_stars.html" with rating=product.average_rating %}<span>{{ product.average_rating|floatformat:1 }} จาก {{ review_count }} รีวิว</span></p>
     </div>
     <div class="mt-6 divide-y divide-stone-200 border-y border-stone-200">
       {% for review in reviews %}
         <article class="py-5">
-          <div class="flex flex-wrap items-center justify-between gap-3"><p class="font-semibold text-slate-900">{{ review.user }}</p><p class="inline-flex items-center gap-1 text-sm font-semibold text-leaf"><i data-lucide="star" class="h-4 w-4 fill-amber-400 text-amber-400" aria-hidden="true"></i>{{ review.rating }}/5</p></div>
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="flex min-w-0 items-center gap-3">
+              {% if review.user.avatar %}
+                <img src="{{ review.user.avatar.url }}" alt="รูปโปรไฟล์ {{ review.user.display_name|default:review.user.username }}" class="h-11 w-11 shrink-0 rounded-full border border-emerald-200 object-cover" loading="lazy">
+              {% else %}
+                <span class="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-emerald-50 text-sm font-semibold text-leaf ring-1 ring-emerald-200" aria-label="{{ review.user.display_name|default:review.user.username }}">{{ review.user.display_name|default:review.user.username|first|upper }}</span>
+              {% endif %}
+              <p class="truncate font-semibold text-slate-900">{{ review.user.display_name|default:review.user.username }}</p>
+            </div>
+            <p class="inline-flex items-center gap-2 text-sm font-semibold text-leaf">{% include "catalog/_review_stars.html" with rating=review.rating %}<span>{{ review.rating|floatformat:1 }}/5</span></p>
+          </div>
           {% if review.comment %}<p class="mt-2 text-sm leading-6 text-slate-700">{{ review.comment }}</p>{% endif %}
           {% if review.media.all %}
             <div class="mt-3 flex flex-wrap gap-2">
@@ -286,12 +296,17 @@
         {% csrf_token %}
         <div class="flex items-center gap-2"><i data-lucide="badge-check" class="h-5 w-5 text-leaf" aria-hidden="true"></i><p class="font-semibold text-slate-950">เขียนรีวิวสินค้าที่คุณซื้อแล้ว</p></div>
         <div class="mt-4 grid gap-3 sm:grid-cols-[140px_minmax(0,1fr)]">
-          <div><label class="mb-1.5 block text-sm font-medium text-slate-700" for="review-rating">คะแนน</label><select id="review-rating" name="rating" class="min-h-11 w-full rounded-md border border-slate-300 bg-white px-3 text-sm"><option value="5">5 ดาว</option><option value="4">4 ดาว</option><option value="3">3 ดาว</option><option value="2">2 ดาว</option><option value="1">1 ดาว</option></select></div>
+          {% include "catalog/_star_rating_picker.html" %}
           <div><label class="mb-1.5 block text-sm font-medium text-slate-700" for="review-comment">ความคิดเห็น</label><input id="review-comment" name="comment" class="min-h-11 w-full rounded-md border border-slate-300 bg-white px-3 text-sm" placeholder="แบ่งปันประสบการณ์เกี่ยวกับสินค้า"></div>
         </div>
         <div class="mt-4">
           <input id="review-media" name="media" type="file" multiple accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime" class="sr-only" data-review-media-input>
-          <label for="review-media" class="flex min-h-20 cursor-pointer items-center justify-center gap-3 rounded-md border border-dashed border-emerald-300 bg-white px-4 py-3 text-center text-sm text-slate-700 hover:border-leaf hover:bg-emerald-50"><i data-lucide="image-plus" class="h-6 w-6 shrink-0 text-leaf" aria-hidden="true"></i><span><span class="block font-semibold">เพิ่มรูปหรือวิดีโอ</span><span class="mt-0.5 block text-xs text-slate-500">JPG, PNG, WEBP, MP4, MOV หรือ WEBM สูงสุด 5 ไฟล์</span></span></label>
+          <input id="review-camera" name="media" type="file" accept="image/*" capture="environment" class="sr-only" data-review-camera-input>
+          <div class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+            <label for="review-media" class="flex min-h-20 cursor-pointer items-center justify-center gap-3 rounded-md border border-dashed border-emerald-300 bg-white px-4 py-3 text-center text-sm text-slate-700 hover:border-leaf hover:bg-emerald-50"><i data-lucide="image-plus" class="h-6 w-6 shrink-0 text-leaf" aria-hidden="true"></i><span><span class="block font-semibold">เพิ่มรูปหรือวิดีโอ</span><span class="mt-0.5 block text-xs text-slate-500">JPG, PNG, WEBP, MP4, MOV หรือ WEBM สูงสุด 5 ไฟล์</span></span></label>
+            <label for="review-camera" class="flex min-h-20 cursor-pointer items-center justify-center gap-2 rounded-md border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-semibold text-leaf hover:border-leaf hover:bg-emerald-100"><i data-lucide="camera" class="h-5 w-5" aria-hidden="true"></i><span>ถ่ายรูปด้วยกล้อง</span></label>
+          </div>
+          <p class="mt-2 hidden text-sm text-red-700" data-review-media-limit>แนบรูปหรือวิดีโอได้สูงสุด 5 ไฟล์</p>
           <ul class="mt-3 hidden divide-y divide-stone-100 rounded-md border border-stone-200 bg-white text-sm" data-review-media-preview aria-live="polite"></ul>
         </div>
         <div class="mt-4 flex justify-end"><button class="inline-flex min-h-11 items-center gap-2 rounded-md bg-ink px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-800" type="submit"><i data-lucide="send" class="h-4 w-4" aria-hidden="true"></i>ส่งรีวิว</button></div>
@@ -432,27 +447,43 @@
 {% block extra_head %}
 <script>
   document.addEventListener("DOMContentLoaded", function () {
-    const input = document.querySelector("[data-review-media-input]");
+    const inputs = Array.from(document.querySelectorAll("[data-review-media-input], [data-review-camera-input]"));
     const preview = document.querySelector("[data-review-media-preview]");
-    if (!input || !preview) return;
+    const limitMessage = document.querySelector("[data-review-media-limit]");
+    if (!inputs.length || !preview) return;
 
-    input.addEventListener("change", function () {
-      const files = Array.from(input.files).slice(0, 5);
+    function selectedFiles() {
+      return inputs.flatMap(function (input) { return Array.from(input.files || []); });
+    }
+
+    function renderPreview() {
+      const files = selectedFiles();
       preview.replaceChildren();
       files.forEach(function (file) {
         const item = document.createElement("li");
         const name = document.createElement("span");
         const typeLabel = document.createElement("span");
         item.className = "flex items-center justify-between gap-3 px-3 py-2";
-        const type = file.type.startsWith("video/") ? "วิดีโอ" : "รูปภาพ";
         name.className = "min-w-0 truncate text-slate-700";
         name.textContent = file.name;
         typeLabel.className = "shrink-0 text-xs text-slate-500";
-        typeLabel.textContent = type;
+        typeLabel.textContent = file.type.startsWith("video/") ? "วิดีโอ" : "รูปภาพ";
         item.append(name, typeLabel);
         preview.appendChild(item);
       });
       preview.classList.toggle("hidden", files.length === 0);
+    }
+
+    inputs.forEach(function (input) {
+      input.addEventListener("change", function () {
+        if (selectedFiles().length > 5) {
+          input.value = "";
+          limitMessage.hidden = false;
+        } else {
+          limitMessage.hidden = true;
+        }
+        renderPreview();
+      });
     });
   });
 </script>

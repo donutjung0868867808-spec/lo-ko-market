@@ -166,7 +166,7 @@ def send_verification_email(request, user):
     url = f"{settings.SITE_URL}{path}" if settings.SITE_URL else request.build_absolute_uri(path)
     queue_email(
         user.email,
-        "ยืนยันอีเมลถิ่นดี",
+        "ยืนยันอีเมล Thin Dee",
         f"กรุณายืนยันอีเมลของคุณโดยเปิดลิงก์นี้ภายในระยะเวลาที่กำหนด:\n\n{url}",
         user=user,
         send_now=True,

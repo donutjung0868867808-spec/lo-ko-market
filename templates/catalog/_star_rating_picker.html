@@ -1,0 +1,13 @@
+<fieldset class="star-rating-picker" data-rating-picker>
+  <legend class="mb-1.5 block text-sm font-medium text-slate-700">คะแนน</legend>
+  <input type="hidden" name="rating" value="5.0" data-rating-input>
+  <div class="flex items-center gap-0.5" role="radiogroup" aria-label="เลือกคะแนนรีวิว">
+    {% for star in "12345" %}
+      <button type="button" class="star-rating-picker-button" data-rating-star="{{ star }}" aria-label="เลือกคะแนน {{ star }} ดาว" aria-pressed="{% if star == "5" %}true{% else %}false{% endif %}">
+        <span class="rating-star-glyph" data-rating-glyph style="--star-fill: {% if star == "5" %}100%{% else %}100%{% endif %};" aria-hidden="true">&#9733;</span>
+      </button>
+    {% endfor %}
+  </div>
+  <p class="mt-1 text-sm font-semibold text-amber-700" data-rating-output aria-live="polite">5.0 ดาว</p>
+  <p class="sr-only">คลิกครึ่งซ้ายของดาวเพื่อเลือกครึ่งดาว หรือครึ่งขวาเพื่อเลือกเต็มดาว</p>
+</fieldset>

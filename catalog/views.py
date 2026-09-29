@@ -1,3 +1,4 @@
+from decimal import Decimal, InvalidOperation
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -320,10 +321,13 @@ def submit_review(request, pk):
         return redirect(product)
     if request.method == "POST":
         try:
-            rating = int(request.POST.get("rating", 5))
-        except (TypeError, ValueError):
-            rating = 5
-        rating = min(5, max(1, rating))
+            rating = Decimal(str(request.POST.get("rating", "5.0")))
+        except (InvalidOperation, TypeError, ValueError):
+            messages.error(request, "กรุณาเลือกคะแนนรีวิว")
+            return redirect("orders:order_review", pk=order_item.order_id) if order_item else redirect(product)
+        if rating < Decimal("0.5") or rating > Decimal("5.0") or (rating * 2) != (rating * 2).to_integral_value():
+            messages.error(request, "คะแนนรีวิวต้องอยู่ระหว่าง 0.5 ถึง 5.0 และเพิ่มครั้งละ 0.5")
+            return redirect("orders:order_review", pk=order_item.order_id) if order_item else redirect(product)
         comment = request.POST.get("comment", "").strip()
         media_files = request.FILES.getlist("media")
         if len(media_files) > 5:

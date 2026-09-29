@@ -654,12 +654,17 @@ class ProductReviewTests(TestCase):
         self.client.force_login(self.buyer)
         response = self.client.post(
             reverse("catalog:submit_review", args=[self.product.pk]),
-            {"rating": 5, "comment": "อร่อยมาก"},
+            {"rating": "3.5", "comment": "อร่อยมาก"},
         )
 
         self.assertEqual(response.status_code, 302)
-        self.assertTrue(ProductReview.objects.filter(product=self.product, user=self.buyer).exists())
-        self.assertEqual(self.product.average_rating, 5)
+        review = ProductReview.objects.get(product=self.product, user=self.buyer)
+        self.assertEqual(review.rating, Decimal("3.5"))
+        self.assertEqual(self.product.average_rating, Decimal("3.5"))
+
+        detail_response = self.client.get(reverse("catalog:product_detail", args=[self.product.pk]))
+        self.assertContains(detail_response, 'data-review-stars="3.5"')
+        self.assertContains(detail_response, 'data-rating-picker')
 
     def test_order_review_groups_same_product_and_removes_the_group_after_submission(self):
         order = Order.objects.create(
@@ -776,6 +781,21 @@ class ProductReviewTests(TestCase):
         self.assertContains(response, "ซื้อสินค้านี้และชำระเงินเรียบร้อยแล้ว")
         self.assertNotContains(response, 'id="review-media"')
 
+    def test_product_detail_shows_reviewer_avatar(self):
+        self.buyer.display_name = "Review Buyer"
+        self.buyer.avatar = "avatars/review-buyer.jpg"
+        self.buyer.save(update_fields=["display_name", "avatar"])
+        ProductReview.objects.create(
+            product=self.product,
+            user=self.buyer,
+            rating=5,
+            comment="Fresh and delicious",
+        )
+
+        response = self.client.get(reverse("catalog:product_detail", args=[self.product.pk]))
+
+        self.assertContains(response, self.buyer.avatar.url)
+        self.assertContains(response, 'alt="รูปโปรไฟล์ Review Buyer"')
     def test_seller_store_product_cards_include_review_and_paid_sales_metrics(self):
         order = Order.objects.create(
             buyer=self.buyer,

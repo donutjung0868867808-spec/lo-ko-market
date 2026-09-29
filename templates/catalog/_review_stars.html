@@ -1,0 +1,3 @@
+<span class="review-stars inline-flex items-center gap-0.5" data-review-stars="{{ rating }}" aria-label="คะแนน {{ rating|floatformat:1 }} จาก 5 ดาว">
+  {% for star in "12345" %}<span class="rating-star-glyph" data-review-star="{{ star }}" style="--star-fill: 0%;" aria-hidden="true">&#9733;</span>{% endfor %}
+</span>
