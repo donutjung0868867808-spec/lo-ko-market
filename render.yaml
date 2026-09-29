@@ -89,7 +89,7 @@ services:
       - key: EMAIL_HOST
         sync: false
       - key: EMAIL_PORT
-        value: "587"
+        value: "2525"
       - key: EMAIL_USE_TLS
         value: "True"
       - key: EMAIL_USE_SSL

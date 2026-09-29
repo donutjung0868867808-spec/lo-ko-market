@@ -138,6 +138,27 @@ class PaymentWorkflowTests(TestCase):
         self.assertEqual(self.order.payment_status, Order.PaymentStatus.PAID)
         self.assertEqual(second_order.payment_status, Order.PaymentStatus.PAID)
         self.assertEqual(Payment.objects.get(order=self.order).raw_payload["batch_payment_intent_id"], "pi_batch")
+        self.assertEqual(
+            Notification.objects.filter(
+                user=self.buyer,
+                title="ชำระเงินรวม 2 ร้านค้า สำเร็จ",
+            ).count(),
+            1,
+        )
+        self.assertEqual(
+            Notification.objects.filter(
+                user=self.seller,
+                title=f"มีคำสั่งซื้อใหม่ {self.order.reference}",
+            ).count(),
+            1,
+        )
+        self.assertEqual(
+            Notification.objects.filter(
+                user=second_seller,
+                title=f"มีคำสั่งซื้อใหม่ {second_order.reference}",
+            ).count(),
+            1,
+        )
     @override_settings(DEBUG=True, PAYMENT_MODE="test", STRIPE_SECRET_KEY="")
     def test_checkout_uses_interactive_demo_payment_in_test_mode(self):
         self.client.force_login(self.buyer)

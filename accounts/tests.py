@@ -837,6 +837,8 @@ class BuyerSellerConversationTests(TestCase):
                 body="สินค้านี้เก็บเกี่ยววันนี้ไหม",
             ).exists()
         )
+        notification = Notification.objects.get(user=self.seller)
+        self.assertEqual(notification.sender, self.buyer)
 
     def test_participants_can_upload_private_chat_image(self):
         conversation = Conversation.objects.create(

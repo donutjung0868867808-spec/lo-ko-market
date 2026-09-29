@@ -913,6 +913,7 @@ def support_ticket_create(request):
                 message=f"{request.user} · {ticket.subject}",
                 link=reverse("admin:accounts_supportticket_reply", args=[ticket.pk]),
                 send_email_message=False,
+                sender=request.user,
             )
         messages.success(request, "ส่งคำขอถึงผู้ดูแลแล้ว")
         return redirect("accounts:support_ticket_detail", pk=ticket.pk)
@@ -1002,6 +1003,7 @@ def support_ticket_detail(request, pk):
                     message=note,
                     link=notification_link,
                     send_email_message=False,
+                    sender=request.user,
                 )
             messages.success(request, "ส่งข้อความแล้ว")
             return redirect("accounts:support_ticket_detail", pk=ticket.pk)
@@ -1113,7 +1115,7 @@ def payment_settings(request):
 
 @login_required
 def notifications_list(request):
-    notifications = request.user.notifications.select_related("product")
+    notifications = request.user.notifications.select_related("product", "sender")
     return render(
         request,
         "accounts/notifications.html",
@@ -2101,6 +2103,7 @@ def conversation_detail(request, pk):
                     message=(f"เกี่ยวกับสินค้า {conversation.product.name}" if conversation.product_id else "เกี่ยวกับร้านค้าของคุณ"),
                     link=reverse("accounts:conversation_detail", args=[conversation.pk]),
                     send_email_message=False,
+                    sender=request.user,
                 )
                 return redirect("accounts:conversation_detail", pk=conversation.pk)
 
@@ -2184,6 +2187,7 @@ def conversation_media_upload(request, pk):
         message=(f"เกี่ยวกับสินค้า {conversation.product.name}" if conversation.product_id else "เกี่ยวกับร้านค้าของคุณ"),
         link=reverse("accounts:conversation_detail", args=[conversation.pk]),
         send_email_message=False,
+        sender=request.user,
     )
     return JsonResponse({"message": serialize_message(message, conversation)}, status=201)
 

@@ -82,7 +82,7 @@ def queue_email(to_email, subject, body, user=None, send_now=True, raise_on_fail
     return delivery
 
 
-def notify_user(user, title, message="", link="", send_email_message=True, product=None, order=None):
+def notify_user(user, title, message="", link="", send_email_message=True, product=None, order=None, sender=None):
     if product is None and order is not None:
         order_item = order.items.select_related("product").order_by("pk").first()
         product = order_item.product if order_item else None
@@ -92,6 +92,7 @@ def notify_user(user, title, message="", link="", send_email_message=True, produ
         message=message,
         link=link,
         product=product,
+        sender=sender,
     )
     if send_email_message and user.email:
         body = message

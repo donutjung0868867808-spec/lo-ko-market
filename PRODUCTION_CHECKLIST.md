@@ -104,13 +104,17 @@
 
 ## การตั้งค่าอีเมลบน Render แผนฟรี
 
-Render แผนฟรีบล็อก SMTP พอร์ต 25, 465 และ 587 ให้ใช้ผู้ให้บริการที่รองรับ TLS พอร์ต 2525 เช่น SendGrid:
+Render แผนฟรีบล็อก SMTP พอร์ต 25, 465 และ 587 ใช้ Brevo Free ผ่านพอร์ต 2525:
 
-- EMAIL_HOST=smtp.sendgrid.net
+- EMAIL_HOST=smtp-relay.brevo.com
 - EMAIL_PORT=2525
-- EMAIL_HOST_USER=apikey
-- EMAIL_HOST_PASSWORD=SendGrid API key
-- DEFAULT_FROM_EMAIL=อีเมลผู้ส่งที่ยืนยันแล้ว
+- EMAIL_USE_TLS=True
+- EMAIL_USE_SSL=False
+- EMAIL_HOST_USER=SMTP login จาก Brevo
+- EMAIL_HOST_PASSWORD=SMTP key จาก Brevo
+- DEFAULT_FROM_EMAIL=อีเมลผู้ส่งที่ยืนยันแล้วกับ Brevo
+
+ยืนยันโดเมนผู้ส่งและตั้งค่า SPF/DKIM ใน Brevo ก่อนส่งอีเมลจริง
 
 ## บัญชีเจ้าของระบบครั้งแรก
 

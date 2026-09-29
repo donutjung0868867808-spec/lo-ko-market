@@ -390,6 +390,13 @@ class Notification(models.Model):
     title = models.CharField(max_length=200)
     message = models.TextField(blank=True)
     link = models.CharField(max_length=500, blank=True)
+    sender = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="notification_sender_records",
+    )
     product = models.ForeignKey(
         "catalog.Product",
         on_delete=models.SET_NULL,

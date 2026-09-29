@@ -772,13 +772,7 @@ class CartWorkflowTests(TestCase):
         cart_response = self.client.get(reverse("orders:cart"))
         self.assertEqual(cart_response.context["items"], [])
         self.assertEqual(self.client.session.get("cart"), {})
-        self.assertTrue(
-            Notification.objects.filter(
-                user=self.seller,
-                title=f"คำสั่งซื้อใหม่ {order.reference}",
-                link=order.get_absolute_url(),
-            ).exists()
-        )
+        self.assertFalse(Notification.objects.filter(user=self.seller).exists())
 
     @override_settings(PAYMENT_MODE="test", STRIPE_SECRET_KEY="")
     def test_cart_checkout_combines_multiple_seller_orders_into_one_payment_batch(self):

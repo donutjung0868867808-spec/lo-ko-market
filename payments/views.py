@@ -249,6 +249,20 @@ def validate_batch_checkout_amount(session, batch):
         raise ValidationError("สกุลเงินจาก Stripe ไม่ตรงกับชุดคำสั่งซื้อ")
 
 
+def notify_buyer_of_paid_batch(batch, orders):
+    """Send one buyer notification for a checkout that covers several shops."""
+    if not orders:
+        return
+    shop_count = len({order.seller_id for order in orders})
+    item_count = sum(order.items.count() for order in orders)
+    notify_user(
+        batch.buyer,
+        f"ชำระเงินรวม {shop_count} ร้านค้า สำเร็จ",
+        f"ชำระเงิน {len(orders)} คำสั่งซื้อ {item_count} รายการ ยอดชำระ {batch.amount:.2f} บาท",
+        reverse("orders:order_list"),
+        order=orders[0],
+    )
+
 def mark_batch_session_paid(session, payload=None):
     session_id = session.get("id")
     batch = PaymentBatch.objects.filter(checkout_session_id=session_id).first()
@@ -309,6 +323,8 @@ def mark_batch_session_paid(session, payload=None):
             order.get_absolute_url(),
             order=order,
         )
+    if seller_notifications:
+        notify_buyer_of_paid_batch(batch, seller_notifications)
     return batch
 
 @login_required
@@ -417,6 +433,7 @@ def complete_batch_checkout(request, pk):
             batch.checkout_session_id = f"demo-batch-{batch.checkout_attempt_id.hex}"
             batch.status = PaymentBatch.Status.PROCESSING
             batch.save(update_fields=["checkout_session_id", "status", "updated_at"])
+        paid_orders = []
         for order in orders:
             payment, _ = Payment.objects.get_or_create(order=order, defaults={"amount": order.total_amount, "currency": batch.currency})
             payment.status = Payment.Status.PAID
@@ -430,8 +447,10 @@ def complete_batch_checkout(request, pk):
             OrderStatusHistory.objects.get_or_create(order=order, status=Order.Status.PAID, defaults={"note": "ยืนยันการชำระเงินรวมแล้ว"})
             sync_settlement_for_payment(payment)
             notify_user(order.seller, f"มีคำสั่งซื้อใหม่ {order.reference}", "ผู้ซื้อชำระเงินรวมแล้ว กรุณาเตรียมสินค้า", order.get_absolute_url(), order=order)
+            paid_orders.append(order)
         batch.status = PaymentBatch.Status.PAID
         batch.save(update_fields=["status", "updated_at"])
+    notify_buyer_of_paid_batch(batch, paid_orders)
     messages.success(request, "ชำระเงินทุกคำสั่งซื้อสำเร็จแล้ว")
     return redirect("orders:order_list")
 

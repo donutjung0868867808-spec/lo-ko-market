@@ -55,8 +55,19 @@ INITIAL_OWNER_USERNAME, INITIAL_OWNER_EMAIL, INITIAL_OWNER_PASSWORD ใช้ส
 
 ## 3. ตรวจอีเมลก่อนเปิดสมัครสมาชิก
 
-ตั้ง EMAIL_HOST/PORT/USER/PASSWORD จากผู้ให้บริการ ไม่ใช้รหัสผ่านเข้าสู่เว็บทั่วไป
-ใช้ TLS (ปกติ port 587) หรือ SSL (ปกติ 465) เพียงอย่างเดียว
+ตั้ง SMTP จาก Brevo Free สำหรับ Render Free ดังนี้:
+
+    EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+    EMAIL_HOST=smtp-relay.brevo.com
+    EMAIL_PORT=2525
+    EMAIL_USE_TLS=True
+    EMAIL_USE_SSL=False
+    EMAIL_HOST_USER=SMTP login จาก Brevo
+    EMAIL_HOST_PASSWORD=SMTP key จาก Brevo
+    DEFAULT_FROM_EMAIL=อีเมลหรือโดเมนที่ยืนยันกับ Brevo แล้ว
+
+Brevo Free ส่ง transactional email ได้สูงสุด 300 ฉบับต่อวัน และ port 2525 ใช้แทน 587 ซึ่ง Render Free ปิดไว้
+สำหรับ Brevo บน port 2525 ให้เปิด TLS และปิด SSL; ห้ามเปิด TLS และ SSL พร้อมกัน
 ตั้ง DEFAULT_FROM_EMAIL ให้เป็นผู้ส่งที่ผู้ให้บริการอนุญาต
 
 รันบน Render Shell:

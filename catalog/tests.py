@@ -596,6 +596,7 @@ class ProductCatalogTests(TestCase):
 
         self.assertContains(response, 'data-province-autocomplete')
         self.assertContains(response, 'data-province-value="เชียงใหม่"')
+        self.assertContains(response, 'data-province-value="กรุงเทพมหานคร"')
 class ProductReviewTests(TestCase):
     def setUp(self):
         self.community = Community.objects.create(

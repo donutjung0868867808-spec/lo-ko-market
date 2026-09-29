@@ -27,7 +27,16 @@
     <div class="divide-y divide-stone-200">
       {% for notification in notifications %}
         <article class="flex gap-4 px-5 py-5 sm:px-7 {% if not notification.is_read %}bg-emerald-50/60{% endif %}">
-          {% if notification.product and notification.product.image %}
+          {% if notification.sender %}
+            <a href="{% url 'accounts:mark_notification_read' notification.id %}" class="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full border border-stone-200 bg-stone-100 text-slate-500" aria-label="เปิดข้อความจาก {{ notification.sender }}">
+              {% if notification.sender.avatar %}
+                <img src="{{ notification.sender.avatar.url }}" alt="รูปโปรไฟล์ของ {{ notification.sender }}" class="h-full w-full object-cover">
+              {% else %}
+                <i data-lucide="user-round" class="h-6 w-6" aria-hidden="true"></i>
+              {% endif %}
+              {% if not notification.is_read %}<span class="absolute right-1 top-1 h-2.5 w-2.5 rounded-full border-2 border-white bg-rice"></span>{% endif %}
+            </a>
+          {% elif notification.product and notification.product.image %}
             <a href="{% url 'accounts:mark_notification_read' notification.id %}" class="relative h-14 w-14 shrink-0 overflow-hidden rounded-md border border-stone-200 bg-stone-100" aria-label="เปิดรายการสินค้า {{ notification.product.name }}">
               <img src="{{ notification.product.image.url }}" alt="{{ notification.product.name }}" class="h-full w-full object-cover">
               {% if not notification.is_read %}<span class="absolute right-1 top-1 h-2.5 w-2.5 rounded-full border-2 border-white bg-rice"></span>{% endif %}
