@@ -23,8 +23,8 @@ handler403 = "agri_market.views.permission_denied"
 handler404 = "agri_market.views.page_not_found"
 handler500 = "agri_market.views.server_error"
 
-admin.site.site_header = "ศูนย์จัดการตลาดเกษตรชุมชน"
-admin.site.site_title = "ศูนย์จัดการตลาดเกษตรชุมชน"
+admin.site.site_header = "ศูนย์จัดการถิ่นดี"
+admin.site.site_title = "ศูนย์จัดการถิ่นดี"
 admin.site.index_title = "จัดการข้อมูลระบบ"
 admin.site.site_url = "/admin/site-preview/"
 

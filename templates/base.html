@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
-  <title>{% block title %}ตลาดเกษตรชุมชน{% endblock %}</title>
+  <title>{% block title %}ถิ่นดี{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'css/tailwind.css' %}">
   <script src="{% static 'vendor/htmx.min.js' %}"></script>
   <script src="{% static 'vendor/lucide.min.js' %}"></script>
@@ -35,12 +35,12 @@
 <body class="flex min-h-screen flex-col bg-white text-ink">
   <header class="sticky top-0 z-40 bg-leaf text-white shadow-sm">
     <div class="relative mx-auto grid w-full max-w-[1500px] grid-cols-1 items-center gap-x-3 gap-y-2 px-4 py-2 sm:px-6 lg:grid-cols-[220px_minmax(420px,1fr)_auto] lg:px-8" style="min-height: 84px;">
-      <a href="{% url 'catalog:product_list' %}" class="flex min-w-0 items-center gap-2.5" aria-label="หน้าหลักตลาดเกษตรชุมชน">
-        <span class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-md bg-white p-0.5">
-          <img src="{% static 'images/market-logo.png' %}" alt="โลโก้ตลาดเกษตรชุมชน" class="h-full w-full object-contain">
+      <a href="{% url 'catalog:product_list' %}" class="flex min-w-0 items-center gap-2.5" aria-label="หน้าหลักถิ่นดี">
+        <span class="flex h-16 w-16 shrink-0 items-center justify-center">
+          <img src="{% static 'images/thin-dee-logo.png' %}" alt="โลโก้ถิ่นดี" class="h-full w-full object-contain">
         </span>
         <span class="hidden min-w-0 sm:block">
-          <span class="block whitespace-nowrap text-base font-semibold leading-tight">ตลาดเกษตรชุมชน</span>
+          <span class="block whitespace-nowrap text-base font-semibold leading-tight">ถิ่นดี</span>
           <span class="block whitespace-nowrap text-xs text-green-100">ซื้อขายตรงจากชุมชน</span>
         </span>
       </a>
@@ -213,7 +213,7 @@
 
   <footer class="mt-auto border-t border-stone-200 bg-white">
     <div class="mx-auto flex w-full max-w-[1500px] items-center px-4 py-5 text-sm text-slate-600 sm:px-6 lg:px-8">
-      <p>ตลาดเกษตรชุมชน</p>
+      <p>ถิ่นดี</p>
     </div>
   </footer>
 

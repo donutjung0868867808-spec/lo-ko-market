@@ -24,7 +24,7 @@ class Command(BaseCommand):
             with get_connection() as connection:
                 if recipient:
                     send_mail(
-                        "ทดสอบระบบอีเมลตลาดเกษตรชุมชน",
+                        "ทดสอบระบบอีเมลถิ่นดี",
                         "ระบบเชื่อมต่อบริการส่งอีเมลสำเร็จ",
                         settings.DEFAULT_FROM_EMAIL, [recipient], connection=connection,
                     )

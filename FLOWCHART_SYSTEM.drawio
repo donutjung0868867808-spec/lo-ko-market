@@ -1,0 +1,111 @@
+<mxfile host="app.diagrams.net" agent="Codex">
+  <diagram id="market-summary-v4" name="Project Summary Flowchart">
+    <mxGraphModel dx="710" dy="363" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1200" pageHeight="2200" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="start" parent="1" style="ellipse;whiteSpace=wrap;html=1;strokeWidth=2;" value="เริ่มต้น" vertex="1">
+          <mxGeometry height="50" width="120" x="540" y="85" as="geometry" />
+        </mxCell>
+        <mxCell id="account" parent="1" style="rounded=0;whiteSpace=wrap;html=1;strokeWidth=2;" value="สมัครสมาชิก / เข้าสู่ระบบ" vertex="1">
+          <mxGeometry height="55" width="150" x="525" y="165" as="geometry" />
+        </mxCell>
+        <mxCell id="browse" parent="1" style="rounded=0;whiteSpace=wrap;html=1;strokeWidth=2;" value="[ผู้ซื้อ] ค้นหาและเลือกสินค้า" vertex="1">
+          <mxGeometry height="65" width="175" x="513" y="260" as="geometry" />
+        </mxCell>
+        <mxCell id="cart" parent="1" style="rounded=0;whiteSpace=wrap;html=1;strokeWidth=2;" value="[ผู้ซื้อ] เพิ่มสินค้าลงตะกร้า และกรอกที่อยู่จัดส่ง" vertex="1">
+          <mxGeometry height="60" width="235" x="483" y="370" as="geometry" />
+        </mxCell>
+        <mxCell id="checkout" parent="1" style="rounded=0;whiteSpace=wrap;html=1;strokeWidth=2;" value="[ผู้ซื้อ] ตรวจสอบคำสั่งซื้อ และเลือกวิธีชำระเงิน" vertex="1">
+          <mxGeometry height="65" width="270" x="465" y="475" as="geometry" />
+        </mxCell>
+        <mxCell id="stripe" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;strokeWidth=2;" value="[ผู้ซื้อ] ชำระเงิน" vertex="1">
+          <mxGeometry height="55" width="163" x="519" y="588" as="geometry" />
+        </mxCell>
+        <mxCell id="paid" parent="1" style="rhombus;whiteSpace=wrap;html=1;strokeWidth=2;" value="ชำระเงินสำเร็จหรือไม่" vertex="1">
+          <mxGeometry height="85" width="150" x="525" y="690" as="geometry" />
+        </mxCell>
+        <mxCell id="yR9Dqm4m3HNOhh_e4O8r-2" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="stripe">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="290" y="715" />
+              <mxPoint x="290" y="610" />
+            </Array>
+            <mxPoint x="265.73" y="715" as="sourcePoint" />
+            <mxPoint x="490.00272727272727" y="610" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="retry" parent="1" style="rounded=0;whiteSpace=wrap;html=1;strokeWidth=2;" value="[ผู้ซื้อ] กลับไปชำระเงินใหม่" vertex="1">
+          <mxGeometry height="60" width="130" x="240" y="702.5" as="geometry" />
+        </mxCell>
+        <mxCell id="payment" parent="1" style="rounded=0;whiteSpace=wrap;html=1;strokeWidth=2;" value="[ระบบ] ยืนยันการชำระเงิน และแจ้งผู้ขาย" vertex="1">
+          <mxGeometry height="70" width="225" x="488" y="825" as="geometry" />
+        </mxCell>
+        <mxCell id="seller" parent="1" style="rounded=0;whiteSpace=wrap;html=1;strokeWidth=2;" value="[ผู้ขาย] ตรวจสอบคำสั่งซื้อ เตรียมสินค้า และจัดส่ง" vertex="1">
+          <mxGeometry height="70" width="262" x="469.5" y="945" as="geometry" />
+        </mxCell>
+        <mxCell id="delivery" parent="1" style="rounded=0;whiteSpace=wrap;html=1;strokeWidth=2;" value="[ผู้ซื้อ] ติดตามพัสดุ ยืนยันรับสินค้า และเขียนรีวิว" vertex="1">
+          <mxGeometry height="65" width="255" x="473" y="1063" as="geometry" />
+        </mxCell>
+        <mxCell id="settlement" parent="1" style="rounded=0;whiteSpace=wrap;html=1;strokeWidth=2;" value="[ระบบ] อัปเดตสถานะคำสั่งซื้อ และส่งการแจ้งเตือน" vertex="1">
+          <mxGeometry height="65" width="262" x="469.5" y="1174" as="geometry" />
+        </mxCell>
+        <mxCell id="staff" parent="1" style="rounded=0;whiteSpace=wrap;html=1;strokeWidth=2;" value="[เจ้าหน้าที่ชุมชน] ตรวจสอบและช่วยเหลือสมาชิก" vertex="1">
+          <mxGeometry height="65" width="270.5" x="465" y="1285" as="geometry" />
+        </mxCell>
+        <mxCell id="owner" parent="1" style="rounded=0;whiteSpace=wrap;html=1;strokeWidth=2;" value="[เจ้าของระบบ] จัดการผู้ใช้ สินค้า และข่าวสาร" vertex="1">
+          <mxGeometry height="65" width="235" x="483" y="1397" as="geometry" />
+        </mxCell>
+        <mxCell id="end" parent="1" style="ellipse;whiteSpace=wrap;html=1;strokeWidth=2;" value="สิ้นสุด" vertex="1">
+          <mxGeometry height="50" width="120" x="540" y="1510" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" edge="1" parent="1" source="start" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;" target="account">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" edge="1" parent="1" source="account" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;" target="browse">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" edge="1" parent="1" source="browse" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;" target="cart">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" edge="1" parent="1" source="cart" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;" target="checkout">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" edge="1" parent="1" source="checkout" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;" target="stripe">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" edge="1" parent="1" source="stripe" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;" target="paid">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" edge="1" parent="1" source="paid" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;" target="retry" value="ไม่สำเร็จ">
+          <mxGeometry relative="1" x="-0.1743" y="17" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e9" edge="1" parent="1" source="paid" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;" target="payment" value="สำเร็จ">
+          <mxGeometry relative="1" x="0.0109" y="40" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e10" edge="1" parent="1" source="payment" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;" target="seller">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e11" edge="1" parent="1" source="seller" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;" target="delivery">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e12" edge="1" parent="1" source="delivery" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;" target="settlement">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e13" edge="1" parent="1" source="settlement" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;" target="staff">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e14" edge="1" parent="1" source="staff" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;" target="owner">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e15" edge="1" parent="1" source="owner" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;" target="end">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
