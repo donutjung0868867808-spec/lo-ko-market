@@ -1,3 +1,5 @@
+from .models import Product
+
 THAI_PROVINCES = (
     "กรุงเทพมหานคร", "กระบี่", "กาญจนบุรี", "กาฬสินธุ์", "กำแพงเพชร", "ขอนแก่น",
     "จันทบุรี", "ฉะเชิงเทรา", "ชลบุรี", "ชัยนาท", "ชัยภูมิ", "ชุมพร", "เชียงราย", "เชียงใหม่",
@@ -14,3 +16,13 @@ THAI_PROVINCES = (
 
 def search_provinces(request):
     return {"search_provinces": THAI_PROVINCES}
+
+
+def search_products(request):
+    products = (
+        Product.objects.filter(status=Product.Status.ACTIVE)
+        .order_by("name")
+        .values_list("name", flat=True)
+        .distinct()[:30]
+    )
+    return {"search_products": products}

@@ -50,20 +50,26 @@
       </a>
 
       <form method="get" action="{% url 'catalog:product_list' %}" class="order-3 col-span-1 grid w-full grid-cols-[minmax(105px,0.72fr)_minmax(0,1.6fr)] gap-2 lg:order-none lg:grid-cols-[180px_minmax(280px,1fr)]">
-        <div class="relative min-w-0" data-province-autocomplete>
+        <div class="relative min-w-0" data-province-autocomplete data-autocomplete>
           <label class="sr-only" for="province-search">ค้นหาจังหวัด</label>
           <i data-lucide="map-pin" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-leaf" aria-hidden="true"></i>
           <input id="province-search" class="h-10 w-full rounded-md border-0 bg-white pl-9 pr-3 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-rice" type="search" name="province" value="{{ request.GET.province }}" placeholder="ค้นหาจังหวัด" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="province-suggestions">
-          <div id="province-suggestions" class="absolute left-0 right-0 top-[calc(100%+0.35rem)] z-50 max-h-56 overflow-y-auto rounded-md border border-stone-200 bg-white py-1 text-sm text-slate-800 shadow-lg" role="listbox" aria-label="รายการจังหวัด" hidden>
+          <div id="province-suggestions" class="absolute left-0 right-0 top-[calc(100%+0.35rem)] z-50 rounded-md border border-stone-200 bg-white py-1 text-sm text-slate-800 shadow-lg" style="left: 0; right: 0; width: 100%; box-sizing: border-box; max-height: min(19rem, calc(100vh - 7rem)); overflow-y: auto; -webkit-overflow-scrolling: touch;" role="listbox" aria-label="รายการจังหวัด" hidden>
             {% for province in search_provinces %}
-              <button type="button" class="block w-full px-3 py-2 text-left hover:bg-emerald-50 hover:text-leaf" role="option" data-province-option data-province-value="{{ province }}">{{ province }}</button>
+              <button type="button" class="block w-full px-3 py-2 text-left hover:bg-emerald-50 hover:text-leaf" role="option" data-province-option data-autocomplete-option data-province-value="{{ province }}" data-autocomplete-value="{{ province }}">{{ province }}</button>
             {% endfor %}
-            <p class="hidden px-3 py-2 text-slate-500" data-province-empty>ไม่พบจังหวัดที่ตรงกัน</p>
+            <p class="hidden px-3 py-2 text-slate-500" data-province-empty data-autocomplete-empty>ไม่พบจังหวัดที่ตรงกัน</p>
           </div>
         </div>
-        <div class="relative min-w-0">
+        <div class="relative min-w-0" data-product-autocomplete data-autocomplete>
           <label class="sr-only" for="global-product-search">ค้นหาสินค้า</label>
-          <input id="global-product-search" class="h-10 w-full rounded-md border-0 bg-white px-4 pr-12 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-rice" type="search" name="q" value="{{ request.GET.q }}" placeholder="ค้นหาสินค้า">
+          <input id="global-product-search" class="h-10 w-full rounded-md border-0 bg-white px-4 pr-12 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-rice" type="search" name="q" value="{{ request.GET.q }}" placeholder="ค้นหาสินค้า" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="product-suggestions">
+          <div id="product-suggestions" class="absolute z-50 rounded-md border border-stone-200 bg-white py-1 text-sm text-slate-800 shadow-lg" style="top: calc(100% + 0.35rem); left: 0; right: 0; width: 100%; box-sizing: border-box; max-height: min(19rem, calc(100vh - 7rem)); overflow-y: auto; -webkit-overflow-scrolling: touch;" role="listbox" aria-label="รายการสินค้า" hidden>
+            {% for product_name in search_products %}
+              <button type="button" class="block w-full px-3 py-2 text-left hover:bg-emerald-50 hover:text-leaf" role="option" data-product-option data-autocomplete-option data-product-value="{{ product_name }}" data-autocomplete-value="{{ product_name }}">{{ product_name }}</button>
+            {% endfor %}
+            <p class="hidden px-3 py-2 text-slate-500" data-product-empty data-autocomplete-empty>ไม่พบสินค้าที่ตรงกัน</p>
+          </div>
           <button type="submit" class="absolute right-0 top-0 flex h-10 w-11 items-center justify-center rounded-r-md text-leaf hover:bg-emerald-50" title="ค้นหา">
             <i data-lucide="search" class="h-5 w-5" aria-hidden="true"></i><span class="icon-fallback">ค้น</span>
             <span class="sr-only">ค้นหา</span>
@@ -226,11 +232,11 @@
       window.lucide.createIcons();
     }
 
-    document.querySelectorAll("[data-province-autocomplete]").forEach(function (container) {
+    document.querySelectorAll("[data-autocomplete]").forEach(function (container) {
       const input = container.querySelector("input");
-      const suggestions = container.querySelector("#province-suggestions");
-      const options = Array.from(container.querySelectorAll("[data-province-option]"));
-      const emptyMessage = container.querySelector("[data-province-empty]");
+      const suggestions = container.querySelector("[role='listbox']");
+      const options = Array.from(container.querySelectorAll("[data-autocomplete-option]"));
+      const emptyMessage = container.querySelector("[data-autocomplete-empty]");
       let activeIndex = -1;
 
       function updateSuggestions() {
@@ -238,8 +244,9 @@
         let visibleCount = 0;
 
         options.forEach(function (option) {
-          const matches = !query || option.dataset.provinceValue.toLocaleLowerCase().includes(query);
+          const matches = !query || option.dataset.autocompleteValue.toLocaleLowerCase().includes(query);
           option.hidden = !matches;
+          option.classList.toggle('hidden', !matches);
           if (matches) visibleCount += 1;
         });
 
@@ -262,7 +269,7 @@
       }
 
       function selectOption(option) {
-        input.value = option.dataset.provinceValue;
+        input.value = option.dataset.autocompleteValue;
         closeSuggestions();
         const form = input.closest("form");
         if (form) form.requestSubmit();
