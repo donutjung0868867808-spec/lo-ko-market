@@ -54,7 +54,7 @@
           <label class="sr-only" for="province-search">ค้นหาจังหวัด</label>
           <i data-lucide="map-pin" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-leaf" aria-hidden="true"></i>
           <input id="province-search" class="h-10 w-full rounded-md border-0 bg-white pl-9 pr-3 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-rice" type="search" name="province" value="{{ request.GET.province }}" placeholder="ค้นหาจังหวัด" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="province-suggestions">
-          <div id="province-suggestions" class="absolute left-0 right-0 top-[calc(100%+0.35rem)] z-50 hidden max-h-56 overflow-y-auto rounded-md border border-stone-200 bg-white py-1 text-sm text-slate-800 shadow-lg" role="listbox" aria-label="รายการจังหวัด">
+          <div id="province-suggestions" class="absolute left-0 right-0 top-[calc(100%+0.35rem)] z-50 max-h-56 overflow-y-auto rounded-md border border-stone-200 bg-white py-1 text-sm text-slate-800 shadow-lg" role="listbox" aria-label="รายการจังหวัด" hidden>
             {% for province in search_provinces %}
               <button type="button" class="block w-full px-3 py-2 text-left hover:bg-emerald-50 hover:text-leaf" role="option" data-province-option data-province-value="{{ province }}">{{ province }}</button>
             {% endfor %}
