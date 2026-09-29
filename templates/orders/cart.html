@@ -53,6 +53,7 @@
               <a class="font-semibold text-slate-950" href="{{ item.product.get_absolute_url }}">{{ item.product.name }}</a>
               {% if item.variant %}<p class="mt-1 text-sm font-semibold text-slate-700">{{ item.variant.name }}</p>{% endif %}
               <p class="mt-1 text-sm text-slate-600">{{ item.product.seller }} · {{ item.product.community.name }}</p>
+              {% if item.pending_payment %}<p class="mt-1 text-xs font-semibold text-amber-700">กำลังรอชำระเงิน</p>{% endif %}
               <p class="mt-2 text-sm font-semibold text-leaf">฿{{ item.unit_price|floatformat:2 }} / {{ item.product.get_unit_display }}</p>
             </div>
             <div class="space-y-2">

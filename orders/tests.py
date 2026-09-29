@@ -762,6 +762,15 @@ class CartWorkflowTests(TestCase):
         self.assertTrue(order.stock_reserved)
         self.product.refresh_from_db()
         self.assertEqual(self.product.stock_quantity, Decimal("7.00"))
+        self.assertEqual(self.client.session.get("cart"), {str(self.product.pk): "3.00"})
+        self.assertEqual(
+            self.client.session["pending_cart_checkouts"],
+            {f"order:{order.pk}": [str(self.product.pk)]},
+        )
+        order.payment_status = Order.PaymentStatus.PAID
+        order.save(update_fields=["payment_status"])
+        cart_response = self.client.get(reverse("orders:cart"))
+        self.assertEqual(cart_response.context["items"], [])
         self.assertEqual(self.client.session.get("cart"), {})
         self.assertTrue(
             Notification.objects.filter(
@@ -883,7 +892,7 @@ class CartWorkflowTests(TestCase):
         self.assertEqual(order.subtotal, Decimal("50.00"))
         self.assertEqual(
             self.client.session.get("cart"),
-            {str(other_product.pk): "1.00"},
+            {str(self.product.pk): "2.00", str(other_product.pk): "1.00"},
         )
 
     def test_cart_checkout_shows_shipping_details_after_selecting_products(self):

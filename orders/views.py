@@ -35,6 +35,7 @@ from .services import (
 
 CART_SESSION_KEY = "cart"
 CHECKOUT_QUANTITY_SESSION_KEY = "checkout_quantities"
+PENDING_CART_CHECKOUTS_SESSION_KEY = "pending_cart_checkouts"
 
 
 def parse_quantity(value, default=Decimal("1.00"), step=Decimal("0.50")):
@@ -79,7 +80,59 @@ def active_variant_for_product(product, variant_id):
     return variant if variant and variant.is_active else None
 
 
+def pending_cart_line_keys(request):
+    """Keep cart lines visible until their Stripe payment has succeeded."""
+    pending_checkouts = request.session.get(PENDING_CART_CHECKOUTS_SESSION_KEY, {})
+    if not pending_checkouts or not request.user.is_authenticated:
+        return set()
+
+    order_ids = [key.split(":", 1)[1] for key in pending_checkouts if key.startswith("order:")]
+    batch_ids = [key.split(":", 1)[1] for key in pending_checkouts if key.startswith("batch:")]
+    paid_order_ids = set(
+        str(order_id)
+        for order_id in Order.objects.filter(
+            pk__in=order_ids,
+            buyer=request.user,
+            payment_status=Order.PaymentStatus.PAID,
+        ).values_list("pk", flat=True)
+    )
+    paid_batch_ids = set(
+        str(batch_id)
+        for batch_id in PaymentBatch.objects.filter(
+            pk__in=batch_ids,
+            buyer=request.user,
+            status=PaymentBatch.Status.PAID,
+        ).values_list("pk", flat=True)
+    )
+    completed_keys = {f"order:{order_id}" for order_id in paid_order_ids} | {
+        f"batch:{batch_id}" for batch_id in paid_batch_ids
+    }
+
+    if completed_keys:
+        cart = request.session.get(CART_SESSION_KEY, {})
+        for checkout_key in completed_keys:
+            for line_key in pending_checkouts.pop(checkout_key, []):
+                cart.pop(line_key, None)
+        request.session[CART_SESSION_KEY] = cart
+        request.session[PENDING_CART_CHECKOUTS_SESSION_KEY] = pending_checkouts
+        request.session.modified = True
+
+    return {
+        line_key
+        for line_keys in pending_checkouts.values()
+        for line_key in line_keys
+    }
+
+
+def remember_pending_cart_checkout(request, checkout_key, line_keys):
+    pending_checkouts = request.session.get(PENDING_CART_CHECKOUTS_SESSION_KEY, {})
+    pending_checkouts[checkout_key] = list(line_keys)
+    request.session[PENDING_CART_CHECKOUTS_SESSION_KEY] = pending_checkouts
+    request.session.modified = True
+
+
 def cart_items(request):
+    pending_line_keys = pending_cart_line_keys(request)
     cart = request.session.get(CART_SESSION_KEY, {})
     cart_lines = {
         key: parts
@@ -114,9 +167,9 @@ def cart_items(request):
             step=product.quantity_step,
         )
         available = available_quantity(product)
-        if available <= 0 or quantity <= 0:
+        if quantity <= 0 or (available <= 0 and key not in pending_line_keys):
             continue
-        if quantity > available:
+        if quantity > available and key not in pending_line_keys:
             quantity = available
         line_total = quantity * product.price
         total += line_total
@@ -129,6 +182,7 @@ def cart_items(request):
                 "quantity": quantity,
                 "unit_price": product.price,
                 "line_total": line_total,
+                "pending_payment": key in pending_line_keys,
             }
         )
 
@@ -686,11 +740,13 @@ def cart_checkout(request):
             for error in errors:
                 form.add_error(None, error)
         else:
-            for item in locked_items:
-                cart.pop(item["key"], None)
-            request.session[CART_SESSION_KEY] = cart
-            request.session.modified = True
+            selected_line_keys = [item["key"] for item in locked_items]
             if len(created_orders) == 1:
+                remember_pending_cart_checkout(
+                    request,
+                    f"order:{created_orders[0].pk}",
+                    selected_line_keys,
+                )
                 return checkout_payment_redirect(
                     created_orders[0],
                     form.cleaned_data.get("payment_method") or "card",
@@ -701,6 +757,11 @@ def cart_checkout(request):
                 currency="thb",
             )
             batch.orders.set(created_orders)
+            remember_pending_cart_checkout(
+                request,
+                f"batch:{batch.pk}",
+                selected_line_keys,
+            )
             return redirect(
                 f"{reverse('payments:batch_checkout', args=[batch.pk])}?payment_method={form.cleaned_data.get('payment_method') or 'card'}"
             )
