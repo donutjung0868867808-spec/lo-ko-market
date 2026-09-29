@@ -264,7 +264,7 @@ class CartWorkflowTests(TestCase):
             {"quantity": "2"},
         )
 
-        self.assertRedirects(response, reverse("orders:cart"))
+        self.assertRedirects(response, self.product.get_absolute_url())
         self.assertEqual(self.client.session["cart"][str(self.product.pk)], "2.00")
 
     def test_cart_and_order_keep_the_selected_product_variant(self):
@@ -366,7 +366,7 @@ class CartWorkflowTests(TestCase):
             {"quantity": "2"},
         )
 
-        self.assertRedirects(response, reverse("orders:cart"))
+        self.assertRedirects(response, self.product.get_absolute_url())
         self.assertEqual(self.client.session["cart"][str(self.product.pk)], "2.00")
 
     def test_seller_cannot_add_own_product_to_cart(self):
@@ -793,6 +793,23 @@ class CartWorkflowTests(TestCase):
         cart_response = self.client.get(reverse("orders:cart"))
         self.assertEqual(len(cart_response.context["cart_groups"]), 2)
         self.assertContains(cart_response, other_seller.username)
+
+        preview = self.client.get(
+            reverse("orders:cart_checkout"),
+            {
+                "cart_selection": "1",
+                "selected_items": [str(self.product.pk), str(other_product.pk)],
+            },
+        )
+        self.assertEqual(preview.status_code, 200)
+        checkout_groups = preview.context["checkout_groups"]
+        self.assertEqual(len(checkout_groups), 2)
+        self.assertEqual(
+            sum((group["shipping_fee"] for group in checkout_groups), Decimal("0.00")),
+            preview.context["preview_shipping"],
+        )
+        self.assertContains(preview, "ค่าจัดส่งรวม")
+        self.assertContains(preview, other_seller.username)
 
         response = self.client.post(
             reverse("orders:cart_checkout"),

@@ -52,17 +52,18 @@
         <div class="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 class="text-lg font-semibold text-slate-950">ตัวเลือกสินค้า</h2>
-            <p class="mt-1 text-sm text-slate-600">เพิ่มตัวเลือก เช่น สีเหลือง สีม่วง หรือขนาดใหญ่ พร้อมรูปกำกับแต่ละตัวเลือกได้</p>
+            <p class="mt-1 text-sm text-slate-600">เพิ่มตัวเลือก เช่น สีเหลือง สีม่วง หรือขนาดใหญ่ พร้อมรูปกำกับและจำนวนคงเหลือแยกแต่ละตัวเลือกได้</p>
           </div>
           <button type="button" data-add-variant class="inline-flex h-10 items-center gap-2 rounded-md border border-leaf px-3 text-sm font-semibold text-leaf hover:bg-emerald-50"><i data-lucide="plus" class="h-4 w-4" aria-hidden="true"></i>เพิ่มตัวเลือก</button>
         </div>
         {% if variant_formset.non_form_errors %}<div class="mt-4 text-sm text-red-700">{{ variant_formset.non_form_errors }}</div>{% endif %}
         <div class="mt-5 space-y-3" data-variant-forms>
           {% for variant_form in variant_formset %}
-            <div data-variant-form class="grid gap-3 rounded-md border border-stone-200 bg-stone-50 p-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto] sm:items-end">
+            <div data-variant-form class="grid gap-3 rounded-md border border-stone-200 bg-stone-50 p-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(9rem,0.55fr)_auto_auto] sm:items-end">
               {% for hidden in variant_form.hidden_fields %}{{ hidden }}{% endfor %}
               <div><label class="text-sm font-semibold text-slate-700" for="{{ variant_form.name.id_for_label }}">{{ variant_form.name.label }}</label><div class="mt-1.5">{{ variant_form.name }}</div>{% for error in variant_form.name.errors %}<p class="mt-1 text-sm text-red-700">{{ error }}</p>{% endfor %}</div>
               <div><label class="text-sm font-semibold text-slate-700" for="{{ variant_form.image.id_for_label }}">{{ variant_form.image.label }}</label><div class="mt-1.5">{{ variant_form.image }}</div>{% for error in variant_form.image.errors %}<p class="mt-1 text-sm text-red-700">{{ error }}</p>{% endfor %}</div>
+              <div><label class="text-sm font-semibold text-slate-700" for="{{ variant_form.stock_quantity.id_for_label }}">{{ variant_form.stock_quantity.label }}</label><div class="mt-1.5">{{ variant_form.stock_quantity }}</div>{% for error in variant_form.stock_quantity.errors %}<p class="mt-1 text-sm text-red-700">{{ error }}</p>{% endfor %}</div>
               <label class="flex min-h-10 items-center gap-2 text-sm font-medium text-slate-700">{{ variant_form.is_active }} {{ variant_form.is_active.label }}</label>
               <div class="flex min-h-10 items-center">{% if variant_form.DELETE %}{{ variant_form.DELETE.as_hidden }}{% endif %}<button type="button" data-remove-variant class="inline-flex h-9 items-center gap-1.5 rounded-md border border-red-200 px-3 text-sm font-semibold text-red-700 hover:bg-red-50" title="ลบตัวเลือก"><i data-lucide="trash-2" class="h-4 w-4" aria-hidden="true"></i>ลบตัวเลือก</button></div>
             </div>
@@ -70,10 +71,11 @@
         </div>
         <template data-variant-empty-form>
           {% with variant_form=variant_formset.empty_form %}
-            <div data-variant-form class="grid gap-3 rounded-md border border-stone-200 bg-stone-50 p-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto] sm:items-end">
+            <div data-variant-form class="grid gap-3 rounded-md border border-stone-200 bg-stone-50 p-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(9rem,0.55fr)_auto_auto] sm:items-end">
               {% for hidden in variant_form.hidden_fields %}{{ hidden }}{% endfor %}
               <div><label class="text-sm font-semibold text-slate-700" for="{{ variant_form.name.id_for_label }}">{{ variant_form.name.label }}</label><div class="mt-1.5">{{ variant_form.name }}</div></div>
               <div><label class="text-sm font-semibold text-slate-700" for="{{ variant_form.image.id_for_label }}">{{ variant_form.image.label }}</label><div class="mt-1.5">{{ variant_form.image }}</div></div>
+              <div><label class="text-sm font-semibold text-slate-700" for="{{ variant_form.stock_quantity.id_for_label }}">{{ variant_form.stock_quantity.label }}</label><div class="mt-1.5">{{ variant_form.stock_quantity }}</div></div>
               <label class="flex min-h-10 items-center gap-2 text-sm font-medium text-slate-700">{{ variant_form.is_active }} {{ variant_form.is_active.label }}</label>
               <div class="flex min-h-10 items-center">{% if variant_form.DELETE %}{{ variant_form.DELETE.as_hidden }}{% endif %}<button type="button" data-remove-variant class="inline-flex h-9 items-center gap-1.5 rounded-md border border-red-200 px-3 text-sm font-semibold text-red-700 hover:bg-red-50" title="ลบตัวเลือก"><i data-lucide="trash-2" class="h-4 w-4" aria-hidden="true"></i>ลบตัวเลือก</button></div>
             </div>

@@ -98,7 +98,7 @@
               <p id="product-variant-help" class="mt-1 text-sm text-slate-500">กรุณาเลือกตัวเลือกก่อนซื้อ</p>
               <div class="mt-3 flex flex-wrap gap-2" role="group" aria-describedby="product-variant-help">
                 {% for variant in product_variants %}
-                  <button type="button" data-product-variant data-variant-id="{{ variant.id }}" data-variant-name="{{ variant.name }}" {% if variant.image %}data-variant-image="{{ variant.image.url }}"{% endif %} class="inline-flex min-h-11 items-center gap-2 rounded-md border border-stone-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:border-leaf hover:text-leaf" aria-pressed="false">
+                  <button type="button" data-product-variant data-variant-id="{{ variant.id }}" data-variant-name="{{ variant.name }}" {% if variant.stock_quantity is not None %}data-variant-stock="{{ variant.stock_quantity|floatformat:"-2" }}"{% endif %} {% if variant.image %}data-variant-image="{{ variant.image.url }}"{% endif %} class="inline-flex min-h-11 items-center gap-2 rounded-md border border-stone-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:border-leaf hover:text-leaf" aria-pressed="false">
                     {% if variant.image %}<img src="{{ variant.image.url }}" alt="" class="h-7 w-7 rounded object-cover">{% else %}<i data-lucide="tag" class="h-4 w-4" aria-hidden="true"></i>{% endif %}
                     {{ variant.name }}
                   </button>
@@ -110,7 +110,7 @@
             <label class="text-sm font-semibold text-slate-700" for="product-quantity">จำนวน</label>
             <div class="grid h-12 grid-cols-[46px_96px_46px] overflow-hidden rounded-md border border-stone-300 bg-white">
               <button id="quantity-minus" type="button" class="grid place-items-center border-r border-stone-300 text-slate-700 hover:bg-stone-50" title="ลดจำนวน" aria-label="ลดจำนวน"><i data-lucide="minus" class="h-4 w-4" aria-hidden="true"></i></button>
-              <input id="product-quantity" name="quantity" type="number" min="{{ product.minimum_order_quantity|floatformat:'-2' }}" max="{{ product.orderable_quantity|floatformat:'-2' }}" step="{{ product.quantity_step|floatformat:'-2' }}" value="{{ product.minimum_order_quantity|floatformat:'-2' }}" inputmode="decimal" class="w-full border-0 bg-white px-2 text-center text-sm font-semibold outline-none" aria-describedby="quantity-help">
+              <input id="product-quantity" name="quantity" type="number" min="{{ product.minimum_order_quantity|floatformat:'-2' }}" max="{{ product.orderable_quantity|floatformat:'-2' }}" data-product-stock-max="{{ product.orderable_quantity|floatformat:'-2' }}" step="{{ product.quantity_step|floatformat:'-2' }}" value="{{ product.minimum_order_quantity|floatformat:'-2' }}" inputmode="decimal" class="w-full border-0 bg-white px-2 text-center text-sm font-semibold outline-none" aria-describedby="quantity-help">
               <button id="quantity-plus" type="button" class="grid place-items-center border-l border-stone-300 text-slate-700 hover:bg-stone-50" title="เพิ่มจำนวน" aria-label="เพิ่มจำนวน"><i data-lucide="plus" class="h-4 w-4" aria-hidden="true"></i></button>
             </div>
           </div>
@@ -418,7 +418,11 @@
           choice.classList.toggle("text-leaf", selected);
           choice.classList.toggle("border-stone-300", !selected);
         });
-        if (variantHelp) variantHelp.textContent = "เลือก: " + button.dataset.variantName;
+        if (variantHelp) {
+          const stock = button.dataset.variantStock;
+          variantHelp.textContent = "เลือก: " + button.dataset.variantName + (stock !== undefined ? " · เหลือ " + stock + " {{ product.get_unit_display|escapejs }}" : "");
+          if (quantity) quantity.max = stock !== undefined ? stock : quantity.dataset.productStockMax;
+        }
         const image = button.dataset.variantImage;
         const mainImage = document.getElementById("main-product-image");
         if (image && mainImage) {
@@ -445,6 +449,7 @@
 {% endblock %}
 
 {% block extra_head %}
+
 <script>
   document.addEventListener("DOMContentLoaded", function () {
     const inputs = Array.from(document.querySelectorAll("[data-review-media-input], [data-review-camera-input]"));

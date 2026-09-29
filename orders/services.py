@@ -9,7 +9,7 @@ from django.utils import timezone
 
 from accounts.models import AuditEvent
 from accounts.services import notify_user
-from catalog.models import Product, StockMovement
+from catalog.models import Product, ProductVariant, StockMovement
 from catalog.services import notify_low_stock
 
 from .models import CouponRedemption, Order, OrderStatusHistory, Shipment, ShippingRate
@@ -78,6 +78,7 @@ def reserve_order_stock(order):
         raise ValidationError("คำสั่งซื้อนี้ชำระเงินแล้ว")
 
     locked_products = {}
+    locked_variants = {}
     for item in order.items.all():
         product = locked_products.get(item.product_id)
         if product is None:
@@ -85,6 +86,15 @@ def reserve_order_stock(order):
             locked_products[item.product_id] = product
         if product.status != Product.Status.ACTIVE or product.stock_quantity < item.quantity:
             raise ValidationError(f"สินค้า {product.name} มีจำนวนไม่เพียงพอ")
+        if item.variant_id:
+            variant = locked_variants.get(item.variant_id)
+            if variant is None:
+                variant = ProductVariant.objects.select_for_update().get(pk=item.variant_id)
+                locked_variants[item.variant_id] = variant
+            if not variant.is_active or (
+                variant.stock_quantity is not None and variant.stock_quantity < item.quantity
+            ):
+                raise ValidationError(f"ตัวเลือก {variant.name} ของ {product.name} มีจำนวนไม่เพียงพอ")
         if item.quantity < product.minimum_order_quantity:
             raise ValidationError(
                 f"สินค้า {product.name} ต้องสั่งอย่างน้อย {product.minimum_order_quantity} {product.get_unit_display()}"
@@ -101,6 +111,11 @@ def reserve_order_stock(order):
         product = locked_products[item.product_id]
         product.stock_quantity -= item.quantity
         product.save(update_fields=["stock_quantity", "updated_at"])
+        if item.variant_id:
+            variant = locked_variants[item.variant_id]
+            if variant.stock_quantity is not None:
+                variant.stock_quantity -= item.quantity
+                variant.save(update_fields=["stock_quantity", "updated_at"])
         transaction.on_commit(lambda product_id=product.pk: notify_low_stock(product_id))
         StockMovement.objects.create(
             product=product,
@@ -134,6 +149,11 @@ def release_order_stock(order, note="คืนสต็อกจากคำส�
         product = Product.objects.select_for_update().get(pk=item.product_id)
         product.stock_quantity += item.quantity
         product.save(update_fields=["stock_quantity", "updated_at"])
+        if item.variant_id:
+            variant = ProductVariant.objects.select_for_update().get(pk=item.variant_id)
+            if variant.stock_quantity is not None:
+                variant.stock_quantity += item.quantity
+                variant.save(update_fields=["stock_quantity", "updated_at"])
         transaction.on_commit(lambda product_id=product.pk: notify_low_stock(product_id))
         StockMovement.objects.create(
             product=product,
@@ -158,6 +178,11 @@ def restock_refunded_order(order, changed_by=None):
             product = Product.objects.select_for_update().get(pk=item.product_id)
             product.stock_quantity += item.quantity
             product.save(update_fields=["stock_quantity", "updated_at"])
+            if item.variant_id:
+                variant = ProductVariant.objects.select_for_update().get(pk=item.variant_id)
+                if variant.stock_quantity is not None:
+                    variant.stock_quantity += item.quantity
+                    variant.save(update_fields=["stock_quantity", "updated_at"])
             StockMovement.objects.create(
                 product=product,
                 order=order,

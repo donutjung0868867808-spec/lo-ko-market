@@ -53,10 +53,13 @@ def parse_quantity(value, default=Decimal("1.00"), step=Decimal("0.50")):
     return quantity.quantize(Decimal("0.01"))
 
 
-def available_quantity(product):
-    """Return the largest orderable quantity that matches the product unit."""
+def available_quantity(product, variant=None):
+    """Return the largest orderable quantity for a product and optional variant."""
+    quantity = product.orderable_quantity
+    if variant is not None and variant.stock_quantity is not None:
+        quantity = min(quantity, variant.stock_quantity)
     step = product.quantity_step
-    return (product.orderable_quantity / step).to_integral_value(rounding=ROUND_FLOOR) * step
+    return (quantity / step).to_integral_value(rounding=ROUND_FLOOR) * step
 
 
 def cart_line_key(product_id, variant_id=None):
@@ -166,7 +169,7 @@ def cart_items(request):
             default=product.minimum_order_quantity,
             step=product.quantity_step,
         )
-        available = available_quantity(product)
+        available = available_quantity(product, variant)
         if quantity <= 0 or (available <= 0 and key not in pending_line_keys):
             continue
         if quantity > available and key not in pending_line_keys:
@@ -204,6 +207,38 @@ def cart_groups(items):
         )
         group["items"].append(item)
         group["total"] += item["line_total"]
+    return list(groups.values())
+
+def checkout_groups(items, province):
+    groups = {}
+    for item in items:
+        product = item["product"]
+        key = (product.seller_id, product.community_id)
+        group = groups.setdefault(
+            key,
+            {
+                "seller": product.seller,
+                "store_name": (
+                    getattr(getattr(product.seller, "farmer_profile", None), "farm_name", "")
+                    or product.seller.display_name
+                    or product.seller.username
+                ),
+                "items": [],
+                "subtotal": Decimal("0.00"),
+                "weight_grams": Decimal("0.00"),
+            },
+        )
+        group["items"].append(item)
+        group["subtotal"] += item["line_total"]
+        group["weight_grams"] += Decimal(product.weight_grams or 0) * Decimal(item["quantity"])
+
+    for group in groups.values():
+        group["shipping_fee"] = shipping_fee_for_values(
+            province,
+            group["subtotal"],
+            group["weight_grams"],
+        )
+        group["total"] = group["subtotal"] + group["shipping_fee"]
     return list(groups.values())
 def scoped_orders(user):
     orders = Order.objects.select_related("buyer", "seller", "community").prefetch_related("items")
@@ -435,7 +470,7 @@ def cart_add(request, product_id):
         line_key = cart_line_key(product.pk, variant.pk if variant else None)
         current_quantity = parse_quantity(cart.get(line_key), default=Decimal("0.00"), step=product.quantity_step)
         next_quantity = current_quantity + quantity
-        available = available_quantity(product)
+        available = available_quantity(product, variant)
         if next_quantity > available:
             next_quantity = available
             messages.info(request, "จำนวนสินค้าในตะกร้าถูกปรับตามสต็อกที่มี")
@@ -443,7 +478,7 @@ def cart_add(request, product_id):
         request.session[CART_SESSION_KEY] = cart
         request.session.modified = True
         messages.success(request, "เพิ่มสินค้าในตะกร้าแล้ว")
-        return redirect("orders:cart")
+        return redirect(product)
     return redirect(product)
 
 
@@ -469,7 +504,7 @@ def order_reorder(request, pk):
         if (
             product.status != Product.Status.ACTIVE
             or product.seller_id == request.user.id
-            or available_quantity(product) <= 0
+            or available_quantity(product, variant) <= 0
             or (product.variants.exists() and variant is None)
         ):
             unavailable_count += 1
@@ -487,7 +522,7 @@ def order_reorder(request, pk):
             default=Decimal("0.00"),
             step=product.quantity_step,
         )
-        next_quantity = min(current_quantity + quantity, available_quantity(product))
+        next_quantity = min(current_quantity + quantity, available_quantity(product, variant))
         if next_quantity <= current_quantity:
             unavailable_count += 1
             continue
@@ -528,7 +563,7 @@ def cart_update(request, product_id):
             cart.pop(line_key, None)
             messages.info(request, "นำสินค้าออกจากตะกร้าแล้ว")
         else:
-            available = available_quantity(product)
+            available = available_quantity(product, variant)
             if quantity > available:
                 quantity = available
                 messages.info(request, "จำนวนสินค้าในตะกร้าถูกปรับตามสต็อกที่มี")
@@ -581,7 +616,7 @@ def cart_checkout(request):
                 default=item["quantity"],
                 step=product.quantity_step,
             )
-            quantity = min(quantity, available_quantity(product))
+            quantity = min(quantity, available_quantity(product, item["variant"]))
             if quantity <= 0:
                 cart.pop(line_key, None)
             else:
@@ -603,9 +638,13 @@ def cart_checkout(request):
 
     delivery_address = default_delivery_address(request.user)
     form = CartCheckoutForm(request.POST or None, initial=buyer_initial(request.user))
-    preview_shipping = preview_shipping_fee(
+    checkout_groups_by_store = checkout_groups(
         selected_items,
         delivery_address.province if delivery_address else "",
+    )
+    preview_shipping = sum(
+        (group["shipping_fee"] for group in checkout_groups_by_store),
+        Decimal("0.00"),
     )
     preview_discount = Decimal("0.00")
     preview_grand_total = total + preview_shipping - preview_discount
@@ -622,6 +661,7 @@ def cart_checkout(request):
                 "form": form,
                 "delivery_address": delivery_address,
                 "preview_shipping": preview_shipping,
+            "checkout_groups": checkout_groups_by_store,
                 "preview_discount": preview_discount,
                 "preview_grand_total": preview_grand_total,
             },
@@ -663,7 +703,7 @@ def cart_checkout(request):
                 )
                 if quantity <= 0:
                     continue
-                if quantity > available_quantity(product):
+                if quantity > available_quantity(product, cart_item["variant"]):
                     errors.append(f"{product.name} มีสินค้าไม่พอ")
                     continue
                 if quantity < product.minimum_order_quantity:
@@ -765,6 +805,7 @@ def cart_checkout(request):
             "form": form,
             "delivery_address": delivery_address,
             "preview_shipping": preview_shipping,
+            "checkout_groups": checkout_groups_by_store,
             "preview_discount": preview_discount,
             "preview_grand_total": preview_grand_total,
         },
@@ -806,7 +847,7 @@ def checkout(request, product_id):
             default=product.minimum_order_quantity,
             step=product.quantity_step,
         )
-        selected_quantity = min(selected_quantity, available_quantity(product))
+        selected_quantity = min(selected_quantity, available_quantity(product, variant))
         checkout_quantities[checkout_key] = str(selected_quantity)
         request.session[CHECKOUT_QUANTITY_SESSION_KEY] = checkout_quantities
         request.session.modified = True
@@ -844,7 +885,7 @@ def checkout(request, product_id):
             variant = active_variant_for_product(product, variant.pk if variant else None)
             if product.variants.exists() and variant is None:
                 form.add_error(None, "ตัวเลือกสินค้านี้ไม่พร้อมจำหน่ายแล้ว")
-            if quantity > available_quantity(product):
+            if quantity > available_quantity(product, variant):
                 form.add_error("quantity", "จำนวนสินค้าไม่พอ")
             elif not form.errors:
                 order = Order.objects.create(

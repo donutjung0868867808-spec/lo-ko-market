@@ -64,44 +64,55 @@
         <div class="border-b border-stone-100 px-5 py-4">
           <h2 class="font-semibold text-slate-950">รายการที่เลือก</h2>
         </div>
-        <div class="divide-y divide-stone-100">
-          {% for item in items %}
-            <article class="flex gap-4 p-5">
-              <a class="h-24 w-24 shrink-0 overflow-hidden rounded-md bg-stone-100" href="{{ item.product.get_absolute_url }}">
-                {% if item.variant and item.variant.image %}
-                  <img class="h-full w-full object-cover" src="{{ item.variant.image.url }}" alt="{{ item.product.name }} - {{ item.variant.name }}">
-                {% elif item.product.image %}
-                  <img class="h-full w-full object-cover" src="{{ item.product.image.url }}" alt="{{ item.product.name }}">
-                {% else %}
-                  <img class="h-full w-full object-cover" src="{% static 'images/product-placeholder.svg' %}" alt="{{ item.product.name }}">
-                {% endif %}
-              </a>
-              <div class="min-w-0 flex-1">
-                <p class="text-sm text-slate-600">{{ item.product.seller }}</p>
-                <a class="mt-1 block font-semibold text-slate-950" href="{{ item.product.get_absolute_url }}">{{ item.product.name }}</a>
-                {% if item.variant %}<p class="mt-1 text-sm font-semibold text-slate-700">{{ item.variant.name }}</p>{% endif %}
-                <p class="mt-2 text-sm text-slate-600">{{ item.quantity|floatformat:'-2' }} {{ item.product.get_unit_display }}</p>
+        <div class="divide-y divide-stone-200">
+          {% for group in checkout_groups %}
+            <section>
+              <header class="flex items-center gap-2 bg-stone-50 px-5 py-3">
+                <i data-lucide="store" class="h-4 w-4 text-leaf" aria-hidden="true"></i>
+                <h3 class="font-semibold text-slate-950">{{ group.store_name }}</h3>
+              </header>
+              <div class="divide-y divide-stone-100">
+                {% for item in group.items %}
+                  <article class="flex gap-4 p-5">
+                    <a class="h-24 w-24 shrink-0 overflow-hidden rounded-md bg-stone-100" href="{{ item.product.get_absolute_url }}">
+                      {% if item.variant and item.variant.image %}<img class="h-full w-full object-cover" src="{{ item.variant.image.url }}" alt="{{ item.product.name }} - {{ item.variant.name }}">
+                      {% elif item.product.image %}<img class="h-full w-full object-cover" src="{{ item.product.image.url }}" alt="{{ item.product.name }}">
+                      {% else %}<img class="h-full w-full object-cover" src="{% static 'images/product-placeholder.svg' %}" alt="{{ item.product.name }}">{% endif %}
+                    </a>
+                    <div class="min-w-0 flex-1">
+                      <a class="block font-semibold text-slate-950" href="{{ item.product.get_absolute_url }}">{{ item.product.name }}</a>
+                      {% if item.variant %}<p class="mt-1 text-sm font-semibold text-slate-700">{{ item.variant.name }}</p>{% endif %}
+                      <p class="mt-2 text-sm text-slate-600">{{ item.quantity|floatformat:'-2' }} {{ item.product.get_unit_display }}</p>
+                    </div>
+                    <p class="shrink-0 font-semibold text-leaf">฿{{ item.line_total|floatformat:2 }}</p>
+                  </article>
+                {% endfor %}
               </div>
-              <p class="shrink-0 font-semibold text-leaf">฿{{ item.line_total|floatformat:2 }}</p>
-            </article>
+              <dl class="space-y-2 border-t border-stone-100 bg-stone-50/60 px-5 py-4 text-sm">
+                <div class="flex justify-between"><dt class="text-slate-600">ค่าสินค้า</dt><dd class="font-medium text-slate-950">฿{{ group.subtotal|floatformat:2 }}</dd></div>
+                <div class="flex justify-between"><dt class="text-slate-600">ค่าจัดส่ง {{ group.store_name }}</dt><dd class="font-medium text-slate-950">฿{{ group.shipping_fee|floatformat:2 }}</dd></div>
+                <div class="flex justify-between border-t border-stone-200 pt-2"><dt class="font-semibold text-slate-950">รวมร้านนี้</dt><dd class="font-semibold text-leaf">฿{{ group.total|floatformat:2 }}</dd></div>
+              </dl>
+            </section>
           {% endfor %}
         </div>
       </section>
-
       <section class="rounded-md border border-stone-200 bg-white p-5 shadow-sm">
         <div class="mb-4 flex items-center gap-2">
           <i data-lucide="truck" class="h-5 w-5 text-leaf" aria-hidden="true"></i>
           <h2 class="font-semibold text-slate-950">ตัวเลือกการจัดส่ง</h2>
         </div>
-        <div class="flex items-center gap-3 rounded-md border border-emerald-300 bg-emerald-50/60 p-4">
-          <i data-lucide="truck" class="h-5 w-5 shrink-0 text-leaf" aria-hidden="true"></i>
-          <div class="min-w-0 flex-1">
-            <p class="font-semibold text-slate-900">จัดส่งมาตรฐาน</p>
-            <p class="mt-0.5 text-sm text-slate-600">ค่าจัดส่งจะคำนวณตามที่อยู่และแยกตามผู้ขายก่อนชำระเงิน</p>
-          </div>
-          <p class="shrink-0 font-semibold text-slate-950">฿{{ preview_shipping|floatformat:2 }}</p>
-          <i data-lucide="check" class="h-5 w-5 shrink-0 text-leaf" aria-hidden="true"></i>
+        <div class="space-y-3">
+          {% for group in checkout_groups %}
+            <div class="flex items-center gap-3 rounded-md border border-emerald-300 bg-emerald-50/60 p-4">
+              <i data-lucide="truck" class="h-5 w-5 shrink-0 text-leaf" aria-hidden="true"></i>
+              <div class="min-w-0 flex-1"><p class="font-semibold text-slate-900">จัดส่งมาตรฐาน · {{ group.store_name }}</p><p class="mt-0.5 text-sm text-slate-600">ค่าส่งสำหรับสินค้าจากร้านนี้</p></div>
+              <p class="shrink-0 font-semibold text-slate-950">฿{{ group.shipping_fee|floatformat:2 }}</p>
+              <i data-lucide="check" class="h-5 w-5 shrink-0 text-leaf" aria-hidden="true"></i>
+            </div>
+          {% endfor %}
         </div>
+        <div class="mt-4 flex justify-between border-t border-stone-100 pt-4 text-sm"><span class="font-semibold text-slate-900">ค่าจัดส่งรวม</span><span class="font-semibold text-slate-950">฿{{ preview_shipping|floatformat:2 }}</span></div>
         <div class="mt-4 border-t border-stone-100 pt-4">
           <label class="text-sm font-semibold text-slate-700" for="{{ form.note.id_for_label }}">{{ form.note.label }}</label>
           <div class="mt-2">{{ form.note }}</div>
@@ -142,7 +153,7 @@
       </section>
     </div>
 
-    <aside class="h-fit rounded-md border border-stone-200 bg-white p-5 shadow-soft">
+    <aside class="h-fit rounded-md border border-stone-200 bg-white p-5 shadow-soft lg:sticky lg:top-5">
       <div class="flex items-center justify-between gap-4">
         <p class="font-semibold text-slate-950">ยอดชำระทั้งหมด</p>
         <p class="text-2xl font-semibold text-leaf">฿{{ preview_grand_total|floatformat:2 }}</p>

@@ -420,6 +420,15 @@ class ProductVariant(models.Model):
         blank=True,
         validators=[validate_image_file, validate_image_size],
     )
+    stock_quantity = models.DecimalField(
+        "จำนวนคงเหลือของตัวเลือก",
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+                validators=[MinValueValidator(0)],
+        help_text="ระบุจำนวนแยกสำหรับตัวเลือกนี้",
+    )
     is_active = models.BooleanField("เปิดให้เลือก", default=True)
     sort_order = models.PositiveSmallIntegerField("ลำดับ", default=0)
     created_at = models.DateTimeField(auto_now_add=True)

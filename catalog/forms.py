@@ -271,10 +271,11 @@ class ProductVariantForm(StyledFormMixin, forms.ModelForm):
 
     class Meta:
         model = ProductVariant
-        fields = ["name", "image", "is_active", "sort_order"]
+        fields = ["name", "image", "stock_quantity", "is_active", "sort_order"]
         labels = {
             "name": "ชื่อตัวเลือก",
             "image": "รูปกำกับ",
+            "stock_quantity": "จำนวนคงเหลือ",
             "is_active": "เปิดให้เลือก",
             "sort_order": "ลำดับ",
         }
@@ -283,6 +284,7 @@ class ProductVariantForm(StyledFormMixin, forms.ModelForm):
             "image": forms.ClearableFileInput(
                 attrs={"accept": "image/jpeg,image/png,image/webp"}
             ),
+            "stock_quantity": forms.NumberInput(attrs={"min": "0", "step": "0.01", "placeholder": "เช่น 10"}),
             "sort_order": forms.NumberInput(attrs={"min": "0"}),
         }
 
@@ -308,6 +310,7 @@ class ProductSizeChartRowForm(StyledFormMixin, forms.ModelForm):
             "height_cm": forms.NumberInput(attrs={"min": "0", "step": "0.01"}),
             "weight_grams": forms.NumberInput(attrs={"min": "0"}),
             "note": forms.TextInput(attrs={"placeholder": "หมายเหตุ (ถ้ามี)"}),
+
             "sort_order": forms.NumberInput(attrs={"min": "0"}),
         }
 
