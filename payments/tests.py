@@ -108,7 +108,7 @@ class PaymentWorkflowTests(TestCase):
         )
         self.client.force_login(self.buyer)
 
-        response = self.client.post(reverse("payments:complete_batch_checkout", args=[batch.pk]))
+        response = self.client.get(reverse("payments:batch_checkout", args=[batch.pk]))
 
         self.assertRedirects(response, "https://checkout.stripe.test/cs_batch", fetch_redirect_response=False)
         batch.refresh_from_db()

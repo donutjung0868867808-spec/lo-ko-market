@@ -320,21 +320,14 @@ def batch_checkout(request, pk):
     if len(orders) < 2 or any(order.payment_status == Order.PaymentStatus.PAID or order.is_expired for order in orders):
         messages.error(request, "ชุดคำสั่งซื้อนี้ไม่พร้อมชำระเงินรวม")
         return redirect("orders:order_list")
-    payment_method = request.GET.get("payment_method", "card")
-    if payment_method not in {"card", "promptpay"}:
-        payment_method = "card"
-    return render(
-        request,
-        "payments/batch_checkout.html",
-        {"batch": batch, "orders": orders, "payment_method": payment_method},
-    )
+    return complete_batch_checkout(request, pk)
 
 
 @login_required
-@require_POST
+@require_http_methods(["GET", "POST"])
 def complete_batch_checkout(request, pk):
     batch = get_object_or_404(PaymentBatch.objects.prefetch_related("orders"), pk=pk, buyer=request.user)
-    payment_method = request.POST.get("payment_method", "card")
+    payment_method = request.POST.get("payment_method") or request.GET.get("payment_method", "card")
     if payment_method not in {"card", "promptpay"}:
         payment_method = "card"
 
@@ -400,7 +393,7 @@ def complete_batch_checkout(request, pk):
             except Exception:
                 logger.exception("Unable to create Stripe checkout for payment batch %s", batch.pk)
                 messages.error(request, "ไม่สามารถเปิดหน้าชำระเงิน Stripe ได้ กรุณาลองใหม่")
-                return redirect("payments:batch_checkout", pk=batch.pk)
+                return redirect("orders:order_list")
 
             batch.status = PaymentBatch.Status.PROCESSING
             batch.checkout_session_id = session.id
@@ -418,7 +411,7 @@ def complete_batch_checkout(request, pk):
 
         if settings.PAYMENT_MODE not in {"demo", "test"}:
             messages.error(request, "ระบบชำระเงินยังไม่พร้อมใช้งาน กรุณาติดต่อผู้ดูแลระบบ")
-            return redirect("payments:batch_checkout", pk=batch.pk)
+            return redirect("orders:order_list")
 
         if not batch.checkout_session_id:
             batch.checkout_session_id = f"demo-batch-{batch.checkout_attempt_id.hex}"
