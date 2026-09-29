@@ -597,6 +597,9 @@ class ProductCatalogTests(TestCase):
         self.assertContains(response, 'data-province-autocomplete')
         self.assertContains(response, 'data-province-value="เชียงใหม่"')
         self.assertContains(response, 'data-province-value="กรุงเทพมหานคร"')
+        self.assertContains(response, 'suggestions.classList.remove("hidden")')
+        self.assertContains(response, 'form.requestSubmit()')
+
 class ProductReviewTests(TestCase):
     def setUp(self):
         self.community = Community.objects.create(

@@ -244,13 +244,16 @@
         });
 
         emptyMessage.hidden = visibleCount > 0;
+        emptyMessage.classList.toggle("hidden", visibleCount > 0);
         suggestions.hidden = false;
+        suggestions.classList.remove("hidden");
         input.setAttribute("aria-expanded", "true");
         activeIndex = -1;
       }
 
       function closeSuggestions() {
         suggestions.hidden = true;
+        suggestions.classList.add("hidden");
         input.setAttribute("aria-expanded", "false");
         activeIndex = -1;
         options.forEach(function (option) {
@@ -261,7 +264,8 @@
       function selectOption(option) {
         input.value = option.dataset.provinceValue;
         closeSuggestions();
-        input.focus();
+        const form = input.closest("form");
+        if (form) form.requestSubmit();
       }
 
       function highlightOption(index) {
