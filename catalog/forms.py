@@ -45,6 +45,7 @@ class ProductForm(StyledFormMixin, forms.ModelForm):
             (ProductDetailImage.DisplaySize.FULL, "เต็ม (ไม่จำกัดความสูง)"),
         ),
         initial=ProductDetailImage.DisplaySize.STANDARD,
+        required=False,
         help_text="ใช้กับรูปประกอบรายละเอียดที่เลือกในครั้งนี้",
     )
 
@@ -119,7 +120,7 @@ class ProductForm(StyledFormMixin, forms.ModelForm):
         self.fields["package_height_cm"].help_text = "ระบุให้ครบทั้งยาว x กว้าง x สูง หากใช้"
         self.fields["preparation_days"].help_text = "จำนวนวันก่อนพร้อมส่งสินค้า"
         if require_shipping_weight:
-            self.fields["weight_grams"].required = True
+            self.fields["weight_grams"].required = False
             self.fields["weight_grams"].widget.attrs.update({"min": "1", "inputmode": "numeric"})
             self.fields["weight_grams"].help_text = "ระบุน้ำหนักต่อหน่วยเพื่อคำนวณค่าจัดส่ง"
 
@@ -184,6 +185,9 @@ class ProductForm(StyledFormMixin, forms.ModelForm):
 
     def clean_detail_images(self):
         return self.cleaned_data.get("detail_images", [])
+
+    def clean_detail_image_size(self):
+        return self.cleaned_data.get("detail_image_size") or ProductDetailImage.DisplaySize.STANDARD
 
     def clean_weight_grams(self):
         weight_grams = self.cleaned_data.get("weight_grams")

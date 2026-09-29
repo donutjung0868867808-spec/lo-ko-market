@@ -166,6 +166,9 @@ def product_list(request):
         status=Product.Status.ACTIVE,
         image__isnull=False,
     ).exclude(image="").only("id", "category_id", "name", "image").order_by("-created_at")
+    province = request.GET.get("province", "").strip()
+    if province:
+        category_products = category_products.filter(community__province__icontains=province)
     categories = Category.objects.filter(is_active=True).prefetch_related(
         Prefetch("products", queryset=category_products, to_attr="display_products")
     )

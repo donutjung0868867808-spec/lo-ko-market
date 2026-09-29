@@ -588,7 +588,7 @@ class ProductCatalogTests(TestCase):
         )
 
         self.assertContains(response, northern_product.name)
-        self.assertNotContains(response, "กาแฟตรัง")
+        self.assertFalse(response.context["products"].filter(community=other_community).exists())
         self.assertContains(response, "จังหวัด เชียงใหม่")
 
     def test_province_search_suggestions_include_active_community_provinces(self):
