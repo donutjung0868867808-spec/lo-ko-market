@@ -18,8 +18,19 @@
     .star-rating-picker-button:focus-visible { outline: 2px solid #2f6f1b; outline-offset: 2px; }
     .rating-star-glyph { display: inline-block; color: transparent; font-size: 2rem; line-height: 1; background: linear-gradient(90deg, #fbbf24 0 var(--star-fill), #d1d5db var(--star-fill) 100%); -webkit-background-clip: text; background-clip: text; }
     .review-stars .rating-star-glyph { font-size: 1.125rem; }
+    .site-brand-icon, .site-brand-wordmark { display: block; flex: none; }
+    .site-brand-icon { width: 4rem; }
+    .site-brand-icon img { display: block; width: 100%; height: auto; }
+    .site-brand-wordmark { width: 9.7rem; }
+    .site-brand-wordmark img { display: block; width: 100%; height: auto; }
+    @media (max-width: 639px) {
+      .site-brand-icon { width: 3.2rem; }
+      .site-brand-icon img { width: 100%; }
+      .site-brand-wordmark { width: 6.875rem; }
+      .site-brand-wordmark img { width: 100%; }
+    }
     @media (min-width: 1024px) {
-      .site-header-layout { grid-template-columns: 88px minmax(420px, 1fr) auto; }
+      .site-header-layout { grid-template-columns: 240px minmax(420px, 1fr) auto; }
     }
     @media (min-width: 1024px) {
       .checkout-summary-sticky {
@@ -50,9 +61,12 @@
 <body class="flex min-h-screen flex-col bg-white text-ink">
   <header class="sticky top-0 z-40 bg-leaf text-white shadow-sm">
     <div class="site-header-layout relative mx-auto grid w-full max-w-[1500px] grid-cols-1 items-center gap-x-3 gap-y-2 px-4 py-2 sm:px-6 lg:px-8" style="min-height: 84px;">
-      <a href="{% url 'catalog:product_list' %}" class="flex min-w-0 items-center gap-2.5" aria-label="หน้าหลักThin Dee">
-        <span class="flex h-16 w-16 shrink-0 items-center justify-center">
-          <img src="{% static 'images/thin-dee-logo.png' %}" alt="โลโก้Thin Dee" class="h-full w-full object-contain">
+      <a href="{% url 'catalog:product_list' %}" class="flex min-w-0 items-center gap-4" aria-label="หน้าหลัก Thin Dee">
+        <span class="site-brand-icon" aria-hidden="true">
+          <img src="{% static 'images/thin-dee-icon.png' %}" alt="">
+        </span>
+        <span class="site-brand-wordmark">
+          <img src="{% static 'images/thin-dee-wordmark.png' %}" alt="Thin Dee">
         </span>
       </a>
 
