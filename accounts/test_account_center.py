@@ -2,6 +2,8 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
 
+from .forms import FarmerProfileForm, SellerStoreDetailsForm
+
 from orders.views import buyer_initial
 
 from .models import DeliveryAddress, Notification, User
@@ -170,6 +172,12 @@ class AccountCenterTests(TestCase):
         self.assertContains(staff_page, "ศูนย์เจ้าหน้าที่วิสาหกิจชุมชน")
         self.assertContains(staff_page, reverse("accounts:staff_dashboard"))
 
+    def test_farmer_location_fields_use_dependent_suggestions(self):
+        for form in (FarmerProfileForm(), SellerStoreDetailsForm()):
+            self.assertEqual(form.fields["province"].widget.attrs["list"], "thai-province-options")
+            self.assertEqual(form.fields["district"].widget.attrs["list"], "thai-district-options")
+            self.assertIn("data-location-province", form.fields["province"].widget.attrs)
+            self.assertIn("data-location-district", form.fields["district"].widget.attrs)
     def test_profile_saves_new_personal_fields(self):
         response = self.client.post(
             reverse("accounts:account_history"),

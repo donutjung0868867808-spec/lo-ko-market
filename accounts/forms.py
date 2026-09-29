@@ -219,8 +219,12 @@ class FarmerProfileForm(StyledFormMixin, forms.ModelForm):
         }
         widgets = {
             "farm_name": forms.TextInput(),
-            "province": forms.TextInput(),
-            "district": forms.TextInput(),
+            "province": forms.TextInput(
+                attrs={"list": "thai-province-options", "autocomplete": "off", "data-location-province": ""}
+            ),
+            "district": forms.TextInput(
+                attrs={"list": "thai-district-options", "autocomplete": "off", "data-location-district": ""}
+            ),
             "address": forms.Textarea(attrs={"rows": 3}),
             "bio": forms.Textarea(attrs={"rows": 3}),
         }
@@ -250,6 +254,12 @@ class SellerStoreDetailsForm(StyledFormMixin, forms.ModelForm):
             "bio": "คำอธิบายหน้าร้าน",
         }
         widgets = {
+            "province": forms.TextInput(
+                attrs={"list": "thai-province-options", "autocomplete": "off", "data-location-province": ""}
+            ),
+            "district": forms.TextInput(
+                attrs={"list": "thai-district-options", "autocomplete": "off", "data-location-district": ""}
+            ),
             "address": forms.Textarea(attrs={"rows": 3}),
             "bio": forms.Textarea(attrs={"rows": 4, "placeholder": "แนะนำร้านค้า จุดเด่น หรือวิธีดูแลสินค้า"}),
         }

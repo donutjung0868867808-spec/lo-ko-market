@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}ประวัติส่วนตัว{% endblock %}
 
@@ -129,7 +130,7 @@
       </div>
 
       {% if profile_form %}
-        <section id="store-information" class="mt-8 border-t border-stone-200 pt-6">
+        <section id="store-information" class="mt-8 border-t border-stone-200 pt-6" data-location-picker data-districts-url="{% static 'data/thai-districts.json' %}">
           <div class="flex flex-wrap items-center justify-between gap-3">
             <h2 class="text-lg font-semibold text-slate-950">ข้อมูลสวนและร้านค้า</h2>
             {% if farmer_profile %}
@@ -145,6 +146,10 @@
               </div>
             {% endfor %}
           </div>
+          <datalist id="thai-province-options">
+            {% for province in search_provinces %}<option value="{{ province }}"></option>{% endfor %}
+          </datalist>
+          <datalist id="thai-district-options"></datalist>
         </section>
       {% endif %}
 
@@ -309,6 +314,36 @@
     render();
   })();
 
+  (() => {
+    const picker = document.querySelector("[data-location-picker]");
+    if (!picker) return;
+
+    const provinceInput = picker.querySelector("[data-location-province]");
+    const districtInput = picker.querySelector("[data-location-district]");
+    const districtOptions = picker.querySelector("#thai-district-options");
+    if (!provinceInput || !districtInput || !districtOptions) return;
+
+    let districtsByProvince = {};
+
+    const renderDistricts = () => {
+      const districts = districtsByProvince[provinceInput.value.trim()] || [];
+      districtOptions.replaceChildren(...districts.map((district) => new Option(district)));
+      districtInput.disabled = !districts.length;
+      if (districtInput.value && !districts.includes(districtInput.value.trim())) districtInput.value = "";
+    };
+
+    fetch(picker.dataset.districtsUrl)
+      .then((response) => response.ok ? response.json() : {})
+      .then((data) => {
+        districtsByProvince = data;
+        renderDistricts();
+      })
+      .catch(() => { districtInput.disabled = false; });
+
+    provinceInput.addEventListener("change", renderDistricts);
+    provinceInput.addEventListener("input", renderDistricts);
+    districtInput.addEventListener("focus", renderDistricts);
+  })();
   (() => {
     const input = document.getElementById("id_avatar");
     const error = document.getElementById("avatar-client-error");
