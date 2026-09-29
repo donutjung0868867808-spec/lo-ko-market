@@ -106,7 +106,7 @@
         </div>
         <div>
           <label class="block text-sm font-semibold text-slate-700" for="{{ user_form.birth_date.id_for_label }}">{{ user_form.birth_date.label }}</label>
-          <div class="birth-calendar mt-2" data-birth-calendar-picker data-value="{{ user_form.birth_date.value|default:'' }}">
+          <div class="birth-calendar mt-2" data-birth-calendar-picker data-value="{{ request.user.birth_date|date:'Y-m-d' }}">
             {{ user_form.birth_date }}
             <button type="button" class="birth-calendar__trigger" data-birth-calendar-toggle aria-expanded="false">
               <span class="birth-calendar__placeholder" data-birth-calendar-label>เลือกวันเกิด</span>
