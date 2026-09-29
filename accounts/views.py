@@ -1113,7 +1113,7 @@ def payment_settings(request):
 
 @login_required
 def notifications_list(request):
-    notifications = request.user.notifications.all()
+    notifications = request.user.notifications.select_related("product")
     return render(
         request,
         "accounts/notifications.html",

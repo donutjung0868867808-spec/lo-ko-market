@@ -115,7 +115,7 @@ def reserve_order_stock(order):
     order.stock_released_at = None
     order.save(update_fields=["stock_reserved", "stock_released_at", "updated_at"])
     OrderStatusHistory.objects.get_or_create(
-        order=order,
+            order=order,
         status=order.status,
         defaults={"note": "สร้างคำสั่งซื้อและจองสินค้า"},
     )
@@ -181,7 +181,7 @@ def restock_refunded_order(order, changed_by=None):
         ]
     )
     OrderStatusHistory.objects.create(
-        order=order,
+            order=order,
         status=Order.Status.REFUNDED,
         note="คืนเงินเต็มจำนวนแล้ว",
         changed_by=changed_by,
@@ -209,7 +209,7 @@ def cancel_unpaid_order(order, changed_by=None, note="ยกเลิกคำ�
     order.cancelled_at = timezone.now()
     order.save(update_fields=["status", "cancelled_at", "updated_at"])
     OrderStatusHistory.objects.create(
-        order=order,
+            order=order,
         status=Order.Status.CANCELLED,
         note=note,
         changed_by=changed_by,
@@ -230,6 +230,7 @@ def cancel_unpaid_order(order, changed_by=None, note="ยกเลิกคำ�
             f"คำสั่งซื้อ {order.reference} ถูกยกเลิก",
             note,
             order.get_absolute_url(),
+            order=order,
         )
     )
     return order
@@ -301,7 +302,7 @@ def change_order_status(
         ]
     )
     OrderStatusHistory.objects.create(
-        order=order,
+            order=order,
         status=new_status,
         note=note,
         changed_by=changed_by,
@@ -336,6 +337,7 @@ def change_order_status(
                 notification_title,
                 notification_message,
                 notification_link,
+            order=order,
             )
         )
     if new_status == Order.Status.SHIPPED:

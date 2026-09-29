@@ -1,4 +1,5 @@
 import json
+from types import SimpleNamespace
 from unittest.mock import patch
 from datetime import timedelta
 from decimal import Decimal
@@ -11,7 +12,7 @@ from accounts.models import Community, Notification, User
 from catalog.models import Product
 from orders.models import Order, OrderItem
 
-from .models import Payment, Refund, SellerSettlement, StripeEvent
+from .models import Payment, PaymentBatch, Refund, SellerSettlement, StripeEvent
 from .services import retry_due_settlements, sync_settlement_for_payment
 from .views import mark_session_paid, truemoney_sandbox_checkout_url
 
@@ -60,6 +61,83 @@ class PaymentWorkflowTests(TestCase):
         )
         self.order.refresh_total()
 
+    @override_settings(PAYMENT_MODE="test", STRIPE_SECRET_KEY="sk_test_batch")
+    @patch("payments.views.stripe_client")
+    def test_batch_checkout_redirects_to_one_stripe_session_and_webhook_pays_every_order(self, stripe_client_mock):
+        second_seller = User.objects.create_user(
+            username="batch-seller", password="pass12345", role=User.Roles.FARMER
+        )
+        second_product = Product.objects.create(
+            seller=second_seller,
+            community=self.community,
+            name="Batch product",
+            description="Second seller item",
+            price=Decimal("30.00"),
+            stock_quantity=Decimal("10.00"),
+            status=Product.Status.ACTIVE,
+        )
+        second_order = Order.objects.create(
+            buyer=self.buyer,
+            seller=second_seller,
+            community=self.community,
+            shipping_name="Receiver",
+            shipping_phone="0800000000",
+            shipping_address="Address",
+        )
+        OrderItem.objects.create(
+            order=second_order,
+            product=second_product,
+            product_name=second_product.name,
+            unit=second_product.unit,
+            quantity=Decimal("1.00"),
+            unit_price=second_product.price,
+        )
+        second_order.refresh_total()
+        batch = PaymentBatch.objects.create(
+            buyer=self.buyer,
+            amount=self.order.total_amount + second_order.total_amount,
+            currency="thb",
+        )
+        batch.orders.set([self.order, second_order])
+        stripe_client_mock.return_value = SimpleNamespace(
+            checkout=SimpleNamespace(
+                Session=SimpleNamespace(
+                    create=lambda **kwargs: SimpleNamespace(id="cs_batch", url="https://checkout.stripe.test/cs_batch")
+                )
+            )
+        )
+        self.client.force_login(self.buyer)
+
+        response = self.client.post(reverse("payments:complete_batch_checkout", args=[batch.pk]))
+
+        self.assertRedirects(response, "https://checkout.stripe.test/cs_batch", fetch_redirect_response=False)
+        batch.refresh_from_db()
+        self.assertEqual(batch.status, PaymentBatch.Status.PROCESSING)
+        self.assertEqual(batch.checkout_session_id, "cs_batch")
+
+        from .views import process_stripe_event
+        process_stripe_event(
+            {
+                "type": "checkout.session.completed",
+                "data": {
+                    "object": {
+                        "id": "cs_batch",
+                        "amount_total": int(batch.amount * Decimal("100")),
+                        "currency": "thb",
+                        "payment_intent": "pi_batch",
+                        "metadata": {"payment_batch_id": str(batch.pk), "transfer_group": f"batch-{batch.pk}"},
+                    }
+                },
+            },
+            {"provider": "stripe"},
+        )
+        batch.refresh_from_db()
+        self.order.refresh_from_db()
+        second_order.refresh_from_db()
+        self.assertEqual(batch.status, PaymentBatch.Status.PAID)
+        self.assertEqual(self.order.payment_status, Order.PaymentStatus.PAID)
+        self.assertEqual(second_order.payment_status, Order.PaymentStatus.PAID)
+        self.assertEqual(Payment.objects.get(order=self.order).raw_payload["batch_payment_intent_id"], "pi_batch")
     @override_settings(DEBUG=True, PAYMENT_MODE="test", STRIPE_SECRET_KEY="")
     def test_checkout_uses_interactive_demo_payment_in_test_mode(self):
         self.client.force_login(self.buyer)

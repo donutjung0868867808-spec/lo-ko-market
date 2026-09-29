@@ -390,6 +390,13 @@ class Notification(models.Model):
     title = models.CharField(max_length=200)
     message = models.TextField(blank=True)
     link = models.CharField(max_length=500, blank=True)
+    product = models.ForeignKey(
+        "catalog.Product",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="notifications",
+    )
     is_read = models.BooleanField(default=False)
     created_at = models.DateTimeField("วันที่สร้าง", auto_now_add=True)
 

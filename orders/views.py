@@ -88,7 +88,7 @@ def cart_items(request):
         )
         if parts
     }
-    products = Product.objects.select_related("seller", "community", "category").prefetch_related(
+    products = Product.objects.select_related("seller", "seller__farmer_profile", "community", "category").prefetch_related(
         "variants"
     ).filter(
         pk__in={parts[0] for parts in cart_lines.values()},
@@ -139,6 +139,18 @@ def cart_items(request):
     return items, total
 
 
+
+def cart_groups(items):
+    groups = {}
+    for item in items:
+        seller = item["product"].seller
+        group = groups.setdefault(
+            seller.pk,
+            {"seller": seller, "store_name": getattr(getattr(seller, "farmer_profile", None), "farm_name", "") or seller.display_name or seller.username, "items": [], "total": Decimal("0.00")},
+        )
+        group["items"].append(item)
+        group["total"] += item["line_total"]
+    return list(groups.values())
 def scoped_orders(user):
     orders = Order.objects.select_related("buyer", "seller", "community").prefetch_related("items")
     if user.is_owner:
@@ -341,6 +353,7 @@ def cart_detail(request):
         "orders/cart.html",
         {
             "items": items,
+            "cart_groups": cart_groups(items),
             "total": total,
             "selected_item_keys": {item["key"] for item in items},
         },

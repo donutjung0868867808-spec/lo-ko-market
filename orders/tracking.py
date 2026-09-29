@@ -280,7 +280,7 @@ def apply_tracking_event(event):
         order.save(update_fields=["delivered_at", "updated_at"])
     if previous != shipment.status:
         notify_user(order.buyer, f"พัสดุ {order.reference}", shipment.status_label,
-                    order.get_absolute_url(), send_email_message=False)
+                    order.get_absolute_url(), send_email_message=False, order=order)
 
 
 @csrf_exempt

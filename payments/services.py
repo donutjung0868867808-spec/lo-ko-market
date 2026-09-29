@@ -200,12 +200,17 @@ def process_seller_settlement(settlement):
         settlement.attempts += 1
         settlement.save(update_fields=["status", "attempts", "updated_at"])
         try:
-            # Reconcile first: Stripe idempotency keys expire, so a retry alone is insufficient.
-            transfers = stripe.Transfer.list(transfer_group=payment.order.reference, limit=100)
+            # A combined checkout has one charge but several seller settlements.
+            batch_payload = payment.raw_payload if isinstance(payment.raw_payload, dict) else {}
+            transfer_group = batch_payload.get("batch_transfer_group") or payment.order.reference
+            payment_intent_id = batch_payload.get("batch_payment_intent_id") or payment.payment_intent_id
+            transfers = stripe.Transfer.list(transfer_group=transfer_group, limit=100)
             transfer = next((item for item in transfers.auto_paging_iter()
                              if item.get("metadata", {}).get("settlement_id") == str(settlement.pk)), None)
             if transfer is None:
-                intent = stripe.PaymentIntent.retrieve(payment.payment_intent_id, expand=["latest_charge"])
+                if not payment_intent_id:
+                    raise ValidationError("ไม่พบข้อมูลรายการชำระเงินต้นทางจาก Stripe")
+                intent = stripe.PaymentIntent.retrieve(payment_intent_id, expand=["latest_charge"])
                 charge = intent.get("latest_charge")
                 charge_id = charge.get("id") if hasattr(charge, "get") else charge
                 if not charge_id:
@@ -213,7 +218,7 @@ def process_seller_settlement(settlement):
                 transfer = stripe.Transfer.create(
                     amount=int(settlement.net_amount * Decimal("100")),
                     currency=settlement.currency, destination=account.stripe_account_id,
-                    source_transaction=charge_id, transfer_group=payment.order.reference,
+                    source_transaction=charge_id, transfer_group=transfer_group,
                     metadata={"settlement_id": str(settlement.pk), "order_id": str(payment.order_id)},
                     idempotency_key=f"seller-settlement-{settlement.pk}",
                 )

@@ -228,57 +228,215 @@ def mark_session_paid(session, payload=None):
             f"ชำระเงินคำสั่งซื้อ {payment.order.reference} สำเร็จ",
             f"ยอดชำระ {payment.amount:.2f} บาท",
             payment.order.get_absolute_url(),
+            order=payment.order,
         )
         notify_user(
             payment.order.seller,
             f"มีคำสั่งซื้อใหม่ {payment.order.reference}",
             "ผู้ซื้อชำระเงินแล้ว กรุณายืนยันและเตรียมสินค้า",
             payment.order.get_absolute_url(),
+            order=payment.order,
         )
     return payment
 
+def validate_batch_checkout_amount(session, batch):
+    amount_total = session.get("amount_total")
+    currency = session.get("currency")
+    expected = int(batch.amount * Decimal("100"))
+    if amount_total is not None and int(amount_total) != expected:
+        raise ValidationError("ยอดเงินจาก Stripe ไม่ตรงกับชุดคำสั่งซื้อ")
+    if currency and currency.lower() != batch.currency.lower():
+        raise ValidationError("สกุลเงินจาก Stripe ไม่ตรงกับชุดคำสั่งซื้อ")
+
+
+def mark_batch_session_paid(session, payload=None):
+    session_id = session.get("id")
+    batch = PaymentBatch.objects.filter(checkout_session_id=session_id).first()
+    if not batch:
+        batch_id = session.get("metadata", {}).get("payment_batch_id")
+        if batch_id and str(batch_id).isdigit():
+            batch = PaymentBatch.objects.filter(pk=batch_id).first()
+    if not batch:
+        return None
+
+    seller_notifications = []
+    with transaction.atomic():
+        batch = PaymentBatch.objects.select_for_update().get(pk=batch.pk)
+        validate_batch_checkout_amount(session, batch)
+        orders = list(batch.orders.select_for_update().select_related("seller").prefetch_related("items__product"))
+        if not orders:
+            raise ValidationError("ไม่พบคำสั่งซื้อในชุดชำระเงิน")
+
+        payment_intent_id = session.get("payment_intent") or batch.payment_intent_id
+        transfer_group = session.get("metadata", {}).get("transfer_group") or f"batch-{batch.pk}"
+        for order in orders:
+            payment, _ = Payment.objects.select_for_update().get_or_create(
+                order=order,
+                defaults={"amount": order.total_amount, "currency": batch.currency},
+            )
+            if payment.status != Payment.Status.PAID:
+                if not order.stock_reserved:
+                    reserve_order_stock(order)
+                payment.status = Payment.Status.PAID
+                payment.amount = order.total_amount
+                payment.currency = batch.currency
+                payment.raw_payload = {
+                    "batch_id": batch.pk,
+                    "batch_payment_intent_id": payment_intent_id,
+                    "batch_transfer_group": transfer_group,
+                    "stripe_event": payload or {},
+                }
+                payment.save(update_fields=["status", "amount", "currency", "raw_payload", "updated_at"])
+                order.mark_paid()
+                OrderStatusHistory.objects.get_or_create(
+                    order=order,
+                    status=Order.Status.PAID,
+                    defaults={"note": "ยืนยันการชำระเงินรวมแล้ว"},
+                )
+                sync_settlement_for_payment(payment)
+                seller_notifications.append(order)
+
+        batch.status = PaymentBatch.Status.PAID
+        batch.payment_intent_id = payment_intent_id or batch.payment_intent_id
+        batch.raw_payload = payload or {"stripe_session_id": session_id}
+        batch.save(update_fields=["status", "payment_intent_id", "raw_payload", "updated_at"])
+
+    for order in seller_notifications:
+        notify_user(
+            order.seller,
+            f"มีคำสั่งซื้อใหม่ {order.reference}",
+            "ผู้ซื้อชำระเงินรวมแล้ว กรุณายืนยันและเตรียมสินค้า",
+            order.get_absolute_url(),
+            order=order,
+        )
+    return batch
 
 @login_required
 def batch_checkout(request, pk):
     batch = get_object_or_404(PaymentBatch.objects.prefetch_related("orders__items"), pk=pk, buyer=request.user)
-    if settings.PAYMENT_MODE not in {"demo", "test"}:
-        messages.error(request, "การชำระเงินรวมหลายร้านกำลังเปิดใช้ในโหมดทดลอง")
-        return redirect("orders:order_list")
     orders = list(batch.orders.all())
     if batch.status == PaymentBatch.Status.PAID:
         return redirect("orders:order_list")
     if len(orders) < 2 or any(order.payment_status == Order.PaymentStatus.PAID or order.is_expired for order in orders):
         messages.error(request, "ชุดคำสั่งซื้อนี้ไม่พร้อมชำระเงินรวม")
         return redirect("orders:order_list")
-    if not batch.checkout_session_id:
-        batch.checkout_session_id = f"demo-batch-{batch.checkout_attempt_id.hex}"
-        batch.status = PaymentBatch.Status.PROCESSING
-        batch.save(update_fields=["checkout_session_id", "status", "updated_at"])
-    return render(request, "payments/batch_checkout.html", {"batch": batch, "orders": orders})
+    payment_method = request.GET.get("payment_method", "card")
+    if payment_method not in {"card", "promptpay"}:
+        payment_method = "card"
+    return render(
+        request,
+        "payments/batch_checkout.html",
+        {"batch": batch, "orders": orders, "payment_method": payment_method},
+    )
 
 
 @login_required
 @require_POST
 def complete_batch_checkout(request, pk):
     batch = get_object_or_404(PaymentBatch.objects.prefetch_related("orders"), pk=pk, buyer=request.user)
-    if settings.PAYMENT_MODE not in {"demo", "test"}:
-        messages.error(request, "การชำระเงินรวมหลายร้านกำลังเปิดใช้ในโหมดทดลอง")
-        return redirect("orders:order_list")
+    payment_method = request.POST.get("payment_method", "card")
+    if payment_method not in {"card", "promptpay"}:
+        payment_method = "card"
+
     with transaction.atomic():
         batch = PaymentBatch.objects.select_for_update().get(pk=batch.pk)
         orders = list(batch.orders.select_for_update().all())
         if batch.status == PaymentBatch.Status.PAID or not orders or any(order.payment_status == Order.PaymentStatus.PAID or order.is_expired for order in orders):
             messages.error(request, "ชุดคำสั่งซื้อนี้ไม่พร้อมชำระเงินรวม")
             return redirect("orders:order_list")
+
+        now = timezone.now()
+        if (
+            batch.status == PaymentBatch.Status.PROCESSING
+            and batch.checkout_url
+            and batch.checkout_expires_at
+            and batch.checkout_expires_at > now
+        ):
+            return redirect(batch.checkout_url)
+
+        stripe = stripe_client()
+        if stripe is not None:
+            checkout_expires_at = now + timedelta(minutes=30)
+            for order in orders:
+                if not order.stock_reserved:
+                    reserve_order_stock(order)
+                if order.expires_at != checkout_expires_at:
+                    order.expires_at = checkout_expires_at
+                    order.save(update_fields=["expires_at", "updated_at"])
+
+            customer_profile = CustomerPaymentProfile.objects.filter(user=request.user).first()
+            customer_arguments = (
+                {"customer": customer_profile.stripe_customer_id}
+                if customer_profile
+                else {"customer_email": request.user.email or None}
+            )
+            success_url = request.build_absolute_uri(reverse("payments:success"))
+            cancel_url = request.build_absolute_uri(reverse("orders:order_list"))
+            transfer_group = f"batch-{batch.pk}"
+            try:
+                session = stripe.checkout.Session.create(
+                    mode="payment",
+                    line_items=[
+                        {
+                            "price_data": {
+                                "currency": batch.currency,
+                                "product_data": {"name": f"คำสั่งซื้อ {order.reference}"},
+                                "unit_amount": int(order.total_amount * Decimal("100")),
+                            },
+                            "quantity": 1,
+                        }
+                        for order in orders
+                    ],
+                    success_url=f"{success_url}?session_id={{CHECKOUT_SESSION_ID}}",
+                    cancel_url=cancel_url,
+                    metadata={"payment_batch_id": str(batch.pk), "transfer_group": transfer_group},
+                    payment_intent_data={"transfer_group": transfer_group},
+                    client_reference_id=transfer_group,
+                    payment_method_types=[payment_method],
+                    **customer_arguments,
+                    expires_at=int(checkout_expires_at.timestamp()),
+                    idempotency_key=f"batch-checkout-{batch.pk}-{batch.checkout_attempt_id}",
+                )
+            except Exception:
+                logger.exception("Unable to create Stripe checkout for payment batch %s", batch.pk)
+                messages.error(request, "ไม่สามารถเปิดหน้าชำระเงิน Stripe ได้ กรุณาลองใหม่")
+                return redirect("payments:batch_checkout", pk=batch.pk)
+
+            batch.status = PaymentBatch.Status.PROCESSING
+            batch.checkout_session_id = session.id
+            batch.checkout_url = session.url
+            batch.checkout_expires_at = checkout_expires_at
+            batch.save(
+                update_fields=[
+                    "status", "checkout_session_id", "checkout_url", "checkout_expires_at", "updated_at",
+                ]
+            )
+            for order in orders:
+                order.payment_status = Order.PaymentStatus.PROCESSING
+                order.save(update_fields=["payment_status", "updated_at"])
+            return redirect(session.url)
+
+        if settings.PAYMENT_MODE not in {"demo", "test"}:
+            messages.error(request, "ระบบชำระเงินยังไม่พร้อมใช้งาน กรุณาติดต่อผู้ดูแลระบบ")
+            return redirect("payments:batch_checkout", pk=batch.pk)
+
+        if not batch.checkout_session_id:
+            batch.checkout_session_id = f"demo-batch-{batch.checkout_attempt_id.hex}"
+            batch.status = PaymentBatch.Status.PROCESSING
+            batch.save(update_fields=["checkout_session_id", "status", "updated_at"])
         for order in orders:
             payment, _ = Payment.objects.get_or_create(order=order, defaults={"amount": order.total_amount, "currency": batch.currency})
             payment.status = Payment.Status.PAID
-            payment.raw_payload = {"batch_id": batch.pk}
+            payment.raw_payload = {
+                "batch_id": batch.pk,
+                "batch_payment_intent_id": f"demo-intent-{batch.checkout_attempt_id.hex}",
+                "batch_transfer_group": f"batch-{batch.pk}",
+            }
             payment.save(update_fields=["status", "raw_payload", "updated_at"])
             order.mark_paid()
             OrderStatusHistory.objects.get_or_create(order=order, status=Order.Status.PAID, defaults={"note": "ยืนยันการชำระเงินรวมแล้ว"})
             sync_settlement_for_payment(payment)
-            notify_user(order.seller, f"มีคำสั่งซื้อใหม่ {order.reference}", "ผู้ซื้อชำระเงินรวมแล้ว กรุณาเตรียมสินค้า", order.get_absolute_url())
+            notify_user(order.seller, f"มีคำสั่งซื้อใหม่ {order.reference}", "ผู้ซื้อชำระเงินรวมแล้ว กรุณาเตรียมสินค้า", order.get_absolute_url(), order=order)
         batch.status = PaymentBatch.Status.PAID
         batch.save(update_fields=["status", "updated_at"])
     messages.success(request, "ชำระเงินทุกคำสั่งซื้อสำเร็จแล้ว")
@@ -569,18 +727,23 @@ def complete_demo_checkout(request, order_id):
 def success(request):
     session_id = request.GET.get("session_id")
     payment = None
+    batch = None
     if session_id:
         payment = Payment.objects.filter(checkout_session_id=session_id).select_related("order").first()
+        batch = PaymentBatch.objects.filter(checkout_session_id=session_id).prefetch_related("orders").first()
         stripe = None if session_id.startswith("demo-") else stripe_client()
         if stripe is not None:
             try:
                 session = stripe.checkout.Session.retrieve(session_id)
                 if session.get("payment_status") == "paid":
-                    payment = mark_session_paid(session)
+                    if batch is not None:
+                        batch = mark_batch_session_paid(session)
+                    else:
+                        payment = mark_session_paid(session)
             except Exception:
                 logger.exception("Unable to verify Stripe checkout session %s", session_id)
                 messages.warning(request, "ยังตรวจสอบสถานะชำระเงินจาก Stripe ไม่สำเร็จ")
-    return render(request, "payments/success.html", {"payment": payment})
+    return render(request, "payments/success.html", {"payment": payment, "batch": batch})
 
 
 @login_required
@@ -628,6 +791,7 @@ def request_refund(request, order_id):
             f"ผู้ซื้อขอคืนเงิน {order.reference}",
             f"จำนวน {refund.amount:.2f} บาท · {refund.reason}",
             order.get_absolute_url(),
+            order=order,
         )
         owners = User.objects.filter(role=User.Roles.OWNER, is_active=True)
         for owner in owners:
@@ -636,6 +800,7 @@ def request_refund(request, order_id):
                 f"คำขอคืนเงิน {order.reference}",
                 form.cleaned_data["reason"],
                 order.get_absolute_url(),
+                order=order,
             )
         messages.success(request, "ส่งคำขอคืนเงินแล้ว ผู้ดูแลระบบจะตรวจสอบ")
         return redirect(order)
@@ -723,6 +888,7 @@ def reject_refund(request, refund_id):
             f"คำขอคืนเงิน {refund.payment.order.reference} ไม่ได้รับการอนุมัติ",
             refund.resolution_note,
             refund.payment.order.get_absolute_url(),
+            order=refund.payment.order,
         )
         messages.success(request, "บันทึกผลการพิจารณาและปล่อยยอดผู้ขายแล้ว")
         return redirect(refund.payment.order)
@@ -764,8 +930,12 @@ def process_refund(request, refund_id):
                 raise ValidationError("ยังไม่ได้ตั้งค่า Stripe")
             result = {"id": f"mock-refund-{refund.pk}", "status": "succeeded"}
         else:
+            batch_payload = payment.raw_payload if isinstance(payment.raw_payload, dict) else {}
+            payment_intent_id = batch_payload.get("batch_payment_intent_id") or payment.payment_intent_id
+            if not payment_intent_id:
+                raise ValidationError("ไม่พบข้อมูลรายการชำระเงินต้นทางจาก Stripe")
             result = stripe.Refund.create(
-                payment_intent=payment.payment_intent_id,
+                payment_intent=payment_intent_id,
                 amount=int(refund.amount * Decimal("100")),
                 metadata={"refund_id": str(refund.pk), "order_id": str(payment.order_id)},
                 idempotency_key=f"refund-{refund.pk}",
@@ -779,6 +949,7 @@ def process_refund(request, refund_id):
                 f"คืนเงินคำสั่งซื้อ {payment.order.reference} แล้ว",
                 f"จำนวน {refund.amount:.2f} บาท",
                 payment.order.get_absolute_url(),
+                order=payment.order,
             )
             messages.success(request, "ดำเนินการคืนเงินสำเร็จ")
     except Exception as exc:
@@ -798,7 +969,8 @@ def process_stripe_event(event, payload_json):
     event_object = event.get("data", {}).get("object", {})
 
     if event_type == "checkout.session.completed":
-        mark_session_paid(event_object, payload_json)
+        if mark_session_paid(event_object, payload_json) is None:
+            mark_batch_session_paid(event_object, payload_json)
     elif event_type == "checkout.session.expired":
         payment = Payment.objects.select_related("order").filter(
             checkout_session_id=event_object.get("id", "")
@@ -819,6 +991,7 @@ def process_stripe_event(event, payload_json):
                     f"คืนเงินคำสั่งซื้อ {refund.payment.order.reference} แล้ว",
                     f"จำนวน {refund.amount:.2f} บาท",
                     refund.payment.order.get_absolute_url(),
+                    order=refund.payment.order,
                 )
     elif event_type == "account.updated":
         account = SellerPaymentAccount.objects.filter(

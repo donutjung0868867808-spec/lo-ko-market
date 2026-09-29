@@ -2,7 +2,7 @@ from decimal import Decimal
 from io import StringIO
 
 from django.core.management import call_command
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from accounts.models import Community, DeliveryAddress, FarmerProfile, Notification, Report, User
@@ -96,6 +96,23 @@ class SellerShipmentWorkflowTests(TestCase):
             shipping_address="Buyer address",
         )
 
+        self.product = Product.objects.create(
+            seller=self.seller,
+            community=self.community,
+            name="Shipment notification product",
+            description="Product shown in shipment notifications.",
+            price=Decimal("30.00"),
+            stock_quantity=Decimal("10.00"),
+            status=Product.Status.ACTIVE,
+        )
+        OrderItem.objects.create(
+            order=self.order,
+            product=self.product,
+            product_name=self.product.name,
+            unit=self.product.unit,
+            quantity=Decimal("1.00"),
+            unit_price=self.product.price,
+        )
     def test_seller_can_ship_a_paid_order_in_one_step(self):
         self.client.force_login(self.seller)
 
@@ -117,6 +134,7 @@ class SellerShipmentWorkflowTests(TestCase):
         notifications = Notification.objects.filter(user=self.buyer)
         self.assertEqual(notifications.count(), 1)
         self.assertIn("TH123456789", notifications.get().message)
+        self.assertEqual(notifications.get().product, self.product)
 
     def test_buyer_can_confirm_received_shipment_and_see_review_action(self):
         product = Product.objects.create(
@@ -753,6 +771,7 @@ class CartWorkflowTests(TestCase):
             ).exists()
         )
 
+    @override_settings(PAYMENT_MODE="test", STRIPE_SECRET_KEY="")
     def test_cart_checkout_combines_multiple_seller_orders_into_one_payment_batch(self):
         other_seller = User.objects.create_user(username="second-cart-seller", password="pass", role=User.Roles.FARMER)
         other_product = Product.objects.create(
@@ -767,6 +786,10 @@ class CartWorkflowTests(TestCase):
         self.client.force_login(self.buyer)
         self.client.post(reverse("orders:cart_add", args=[self.product.pk]), {"quantity": "1"})
         self.client.post(reverse("orders:cart_add", args=[other_product.pk]), {"quantity": "1"})
+
+        cart_response = self.client.get(reverse("orders:cart"))
+        self.assertEqual(len(cart_response.context["cart_groups"]), 2)
+        self.assertContains(cart_response, other_seller.username)
 
         response = self.client.post(
             reverse("orders:cart_checkout"),

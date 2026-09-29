@@ -11,9 +11,19 @@
   </div>
 
   <div class="grid gap-5 lg:grid-cols-[1fr_380px]">
-    <div class="rounded-md border border-stone-200 bg-white shadow-sm">
-      <div class="divide-y divide-stone-100">
-        {% for item in items %}
+    <div class="space-y-4">
+      {% for group in cart_groups %}
+        <section class="overflow-hidden rounded-md border border-stone-200 bg-white shadow-sm" data-cart-shop>
+          <header class="flex items-center justify-between gap-3 border-b border-stone-200 bg-stone-50 px-4 py-3">
+            <label class="inline-flex min-w-0 cursor-pointer items-center gap-3">
+              <input class="h-5 w-5 shrink-0 rounded border-stone-300 text-leaf focus:ring-leaf" type="checkbox" data-cart-shop-select>
+              <i data-lucide="store" class="h-5 w-5 shrink-0 text-leaf" aria-hidden="true"></i>
+              <span class="truncate font-semibold text-slate-950">{{ group.store_name }}</span>
+            </label>
+            <a class="inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-leaf hover:underline" href="{% url 'catalog:seller_store' group.seller.id %}">ดูร้านค้า <i data-lucide="chevron-right" class="h-4 w-4" aria-hidden="true"></i></a>
+          </header>
+          <div class="divide-y divide-stone-100">
+            {% for item in group.items %}
           <div class="grid gap-4 p-4 md:grid-cols-[120px_1fr_180px]" data-cart-item data-cart-price="{{ item.unit_price }}" data-cart-item-key="{{ item.key }}">
             <div class="relative">
               <label class="absolute left-2 top-2 z-10 inline-flex cursor-pointer items-center rounded bg-white p-1 shadow-sm">
@@ -59,10 +69,16 @@
               </form>
             </div>
           </div>
-        {% empty %}
-          <p class="p-6 text-sm text-slate-600">ยังไม่มีสินค้าในตะกร้า</p>
-        {% endfor %}
-      </div>
+            {% endfor %}
+          </div>
+          <footer class="flex items-center justify-between border-t border-stone-100 px-4 py-3 text-sm">
+            <span class="text-slate-600">{{ group.items|length }} รายการ</span>
+            <span class="font-semibold text-leaf">฿{{ group.total|floatformat:2 }}</span>
+          </footer>
+        </section>
+      {% empty %}
+        <div class="rounded-md border border-stone-200 bg-white p-6 text-sm text-slate-600">ยังไม่มีสินค้าในตะกร้า</div>
+      {% endfor %}
     </div>
 
     <aside class="h-fit rounded-md border border-stone-200 bg-white p-5 shadow-soft">
@@ -100,6 +116,7 @@
     const checkoutButton = document.querySelector("[data-cart-checkout-button]");
     const checkoutForm = document.querySelector("#cart-checkout-form");
     const cartItems = Array.from(document.querySelectorAll("[data-cart-item]"));
+    const shopGroups = Array.from(document.querySelectorAll("[data-cart-shop]"));
 
     if (!selections.length || !selectAll || !total || !selectedCount || !checkoutButton) return;
 
@@ -127,6 +144,13 @@
       total.textContent = currency.format(amount);
       selectedCount.textContent = selected.length;
       checkoutButton.disabled = selected.length === 0;
+      shopGroups.forEach(function (group) {
+        const shopSelections = Array.from(group.querySelectorAll("[data-cart-select]"));
+        const shopSelect = group.querySelector("[data-cart-shop-select]");
+        const checked = shopSelections.filter(function (selection) { return selection.checked; }).length;
+        shopSelect.checked = checked === shopSelections.length;
+        shopSelect.indeterminate = checked > 0 && checked < shopSelections.length;
+      });
       selectAll.checked = selected.length === selections.length;
       selectAll.indeterminate = selected.length > 0 && selected.length < selections.length;
     }
@@ -153,6 +177,15 @@
         saveQuantity(item.querySelector("[data-cart-update-form]"));
       });
     });
+    shopGroups.forEach(function (group) {
+      group.querySelector("[data-cart-shop-select]").addEventListener("change", function (event) {
+        group.querySelectorAll("[data-cart-select]").forEach(function (selection) {
+          selection.checked = event.currentTarget.checked;
+        });
+        updateSummary();
+      });
+    });
+
     selectAll.addEventListener("change", function () {
       selections.forEach(function (selection) {
         selection.checked = selectAll.checked;
