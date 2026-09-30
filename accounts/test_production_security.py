@@ -140,7 +140,7 @@ class ProxyIpTests(TestCase):
 class ProductionReadinessCommandTests(SimpleTestCase):
     @override_settings(
         DEBUG=False,
-        SECRET_KEY="production-secret-key-with-enough-random-characters-test-only",
+        SECRET_KEY="B0jrphAPOY7pg92AN0c9MN4yecczLMdwnx4OkA1KFUk=",
         REQUIRE_EMAIL_VERIFICATION=True,
         ADMIN_MFA_REQUIRED=True,
         TRUST_X_FORWARDED_FOR=True,

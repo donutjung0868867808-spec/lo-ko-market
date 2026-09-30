@@ -58,7 +58,8 @@ class Command(BaseCommand):
             errors.append("REDIS_URL ต้องเป็น redis:// หรือ rediss://")
         if settings.EMAIL_USE_TLS == settings.EMAIL_USE_SSL:
             errors.append("ต้องเปิด TLS หรือ SSL สำหรับ SMTP เพียงอย่างเดียว")
-        if (settings.SECRET_KEY.startswith("django-insecure") or len(settings.SECRET_KEY) < 50
+        # Render generates a 256-bit base64 secret that is 44 characters long.
+        if (settings.SECRET_KEY.startswith("django-insecure") or len(settings.SECRET_KEY) < 44
                 or len(set(settings.SECRET_KEY)) < 5):
             errors.append("ต้องเปลี่ยน SECRET_KEY เป็นค่าสุ่มที่ปลอดภัย")
         if connection.vendor != "postgresql":
