@@ -11,7 +11,6 @@ from django.contrib.auth import login, logout
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.forms import AuthenticationForm
 from django.db import transaction
 from django.db.models import Avg, Count, F, Max, OuterRef, Prefetch, Q, Subquery, Sum
 from django.http import FileResponse, Http404, JsonResponse
@@ -35,6 +34,7 @@ from .forms import (
     DirectMessageForm,
     FarmerProfileForm,
     FarmerSignupForm,
+    PublicAuthenticationForm,
     NewsPostForm,
     NotificationForm,
     ReportForm,
@@ -147,7 +147,7 @@ def public_login(request):
     next_url = request.POST.get("next") or request.GET.get("next") or ""
     if request.method == "POST":
         identifier = request.POST.get("username", "").strip()
-        form = AuthenticationForm(request, data=request.POST)
+        form = PublicAuthenticationForm(request, data=request.POST)
         if is_login_blocked(request, identifier):
             form.add_error(None, "มีการเข้าสู่ระบบไม่สำเร็จหลายครั้ง กรุณารอแล้วลองใหม่")
         elif form.is_valid():
@@ -174,7 +174,7 @@ def public_login(request):
             if request.user.is_owner:
                 return redirect("admin:index")
             return redirect("catalog:product_list")
-        form = AuthenticationForm()
+        form = PublicAuthenticationForm()
 
     return render(request, "registration/login.html", {"form": form, "next": next_url})
 

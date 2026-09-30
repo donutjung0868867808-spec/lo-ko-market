@@ -104,6 +104,28 @@ class FarmerSignupFlowTests(TestCase):
             FarmerProfile.VerificationStatus.PENDING,
         )
 
+
+    def test_signup_accepts_a_six_character_nontrivial_password(self):
+        response = self.client.post(
+            reverse("accounts:consumer_signup"),
+            {
+                "first_name": "Buyer",
+                "last_name": "Example",
+                "birth_date": "1995-04-12",
+                "username": "simple-password-user",
+                "email": "simple-password@example.com",
+                "phone": "0812345678",
+                "password1": "mango7",
+                "password2": "mango7",
+                "accept_terms": "True",
+                "accept_privacy": "True",
+            },
+        )
+
+        self.assertRedirects(response, reverse("login"))
+        self.assertTrue(
+            User.objects.get(username="simple-password-user").check_password("mango7")
+        )
     def test_consumer_signup_saves_name_and_birth_date_to_profile(self):
         response = self.client.post(
             reverse("accounts:consumer_signup"),

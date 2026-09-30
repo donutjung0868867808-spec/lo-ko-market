@@ -2,7 +2,7 @@ from django import forms
 from datetime import timedelta
 from urllib.parse import urlsplit
 from django.conf import settings
-from django.contrib.auth.forms import PasswordResetForm, UserCreationForm
+from django.contrib.auth.forms import AuthenticationForm, PasswordResetForm, UserCreationForm
 from django.core.validators import FileExtensionValidator
 from django.core.files.uploadedfile import UploadedFile
 from django.utils import timezone
@@ -39,14 +39,14 @@ class StyledFormMixin:
             "last_name": "กรอกนามสกุล",
             "email": "example@email.com",
             "phone": "0812345678",
-            "password1": "รหัสผ่านอย่างน้อย 8 ตัว",
+            "password1": "รหัสผ่านอย่างน้อย 6 ตัว",
             "password2": "ยืนยันรหัสผ่าน",
         }
         help_texts = {
             "username": "ใช้ตัวอักษร a-z, A-Z, ตัวเลข และ _ . @ +/- ไม่มีช่องว่าง",
             "email": "ใส่อีเมลที่ใช้งานได้จริงเพื่อรับการแจ้งเตือน",
             "phone": "ใส่เบอร์โทรศัพท์ที่ติดต่อได้",
-            "password1": "รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร และควรประกอบด้วยตัวอักษรใหญ่-เล็กและตัวเลข",
+            "password1": "อย่างน้อย 6 ตัวอักษร ห้ามใช้รหัสเดาง่ายหรือตัวเลขล้วน",
             "password2": "กรอกให้ตรงกับรหัสผ่านด้านบน",
         }
         for name, field in self.fields.items():
@@ -73,6 +73,28 @@ class MultipleFileField(forms.FileField):
         clean_file = super().clean
         return [clean_file(file, initial) for file in data]
 
+
+class PublicAuthenticationForm(AuthenticationForm):
+    """Authenticate public members using a username, email address, or phone."""
+
+    def clean(self):
+        identifier = self.cleaned_data.get("username", "").strip()
+        password = self.cleaned_data.get("password")
+
+        if identifier and password:
+            user = User.objects.filter(username=identifier).first()
+            if user is None:
+                user = User.objects.filter(email__iexact=identifier).first()
+            if user is None:
+                user = User.objects.filter(phone=identifier).first()
+
+            if user is None or not user.check_password(password):
+                raise self.get_invalid_login_error()
+
+            self.confirm_login_allowed(user)
+            self.user_cache = user
+
+        return self.cleaned_data
 
 class PasswordResetRequestForm(PasswordResetForm):
     """Password reset request form styled for the public marketplace pages."""

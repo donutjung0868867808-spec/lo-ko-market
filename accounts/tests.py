@@ -271,6 +271,29 @@ class AccountSecurityTests(TestCase):
         user.refresh_from_db()
         self.assertTrue(user.is_email_verified)
 
+
+    @override_settings(REQUIRE_EMAIL_VERIFICATION=False)
+    def test_public_login_accepts_email_and_phone(self):
+        user = User.objects.create_user(
+            username="identifier-member",
+            email="identifier@example.com",
+            phone="0812345678",
+            password="StrongPass123!",
+            role=User.Roles.CONSUMER,
+        )
+
+        response = self.client.post(
+            reverse("login"),
+            {"username": user.email, "password": "StrongPass123!"},
+        )
+        self.assertRedirects(response, reverse("catalog:product_list"), fetch_redirect_response=False)
+
+        self.client.logout()
+        response = self.client.post(
+            reverse("login"),
+            {"username": user.phone, "password": "StrongPass123!"},
+        )
+        self.assertRedirects(response, reverse("catalog:product_list"), fetch_redirect_response=False)
     @override_settings(LOGIN_MAX_ATTEMPTS=3, LOGIN_LOCKOUT_MINUTES=15)
     def test_repeated_failed_logins_temporarily_block_source(self):
         user = User.objects.create_user(
