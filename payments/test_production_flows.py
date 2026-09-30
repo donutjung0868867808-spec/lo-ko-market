@@ -2,6 +2,7 @@ from decimal import Decimal
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from django.contrib.admin.sites import AdminSite
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -10,6 +11,7 @@ from accounts.models import Community, User
 from catalog.models import Product
 from orders.models import Order, OrderItem
 
+from .admin import SellerSettlementAdmin
 from .models import Payment, SellerPaymentAccount, SellerSettlement
 from .services import process_seller_settlement
 from .views import mark_payment_failed
@@ -155,3 +157,35 @@ class ProductionPaymentTests(TestCase):
         self.order.refresh_from_db()
         self.assertEqual(payment.status, Payment.Status.PAID)
         self.assertEqual(self.order.payment_status, Order.PaymentStatus.PAID)
+    @override_settings(PAYMENT_MODE="test", DEMO_SETTLEMENTS_ENABLED=True)
+    def test_admin_can_record_a_simulated_seller_transfer(self):
+        self.order.status = Order.Status.COMPLETED
+        self.order.save(update_fields=["status"])
+        payment = Payment.objects.create(
+            order=self.order,
+            amount=self.order.total_amount,
+            status=Payment.Status.PAID,
+        )
+        settlement = SellerSettlement.objects.create(
+            payment=payment,
+            seller=self.seller,
+            gross_amount=Decimal("100.00"),
+            fee_rate=Decimal("5.00"),
+            platform_fee=Decimal("5.00"),
+            net_amount=Decimal("95.00"),
+            status=SellerSettlement.Status.READY,
+            available_at=timezone.now(),
+        )
+        settlement_admin = SellerSettlementAdmin(SellerSettlement, AdminSite())
+
+        with patch.object(settlement_admin, "message_user") as message_user:
+            settlement_admin.transfer_selected_settlements(
+                SimpleNamespace(), SellerSettlement.objects.filter(pk=settlement.pk)
+            )
+
+        settlement.refresh_from_db()
+        self.assertEqual(settlement.status, SellerSettlement.Status.TRANSFERRED)
+        self.assertEqual(settlement.stripe_transfer_id, f"demo-settlement-{settlement.pk}")
+        self.assertTrue(
+            any("บันทึกการโอนจำลองสำเร็จ" in str(call.args[1]) for call in message_user.call_args_list)
+        )

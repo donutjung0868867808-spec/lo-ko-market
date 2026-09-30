@@ -1,4 +1,5 @@
 from django.contrib import admin, messages
+from django.conf import settings
 from django.http import HttpResponseNotAllowed
 from django.shortcuts import redirect
 from django.template.response import TemplateResponse
@@ -16,7 +17,7 @@ from .models import (
     SellerSettlement,
     StripeEvent,
 )
-from .services import process_seller_settlement
+from .services import process_demo_seller_settlement, process_seller_settlement
 from .views import process_refund, reject_refund
 
 
@@ -477,10 +478,15 @@ class SellerSettlementAdmin(CsvExportAdminMixin, OwnerOnlyAdminMixin, admin.Mode
 
     @admin.action(description="โอนยอดที่เลือกให้ผู้ขาย")
     def transfer_selected_settlements(self, request, queryset):
+        demo_mode = (
+            settings.PAYMENT_MODE in {"demo", "test"}
+            and settings.DEMO_SETTLEMENTS_ENABLED
+        )
+        processor = process_demo_seller_settlement if demo_mode else process_seller_settlement
         completed = 0
         for settlement in queryset:
             try:
-                result = process_seller_settlement(settlement)
+                result = processor(settlement)
             except Exception as exc:
                 self.message_user(
                     request,
@@ -493,8 +499,12 @@ class SellerSettlementAdmin(CsvExportAdminMixin, OwnerOnlyAdminMixin, admin.Mode
                 else:
                     self.message_user(request, result.failure_reason, level=messages.WARNING)
         if completed:
-            self.message_user(request, f"โอนเงินสำเร็จ {completed} รายการ", level=messages.SUCCESS)
-
+            message = (
+                f"บันทึกการโอนจำลองสำเร็จ {completed} รายการ"
+                if demo_mode
+                else f"โอนเงินสำเร็จ {completed} รายการ"
+            )
+            self.message_user(request, message, level=messages.SUCCESS)
     def has_add_permission(self, request):
         return False
 
