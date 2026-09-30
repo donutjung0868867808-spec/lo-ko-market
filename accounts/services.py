@@ -1,3 +1,5 @@
+import logging
+
 from datetime import timedelta
 
 from django.conf import settings
@@ -11,6 +13,9 @@ from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 
 from .models import AuditEvent, EmailDelivery, LoginAttempt, NewsPost, Notification, User
+
+
+logger = logging.getLogger(__name__)
 
 
 def deliver_email(delivery, raise_on_failure=False, retry_failed=False):
@@ -37,6 +42,7 @@ def deliver_email(delivery, raise_on_failure=False, retry_failed=False):
                 html_message=delivery.html_body or None,
             )
         except Exception as exc:
+            logger.exception("Email delivery failed for delivery %s", delivery.pk)
             failure = exc
             delivery.last_error = str(exc)
             delivery.status = (
