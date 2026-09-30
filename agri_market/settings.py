@@ -109,7 +109,6 @@ if DEBUG:
     CSRF_TRUSTED_ORIGINS.append("https://*.trycloudflare.com")
 
 ENABLE_DEMO_DATA = env_bool("ENABLE_DEMO_DATA", default=False)
-REQUIRE_EMAIL_VERIFICATION = env_bool("REQUIRE_EMAIL_VERIFICATION", default=not DEBUG and not IS_TESTING)
 LOGIN_MAX_ATTEMPTS = int(os.environ.get("LOGIN_MAX_ATTEMPTS", "5"))
 LOGIN_LOCKOUT_MINUTES = int(os.environ.get("LOGIN_LOCKOUT_MINUTES", "15"))
 TRUST_X_FORWARDED_FOR = env_bool("TRUST_X_FORWARDED_FOR", default=not DEBUG and not IS_TESTING)

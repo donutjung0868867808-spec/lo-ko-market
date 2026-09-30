@@ -45,7 +45,7 @@ GitHub Actions ใน `.github/workflows/ci.yml` จะสร้าง CSS ซ�
 4. กรอก environment variables ที่กำหนด sync: false โดยใช้ .env.production.example เป็นรายการอ้างอิง
 5. SECRET_KEY, DATABASE_URL และ REDIS_URL จะเชื่อมผ่าน Blueprint ส่วนค่าบริการอื่นต้องมาจากบัญชีของคุณ
 6. ก่อนมีโดเมนส่วนตัว ใช้ URL onrender.com ของบริการเป็น SITE_URL และระบุ hostname จริงใน ALLOWED_HOSTS พร้อม URL https ใน CSRF_TRUSTED_ORIGINS
-7. Deploy: build ติดตั้ง package และ collectstatic; pre-deploy ตรวจค่า migrate และสร้างเจ้าของระบบครั้งแรก; start ใช้ Daphne
+7. Deploy: build ติดตั้ง package และ collectstatic; pre-deploy ตรวจค่า migrate และสร้างเจ้าของระบบครั้งแรก; start ใช้ Daphne กับ static files ที่ build ไว้แล้ว
 
 ห้ามตั้ง ALLOWED_HOSTS เป็น * หรือ .onrender.com แบบครอบคลุมทั้งหมด
 ใช้ SECRET_KEY เดียวกันระหว่างเว็บและ Cron ตามการอ้างอิงใน Blueprint

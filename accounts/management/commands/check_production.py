@@ -64,8 +64,6 @@ class Command(BaseCommand):
             errors.append("ต้องเปลี่ยน SECRET_KEY เป็นค่าสุ่มที่ปลอดภัย")
         if connection.vendor != "postgresql":
             errors.append("ฐานข้อมูล Production ต้องเป็น PostgreSQL")
-        if not settings.REQUIRE_EMAIL_VERIFICATION:
-            errors.append("ต้องเปิด REQUIRE_EMAIL_VERIFICATION")
         if not settings.ADMIN_MFA_REQUIRED:
             errors.append("ต้องเปิด ADMIN_MFA_REQUIRED")
         if not settings.TRUST_X_FORWARDED_FOR:

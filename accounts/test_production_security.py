@@ -142,7 +142,6 @@ class ProductionReadinessCommandTests(SimpleTestCase):
     @override_settings(
         DEBUG=False,
         SECRET_KEY="B0jrphAPOY7pg92AN0c9MN4yecczLMdwnx4OkA1KFUk=",
-        REQUIRE_EMAIL_VERIFICATION=True,
         ADMIN_MFA_REQUIRED=True,
         TRUST_X_FORWARDED_FOR=True,
         SECURE_SSL_REDIRECT=True,

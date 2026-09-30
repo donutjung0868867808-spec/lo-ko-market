@@ -156,9 +156,6 @@ def public_login(request):
             if user.is_owner:
                 messages.info(request, "บัญชีเจ้าของระบบ กรุณาเข้าสู่ระบบผ่านหน้า Admin")
                 return redirect("admin_login")
-            if settings.REQUIRE_EMAIL_VERIFICATION and not user.is_email_verified:
-                messages.error(request, "กรุณายืนยันอีเมลก่อนเข้าสู่ระบบ")
-                return redirect("login")
             login(request, user)
             if next_url and url_has_allowed_host_and_scheme(
                 next_url,

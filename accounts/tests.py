@@ -2,11 +2,8 @@ import uuid
 from io import BytesIO
 
 from django.conf import settings
-from django.contrib.auth.tokens import default_token_generator
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import override_settings
-from django.utils.encoding import force_bytes
-from django.utils.http import urlsafe_base64_encode
 from django.test import Client, TestCase
 from django.urls import reverse
 from unittest.mock import call, patch
@@ -128,7 +125,6 @@ class LoginSeparationTests(TestCase):
         self.assertRedirects(response, reverse("catalog:product_list"), fetch_redirect_response=False)
         self.assertEqual(str(self.client.session.get("_auth_user_id")), str(consumer.pk))
 
-    @override_settings(REQUIRE_EMAIL_VERIFICATION=False)
     def test_public_login_redirects_new_session_to_homepage(self):
         consumer = User.objects.create_user(
             username="consumer-home-login",
@@ -143,7 +139,6 @@ class LoginSeparationTests(TestCase):
 
         self.assertRedirects(response, reverse("catalog:product_list"), fetch_redirect_response=False)
 
-    @override_settings(REQUIRE_EMAIL_VERIFICATION=False)
     def test_public_login_keeps_safe_next_destination(self):
         consumer = User.objects.create_user(
             username="consumer-next-login",
@@ -247,8 +242,7 @@ class LoginSeparationTests(TestCase):
         )
 
 class AccountSecurityTests(TestCase):
-    @override_settings(REQUIRE_EMAIL_VERIFICATION=True)
-    def test_unverified_user_cannot_log_in_until_email_is_verified(self):
+    def test_unverified_user_can_log_in_without_email_verification(self):
         user = User.objects.create_user(
             username="verify-user",
             password="pass12345",
@@ -260,19 +254,13 @@ class AccountSecurityTests(TestCase):
             reverse("login"),
             {"username": user.username, "password": "pass12345"},
         )
-        self.assertRedirects(response, reverse("login"), fetch_redirect_response=False)
-        self.assertIsNone(self.client.session.get("_auth_user_id"))
-
-        uid = urlsafe_base64_encode(force_bytes(user.pk))
-        token = default_token_generator.make_token(user)
-        response = self.client.get(reverse("accounts:verify_email", args=[uid, token]))
-        self.assertRedirects(response, reverse("login"), fetch_redirect_response=False)
+        self.assertRedirects(response, reverse("catalog:product_list"), fetch_redirect_response=False)
+        self.assertEqual(int(self.client.session["_auth_user_id"]), user.pk)
 
         user.refresh_from_db()
-        self.assertTrue(user.is_email_verified)
+        self.assertFalse(user.is_email_verified)
 
 
-    @override_settings(REQUIRE_EMAIL_VERIFICATION=False)
     def test_public_login_accepts_email_and_phone(self):
         user = User.objects.create_user(
             username="identifier-member",
@@ -375,7 +363,6 @@ class StaffPortalSeparationTests(TestCase):
             stock_quantity="8.00",
         )
 
-    @override_settings(REQUIRE_EMAIL_VERIFICATION=False)
     def test_staff_logs_in_to_homepage_and_can_open_dedicated_portal(self):
         response = self.client.post(
             reverse("login"),

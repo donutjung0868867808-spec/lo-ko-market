@@ -19,8 +19,6 @@ services:
         value: "False"
       - key: ENABLE_DEMO_DATA
         value: "False"
-      - key: REQUIRE_EMAIL_VERIFICATION
-        value: "False"
       - key: ADMIN_MFA_REQUIRED
         value: "False"
       - key: TRUST_X_FORWARDED_FOR

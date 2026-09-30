@@ -6,7 +6,7 @@ services:
     plan: 0.5c-512mb
     buildCommand: "pip install -r requirements.txt && python manage.py collectstatic --noinput --clear"
     preDeployCommand: "python manage.py check_production && python manage.py migrate --noinput && python manage.py seed_shipping_rates && python manage.py bootstrap_owner"
-    startCommand: "python manage.py collectstatic --noinput --clear && daphne -b 0.0.0.0 -p $PORT --proxy-headers agri_market.asgi:application"
+    startCommand: "daphne -b 0.0.0.0 -p $PORT --proxy-headers agri_market.asgi:application"
     healthCheckPath: /ready/
     envVars:
       - key: PYTHON_VERSION
@@ -15,8 +15,6 @@ services:
         value: "False"
       - key: ENABLE_DEMO_DATA
         value: "False"
-      - key: REQUIRE_EMAIL_VERIFICATION
-        value: "True"
       - key: ADMIN_MFA_REQUIRED
         value: "True"
       - key: TRUST_X_FORWARDED_FOR
