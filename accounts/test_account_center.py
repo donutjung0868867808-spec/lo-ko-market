@@ -198,11 +198,11 @@ class AccountCenterTests(TestCase):
         self.assertEqual(self.user.gender, User.Gender.FEMALE)
         self.assertEqual(self.user.birth_date.isoformat(), "1995-04-12")
         page = self.client.get(reverse("accounts:account_history"))
-        self.assertContains(page, 'data-value="1995-04-12"')
+        self.assertContains(page, 'value="1995-04-12"')
 
     def test_profile_uses_selectable_birth_date_and_rejects_future_dates(self):
         page = self.client.get(reverse("accounts:account_history"))
-        self.assertContains(page, "data-birth-calendar-picker")
+        self.assertContains(page, '<input type="date"')
 
         response = self.client.post(
             reverse("accounts:account_history"),

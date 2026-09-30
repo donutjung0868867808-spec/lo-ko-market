@@ -132,7 +132,7 @@ class BaseSignupForm(StyledFormMixin, UserCreationForm):
             "phone": "เบอร์โทรศัพท์",
         }
         widgets = {
-            "birth_date": forms.DateInput(attrs={"type": "date"}),
+            "birth_date": forms.DateInput(format="%Y-%m-%d", attrs={"type": "date"}),
         }
 
     def clean_gender(self):
@@ -327,7 +327,7 @@ class UserProfileForm(StyledFormMixin, forms.ModelForm):
             "birth_date": "วันเกิด",
         }
         widgets = {
-            "birth_date": forms.HiddenInput(),
+            "birth_date": forms.DateInput(format="%Y-%m-%d", attrs={"type": "date"}),
             "gender": forms.RadioSelect(),
             "avatar": forms.FileInput(attrs={"accept": ".jpg,.jpeg,.png,image/jpeg,image/png"}),
         }
