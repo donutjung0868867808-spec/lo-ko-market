@@ -1,7 +1,7 @@
 # Legacy standalone option only. render.yaml already includes this job; do not deploy both.
 services:
   - type: cron
-    name: agri-market-maintenance
+    name: thin-dee-maintenance
     runtime: python
     region: singapore
     plan: 0.5c-512mb
@@ -15,115 +15,115 @@ services:
         value: "False"
       - key: DATABASE_URL
         fromDatabase:
-          name: agri-market-db
+          name: thin-dee-db
           property: connectionString
       - key: REDIS_URL
         fromService:
           type: keyvalue
-          name: agri-market-realtime
+          name: thin-dee-realtime
           property: connectionString
       - key: SECRET_KEY
         fromService:
           type: web
-          name: agri-market
+          name: thin-dee
           envVarKey: SECRET_KEY
       - key: SITE_URL
         fromService:
           type: web
-          name: agri-market
+          name: thin-dee
           envVarKey: SITE_URL
       - key: AFTERSHIP_API_KEY
         fromService:
           type: web
-          name: agri-market
+          name: thin-dee
           envVarKey: AFTERSHIP_API_KEY
       - key: STRIPE_SECRET_KEY
         fromService:
           type: web
-          name: agri-market
+          name: thin-dee
           envVarKey: STRIPE_SECRET_KEY
       - key: STRIPE_CONNECT_TRANSFERS_ENABLED
         fromService:
           type: web
-          name: agri-market
+          name: thin-dee
           envVarKey: STRIPE_CONNECT_TRANSFERS_ENABLED
       - key: PLATFORM_FEE_PERCENT
         fromService:
           type: web
-          name: agri-market
+          name: thin-dee
           envVarKey: PLATFORM_FEE_PERCENT
       - key: SETTLEMENT_HOLD_DAYS
         fromService:
           type: web
-          name: agri-market
+          name: thin-dee
           envVarKey: SETTLEMENT_HOLD_DAYS
       - key: SETTLEMENT_MAX_ATTEMPTS
         fromService:
           type: web
-          name: agri-market
+          name: thin-dee
           envVarKey: SETTLEMENT_MAX_ATTEMPTS
       - key: DELIVERY_CONFIRMATION_DAYS
         fromService:
           type: web
-          name: agri-market
+          name: thin-dee
           envVarKey: DELIVERY_CONFIRMATION_DAYS
       - key: AFTERSHIP_MAX_ATTEMPTS
         fromService:
           type: web
-          name: agri-market
+          name: thin-dee
           envVarKey: AFTERSHIP_MAX_ATTEMPTS
       - key: ORDER_RESERVATION_MINUTES
         fromService:
           type: web
-          name: agri-market
+          name: thin-dee
           envVarKey: ORDER_RESERVATION_MINUTES
       - key: EMAIL_BACKEND
         fromService:
           type: web
-          name: agri-market
+          name: thin-dee
           envVarKey: EMAIL_BACKEND
       - key: EMAIL_HOST
         fromService:
           type: web
-          name: agri-market
+          name: thin-dee
           envVarKey: EMAIL_HOST
       - key: EMAIL_PORT
         fromService:
           type: web
-          name: agri-market
+          name: thin-dee
           envVarKey: EMAIL_PORT
       - key: EMAIL_HOST_USER
         fromService:
           type: web
-          name: agri-market
+          name: thin-dee
           envVarKey: EMAIL_HOST_USER
       - key: EMAIL_HOST_PASSWORD
         fromService:
           type: web
-          name: agri-market
+          name: thin-dee
           envVarKey: EMAIL_HOST_PASSWORD
       - key: EMAIL_USE_TLS
         fromService:
           type: web
-          name: agri-market
+          name: thin-dee
           envVarKey: EMAIL_USE_TLS
       - key: EMAIL_USE_SSL
         fromService:
           type: web
-          name: agri-market
+          name: thin-dee
           envVarKey: EMAIL_USE_SSL
       - key: EMAIL_MAX_ATTEMPTS
         fromService:
           type: web
-          name: agri-market
+          name: thin-dee
           envVarKey: EMAIL_MAX_ATTEMPTS
       - key: DEFAULT_FROM_EMAIL
         fromService:
           type: web
-          name: agri-market
+          name: thin-dee
           envVarKey: DEFAULT_FROM_EMAIL
       - key: SENTRY_DSN
         fromService:
           type: web
-          name: agri-market
+          name: thin-dee
           envVarKey: SENTRY_DSN
