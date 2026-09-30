@@ -6,7 +6,8 @@ from unittest.mock import patch
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
-from django.test import SimpleTestCase, TestCase, override_settings
+from django.http import HttpResponseNotFound
+from django.test import RequestFactory, SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 
 from .forms import FarmerProfileForm
@@ -189,3 +190,23 @@ class ProductionReadinessCommandTests(SimpleTestCase):
         self.assertIn("STRIPE_CONNECT_TRANSFERS_ENABLED", output)
         self.assertIn("SENTRY_DSN", output)
         self.assertIn("การตั้งค่า Production พร้อมใช้งาน", output)
+
+class StaticFilesFallbackTests(SimpleTestCase):
+    def test_whitenoise_serves_assets_from_static_finders(self):
+        from django.conf import settings
+        from whitenoise.middleware import WhiteNoiseMiddleware
+
+        config = SimpleNamespace(
+            DEBUG=False,
+            STATIC_URL=settings.STATIC_URL,
+            STATIC_ROOT="",
+            FORCE_SCRIPT_NAME=None,
+            WHITENOISE_USE_FINDERS=True,
+        )
+        middleware = WhiteNoiseMiddleware(
+            lambda request: HttpResponseNotFound(), settings=config
+        )
+
+        response = middleware(RequestFactory().get("/static/css/tailwind.css"))
+
+        self.assertEqual(response.status_code, 200)
