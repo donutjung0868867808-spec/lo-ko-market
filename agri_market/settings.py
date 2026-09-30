@@ -1,6 +1,7 @@
 import importlib.util
 import os
 import sys
+from email.utils import formataddr, parseaddr
 from pathlib import Path
 from urllib.parse import parse_qsl, unquote, urlparse
 
@@ -306,7 +307,9 @@ EMAIL_BACKEND = os.environ.get("EMAIL_BACKEND") or (
     if EMAIL_HOST
     else "django.core.mail.backends.console.EmailBackend"
 )
-DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "noreply@local.test")
+default_from_email = os.environ.get("DEFAULT_FROM_EMAIL", "noreply@local.test")
+default_from_address = parseaddr(default_from_email)[1] or default_from_email
+DEFAULT_FROM_EMAIL = formataddr(("Thin Dee", default_from_address))
 SERVER_EMAIL = os.environ.get("SERVER_EMAIL", DEFAULT_FROM_EMAIL)
 EMAIL_MAX_ATTEMPTS = int(os.environ.get("EMAIL_MAX_ATTEMPTS", "5"))
 
