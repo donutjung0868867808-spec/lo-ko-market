@@ -10,7 +10,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.hashers import check_password, make_password
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_POST
 from django.utils import timezone
@@ -21,6 +21,59 @@ from accounts.services import queue_email
 def health(request):
     return JsonResponse({"status": "ok"})
 
+
+def _public_site_url(request):
+    return settings.SITE_URL or request.build_absolute_uri("/").rstrip("/")
+
+
+def robots_txt(request):
+    site_url = _public_site_url(request)
+    content = "\n".join(
+        [
+            "User-agent: *",
+            "Allow: /",
+            "Disallow: /admin/",
+            "Disallow: /accounts/",
+            "Disallow: /orders/",
+            "Disallow: /payments/",
+            "Disallow: /api/",
+            f"Sitemap: {site_url}/sitemap.xml",
+            "",
+        ]
+    )
+    return HttpResponse(content, content_type="text/plain; charset=utf-8")
+
+
+def sitemap_xml(request):
+    from catalog.models import Product
+
+    site_url = _public_site_url(request)
+    pages = [
+        ("/", None),
+        ("/about/", None),
+        ("/guide/", None),
+        ("/contact/", None),
+        ("/terms/", None),
+        ("/privacy/", None),
+        ("/refund-policy/", None),
+    ]
+    pages.extend(
+        (product.get_absolute_url(), product.updated_at)
+        for product in Product.objects.filter(status=Product.Status.ACTIVE).only("pk", "updated_at")
+    )
+
+    entries = []
+    for path, updated_at in pages:
+        entry = [f"<loc>{site_url}{path}</loc>"]
+        if updated_at:
+            entry.append(f"<lastmod>{updated_at.date().isoformat()}</lastmod>")
+        entries.append(f"<url>{''.join(entry)}</url>")
+    xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" + (
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+        + "".join(entries)
+        + "</urlset>"
+    )
+    return HttpResponse(xml, content_type="application/xml; charset=utf-8")
 
 def readiness(request):
     try:

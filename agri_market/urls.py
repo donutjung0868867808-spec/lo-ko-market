@@ -15,6 +15,8 @@ from agri_market.views import (
     exit_admin_site_preview,
     health,
     readiness,
+    robots_txt,
+    sitemap_xml,
 )
 
 apply_admin_thai_labels()
@@ -65,6 +67,8 @@ def project_admin_i18n_javascript(request, extra_context=None):
 admin.site.i18n_javascript = project_admin_i18n_javascript
 
 urlpatterns = [
+    path("robots.txt", robots_txt, name="robots_txt"),
+    path("sitemap.xml", sitemap_xml, name="sitemap_xml"),
     path("health/", health, name="health"),
     path("ready/", readiness, name="readiness"),
     path("admin-mfa/", admin_mfa, name="admin_mfa"),
