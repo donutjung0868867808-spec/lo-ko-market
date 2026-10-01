@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mxfile host="app.diagrams.net" modified="2026-10-01T00:00:00.000Z" agent="Codex" version="24.7.17">
+  <diagram id="dfd-level-1-login" name="DFD Level 1 - Login">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2200" pageHeight="1800" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" value="แผนภาพกระแสข้อมูลระดับ 1 : การลงชื่อเข้าใช้" style="text;html=0;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=28;fontStyle=1;fontFamily=Tahoma;" vertex="1" parent="1">
+          <mxGeometry x="450" y="25" width="1300" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="seller" value="ผู้ขายที่เป็นสมาชิก" style="rounded=0;whiteSpace=wrap;html=0;strokeWidth=3;fillColor=#ffffff;strokeColor=#000000;align=center;verticalAlign=middle;fontSize=20;fontStyle=1;fontFamily=Tahoma;" vertex="1" parent="1">
+          <mxGeometry x="60" y="150" width="300" height="170" as="geometry" />
+        </mxCell>
+        <mxCell id="buyer" value="ผู้ซื้อที่เป็นสมาชิก" style="rounded=0;whiteSpace=wrap;html=0;strokeWidth=3;fillColor=#ffffff;strokeColor=#000000;align=center;verticalAlign=middle;fontSize=20;fontStyle=1;fontFamily=Tahoma;" vertex="1" parent="1">
+          <mxGeometry x="60" y="480" width="300" height="170" as="geometry" />
+        </mxCell>
+        <mxCell id="admin" value="เจ้าหน้าที่ / ผู้ดูแลระบบ" style="rounded=0;whiteSpace=wrap;html=0;strokeWidth=3;fillColor=#ffffff;strokeColor=#000000;align=center;verticalAlign=middle;fontSize=20;fontStyle=1;fontFamily=Tahoma;" vertex="1" parent="1">
+          <mxGeometry x="1840" y="150" width="300" height="170" as="geometry" />
+        </mxCell>
+        <mxCell id="p11" value="1.1" style="swimlane;html=1;horizontal=1;startSize=42;rounded=0;fillColor=#ffffff;swimlaneFillColor=#ffffff;strokeColor=#000000;fontStyle=1;fontSize=16;fontFamily=Tahoma;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="700" y="130" width="700" height="240" as="geometry" />
+        </mxCell>
+        <mxCell id="p12" value="1.2" style="swimlane;html=1;horizontal=1;startSize=42;rounded=0;fillColor=#ffffff;swimlaneFillColor=#ffffff;strokeColor=#000000;fontStyle=1;fontSize=16;fontFamily=Tahoma;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="700" y="570" width="700" height="240" as="geometry" />
+        </mxCell>
+        <mxCell id="p13" value="1.3" style="swimlane;html=1;horizontal=1;startSize=42;rounded=0;fillColor=#ffffff;swimlaneFillColor=#ffffff;strokeColor=#000000;fontStyle=1;fontSize=16;fontFamily=Tahoma;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="700" y="1010" width="700" height="240" as="geometry" />
+        </mxCell>
+        <mxCell id="p14" value="1.4" style="swimlane;html=1;horizontal=1;startSize=42;rounded=0;fillColor=#ffffff;swimlaneFillColor=#ffffff;strokeColor=#000000;fontStyle=1;fontSize=16;fontFamily=Tahoma;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="700" y="1400" width="700" height="240" as="geometry" />
+        </mxCell>
+        <mxCell id="d1" value="" style="shape=partialRectangle;top=1;bottom=1;left=1;right=0;whiteSpace=wrap;html=0;strokeWidth=3;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="1650" y="790" width="430" height="95" as="geometry" />
+        </mxCell>
+        <mxCell id="d2" value="" style="shape=partialRectangle;top=1;bottom=1;left=1;right=0;whiteSpace=wrap;html=0;strokeWidth=3;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="1650" y="600" width="430" height="95" as="geometry" />
+        </mxCell>
+        <mxCell id="d3" value="" style="shape=partialRectangle;top=1;bottom=1;left=1;right=0;whiteSpace=wrap;html=0;strokeWidth=3;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="1650" y="1470" width="430" height="95" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" value="ชื่อผู้ใช้ / อีเมล / เบอร์โทร และรหัสผ่าน" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;endSize=12;strokeWidth=2;fontSize=14;fontFamily=Tahoma;labelBackgroundColor=#ffffff;exitX=1;exitY=0.3;entryX=0;entryY=0.25;" edge="1" parent="1" source="seller" target="p11">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" value="ชื่อผู้ใช้ / อีเมล / เบอร์โทร และรหัสผ่าน" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;endSize=12;strokeWidth=2;fontSize=14;fontFamily=Tahoma;labelBackgroundColor=#ffffff;exitX=1;exitY=0.45;entryX=0;entryY=0.75;" edge="1" parent="1" source="buyer" target="p11">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="520" y="555" />
+              <mxPoint x="520" y="310" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e3" value="ชื่อผู้ใช้ / อีเมล / เบอร์โทร และรหัสผ่าน" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;endSize=12;strokeWidth=2;fontSize=14;fontFamily=Tahoma;labelBackgroundColor=#ffffff;exitX=0;exitY=0.3;entryX=1;entryY=0.25;" edge="1" parent="1" source="admin" target="p11">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" value="คำขอลงชื่อเข้าใช้" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;endSize=12;strokeWidth=2;fontSize=15;fontFamily=Tahoma;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="p11" target="p12">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" value="ค้นหาสถานะการจำกัด" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;endSize=12;strokeWidth=2;fontSize=14;fontFamily=Tahoma;labelBackgroundColor=#ffffff;exitX=1;exitY=0.25;entryX=0;entryY=0.3;" edge="1" parent="1" source="p12" target="d2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" value="จำนวนครั้งที่ไม่สำเร็จและเวลาระงับ" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;endSize=12;strokeWidth=2;fontSize=14;fontFamily=Tahoma;labelBackgroundColor=#ffffff;exitX=0;exitY=0.75;entryX=1;entryY=0.5;" edge="1" parent="1" source="d2" target="p12">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" value="ข้อมูลระบุตัวตนสำหรับค้นหา" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;endSize=12;strokeWidth=2;fontSize=14;fontFamily=Tahoma;labelBackgroundColor=#ffffff;exitX=1;exitY=0.65;entryX=0;entryY=0.35;" edge="1" parent="1" source="p12" target="d1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" value="ข้อมูลบัญชีและรหัสผ่านที่เข้ารหัส" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;endSize=12;strokeWidth=2;fontSize=14;fontFamily=Tahoma;labelBackgroundColor=#ffffff;exitX=0;exitY=0.75;entryX=1;entryY=0.85;" edge="1" parent="1" source="d1" target="p12">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e9" value="บันทึกความพยายามไม่สำเร็จ / ล้างประวัติเมื่อสำเร็จ" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;endSize=12;strokeWidth=2;fontSize=13;fontFamily=Tahoma;labelBackgroundColor=#ffffff;exitX=1;exitY=0.92;entryX=0;entryY=0.9;" edge="1" parent="1" source="p12" target="d2">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1510" y="828" />
+              <mxPoint x="1510" y="685.5" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e10" value="ข้อมูลบัญชีที่ตรวจสอบแล้ว" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;endSize=12;strokeWidth=2;fontSize=15;fontFamily=Tahoma;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="p12" target="p13">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e11" value="บทบาท สถานะบัญชี และสิทธิ์ใช้งาน" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;endSize=12;strokeWidth=2;fontSize=15;fontFamily=Tahoma;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="p13" target="p14">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e12" value="ผลไม่สำเร็จ / ถูกระงับชั่วคราว" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;endSize=12;strokeWidth=2;fontSize=14;fontFamily=Tahoma;labelBackgroundColor=#ffffff;exitX=0;exitY=0.85;entryX=0;entryY=0.35;" edge="1" parent="1" source="p12" target="p14">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="590" y="810" />
+              <mxPoint x="590" y="1484" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e13" value="ข้อมูลเซสชันผู้ใช้งาน" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;endSize=12;strokeWidth=2;fontSize=14;fontFamily=Tahoma;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="p14" target="d3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e14" value="ผลการลงชื่อเข้าใช้และหน้าปลายทางตามสิทธิ์" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;endSize=12;strokeWidth=2;fontSize=14;fontFamily=Tahoma;labelBackgroundColor=#ffffff;exitX=0;exitY=0.75;entryX=0;entryY=0.92;" edge="1" parent="1" source="p14" target="p11">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="500" y="1580" />
+              <mxPoint x="500" y="350.8" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e15" value="ผลการลงชื่อเข้าใช้" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;endSize=12;strokeWidth=2;fontSize=14;fontFamily=Tahoma;labelBackgroundColor=#ffffff;exitX=0;exitY=0.48;entryX=1;entryY=0.72;" edge="1" parent="1" source="p11" target="seller">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e16" value="ผลการลงชื่อเข้าใช้" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;endSize=12;strokeWidth=2;fontSize=14;fontFamily=Tahoma;labelBackgroundColor=#ffffff;exitX=0;exitY=0.88;entryX=1;entryY=0.68;" edge="1" parent="1" source="p11" target="buyer">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="450" y="376" />
+              <mxPoint x="450" y="595.6" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e17" value="ผลการลงชื่อเข้าใช้ / หน้าผู้ดูแลระบบ" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;endSize=12;strokeWidth=2;fontSize=14;fontFamily=Tahoma;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;entryX=0;entryY=0.72;" edge="1" parent="1" source="p11" target="admin">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="d1Divider" value="" style="rounded=0;html=0;strokeColor=none;fillColor=#000000;" vertex="1" parent="d1">
+          <mxGeometry x="70" y="0" width="3" height="95" as="geometry" />
+        </mxCell>
+        <mxCell id="d1Code" value="D9" style="text;html=0;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" vertex="1" parent="d1">
+          <mxGeometry x="0" y="0" width="70" height="95" as="geometry" />
+        </mxCell>
+        <mxCell id="d1Name" value="accounts_user" style="text;html=0;strokeColor=none;fillColor=none;align=left;spacingLeft=18;verticalAlign=middle;fontSize=19;fontStyle=1;fontFamily=Tahoma;" vertex="1" parent="d1">
+          <mxGeometry x="73" y="0" width="357" height="95" as="geometry" />
+        </mxCell>
+        <mxCell id="d2Divider" value="" style="rounded=0;html=0;strokeColor=none;fillColor=#000000;" vertex="1" parent="d2">
+          <mxGeometry x="70" y="0" width="3" height="95" as="geometry" />
+        </mxCell>
+        <mxCell id="d2Code" value="D11" style="text;html=0;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" vertex="1" parent="d2">
+          <mxGeometry x="0" y="0" width="70" height="95" as="geometry" />
+        </mxCell>
+        <mxCell id="d2Name" value="accounts_loginattempt" style="text;html=0;strokeColor=none;fillColor=none;align=left;spacingLeft=18;verticalAlign=middle;fontSize=19;fontStyle=1;fontFamily=Tahoma;" vertex="1" parent="d2">
+          <mxGeometry x="73" y="0" width="357" height="95" as="geometry" />
+        </mxCell>
+        <mxCell id="d3Divider" value="" style="rounded=0;html=0;strokeColor=none;fillColor=#000000;" vertex="1" parent="d3">
+          <mxGeometry x="70" y="0" width="3" height="95" as="geometry" />
+        </mxCell>
+        <mxCell id="d3Code" value="D12" style="text;html=0;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" vertex="1" parent="d3">
+          <mxGeometry x="0" y="0" width="70" height="95" as="geometry" />
+        </mxCell>
+        <mxCell id="d3Name" value="django_session" style="text;html=0;strokeColor=none;fillColor=none;align=left;spacingLeft=18;verticalAlign=middle;fontSize=19;fontStyle=1;fontFamily=Tahoma;" vertex="1" parent="d3">
+          <mxGeometry x="73" y="0" width="357" height="95" as="geometry" />
+        </mxCell>
+        <mxCell id="p11Label" value="รับข้อมูลลงชื่อเข้าใช้" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontStyle=1;fontSize=17;fontFamily=Tahoma;whiteSpace=wrap;resizable=0;movable=0;rotatable=0;" vertex="1" parent="p11">
+          <mxGeometry x="0.5" y="0.60" width="600" height="82" relative="1" as="geometry">
+            <mxPoint x="-300" y="-41" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="p12Label" value="ตรวจสอบการจำกัดการเข้าสู่ระบบ&#xA;และตรวจสอบข้อมูลบัญชี" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontStyle=1;fontSize=17;fontFamily=Tahoma;whiteSpace=wrap;resizable=0;movable=0;rotatable=0;" vertex="1" parent="p12">
+          <mxGeometry x="0.5" y="0.60" width="600" height="82" relative="1" as="geometry">
+            <mxPoint x="-300" y="-41" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="p13Label" value="ตรวจสอบสถานะบัญชี&#xA;บทบาท และสิทธิ์ใช้งาน" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontStyle=1;fontSize=17;fontFamily=Tahoma;whiteSpace=wrap;resizable=0;movable=0;rotatable=0;" vertex="1" parent="p13">
+          <mxGeometry x="0.5" y="0.60" width="600" height="82" relative="1" as="geometry">
+            <mxPoint x="-300" y="-41" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="p14Label" value="สร้างเซสชันและส่งผล&#xA;การลงชื่อเข้าใช้" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontStyle=1;fontSize=17;fontFamily=Tahoma;whiteSpace=wrap;resizable=0;movable=0;rotatable=0;" vertex="1" parent="p14">
+          <mxGeometry x="0.5" y="0.60" width="600" height="82" relative="1" as="geometry">
+            <mxPoint x="-300" y="-41" as="offset" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

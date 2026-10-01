@@ -1,0 +1,335 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mxfile host="app.diagrams.net" version="24.7.17" agent="Codex" modified="2026-10-01T00:00:00.000Z">
+  <diagram id="dfd-level-1-product-management" name="DFD Level 1 - Product Management">
+    <mxGraphModel fold="1" pageWidth="2400" dx="1200" tooltips="1" guides="1" connect="1" grid="1" shadow="0" math="0" pageHeight="1900" dy="800" gridSize="10" pageScale="1" page="1" arrows="1">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" parent="1" value="แผนภาพกระแสข้อมูลระดับ 1 : จัดการสินค้า" style="text;html=0;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=28;fontStyle=1;fontFamily=Tahoma;" vertex="1">
+          <mxGeometry x="500" y="20" width="1400" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="seller31" parent="1" value="ผู้ขาย" style="rounded=0;whiteSpace=wrap;html=0;strokeWidth=3;fillColor=#ffffff;strokeColor=#000000;align=center;verticalAlign=middle;fontSize=21;fontStyle=1;fontFamily=Tahoma;" vertex="1">
+          <mxGeometry x="60" y="120" width="280" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="seller32" parent="1" value="ผู้ขาย" style="rounded=0;whiteSpace=wrap;html=0;strokeWidth=3;fillColor=#ffffff;strokeColor=#000000;align=center;verticalAlign=middle;fontSize=21;fontStyle=1;fontFamily=Tahoma;" vertex="1">
+          <mxGeometry x="60" y="720" width="280" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="staff32" parent="1" value="เจ้าหน้าที่ / ผู้ดูแลระบบ" style="rounded=0;whiteSpace=wrap;html=0;strokeWidth=3;fillColor=#ffffff;strokeColor=#000000;align=center;verticalAlign=middle;fontSize=21;fontStyle=1;fontFamily=Tahoma;" vertex="1">
+          <mxGeometry x="60" y="970" width="300" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="staff33" parent="1" value="เจ้าหน้าที่ / ผู้ดูแลระบบ" style="rounded=0;whiteSpace=wrap;html=0;strokeWidth=3;fillColor=#ffffff;strokeColor=#000000;align=center;verticalAlign=middle;fontSize=21;fontStyle=1;fontFamily=Tahoma;" vertex="1">
+          <mxGeometry x="60" y="1290" width="300" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="seller33" parent="1" value="ผู้ขาย" style="rounded=0;whiteSpace=wrap;html=0;strokeWidth=3;fillColor=#ffffff;strokeColor=#000000;align=center;verticalAlign=middle;fontSize=21;fontStyle=1;fontFamily=Tahoma;" vertex="1">
+          <mxGeometry x="60" y="1540" width="280" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="p31" parent="1" value="3.1" style="swimlane;html=1;horizontal=1;startSize=42;rounded=0;fillColor=#ffffff;swimlaneFillColor=#ffffff;strokeColor=#000000;fontStyle=1;fontSize=16;fontFamily=Tahoma;align=center;verticalAlign=middle;" vertex="1">
+          <mxGeometry x="800" y="100" width="650" height="220" as="geometry" />
+        </mxCell>
+        <mxCell id="p32" parent="1" value="3.2" style="swimlane;html=1;horizontal=1;startSize=42;rounded=0;fillColor=#ffffff;swimlaneFillColor=#ffffff;strokeColor=#000000;fontStyle=1;fontSize=16;fontFamily=Tahoma;align=center;verticalAlign=middle;" vertex="1">
+          <mxGeometry x="800" y="700" width="650" height="220" as="geometry" />
+        </mxCell>
+        <mxCell id="p33" parent="1" value="3.3" style="swimlane;html=1;horizontal=1;startSize=42;rounded=0;fillColor=#ffffff;swimlaneFillColor=#ffffff;strokeColor=#000000;fontStyle=1;fontSize=16;fontFamily=Tahoma;align=center;verticalAlign=middle;" vertex="1">
+          <mxGeometry x="800" y="1300" width="650" height="220" as="geometry" />
+        </mxCell>
+        <mxCell id="d1a" parent="1" value="" style="shape=partialRectangle;top=1;bottom=1;left=1;right=0;html=0;strokeWidth=3;fillColor=#ffffff;strokeColor=#000000;" vertex="1">
+          <mxGeometry x="1750" y="90" width="450" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="d1aDivider" parent="d1a" value="" style="rounded=0;strokeColor=none;fillColor=#000000;" vertex="1">
+          <mxGeometry x="70" y="0" width="3" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="d1aCode" parent="d1a" value="D1" style="text;html=0;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" vertex="1">
+          <mxGeometry x="0" y="0" width="70" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="d1aName" parent="d1a" value="catalog_product" style="text;html=0;strokeColor=none;fillColor=none;align=left;spacingLeft=18;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" vertex="1">
+          <mxGeometry x="73" y="0" width="377" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="d2a" parent="1" value="" style="shape=partialRectangle;top=1;bottom=1;left=1;right=0;html=0;strokeWidth=3;fillColor=#ffffff;strokeColor=#000000;" vertex="1">
+          <mxGeometry x="1750" y="230" width="450" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="d2aDivider" parent="d2a" value="" style="rounded=0;strokeColor=none;fillColor=#000000;" vertex="1">
+          <mxGeometry x="70" y="0" width="3" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="d2aCode" parent="d2a" value="D16" style="text;html=0;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" vertex="1">
+          <mxGeometry x="0" y="0" width="70" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="d2aName" parent="d2a" value="catalog_productimage" style="text;html=0;strokeColor=none;fillColor=none;align=left;spacingLeft=18;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" vertex="1">
+          <mxGeometry x="73" y="0" width="377" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="d3a" parent="1" value="" style="shape=partialRectangle;top=1;bottom=1;left=1;right=0;html=0;strokeWidth=3;fillColor=#ffffff;strokeColor=#000000;" vertex="1">
+          <mxGeometry x="1750" y="370" width="450" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="d3aDivider" parent="d3a" value="" style="rounded=0;strokeColor=none;fillColor=#000000;" vertex="1">
+          <mxGeometry x="70" y="0" width="3" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="d3aCode" parent="d3a" value="D2" style="text;html=0;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" vertex="1">
+          <mxGeometry x="0" y="0" width="70" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="d3aName" parent="d3a" value="catalog_productvariant" style="text;html=0;strokeColor=none;fillColor=none;align=left;spacingLeft=18;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" vertex="1">
+          <mxGeometry x="73" y="0" width="377" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="d4a" parent="1" value="" style="shape=partialRectangle;top=1;bottom=1;left=1;right=0;html=0;strokeWidth=3;fillColor=#ffffff;strokeColor=#000000;" vertex="1">
+          <mxGeometry x="1750" y="510" width="450" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="d4aDivider" parent="d4a" value="" style="rounded=0;strokeColor=none;fillColor=#000000;" vertex="1">
+          <mxGeometry x="70" y="0" width="3" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="d4aCode" parent="d4a" value="D15" style="text;html=0;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" vertex="1">
+          <mxGeometry x="0" y="0" width="70" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="d4aName" parent="d4a" value="catalog_category" style="text;html=0;strokeColor=none;fillColor=none;align=left;spacingLeft=18;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" vertex="1">
+          <mxGeometry x="73" y="0" width="377" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="d1b" parent="1" value="" style="shape=partialRectangle;top=1;bottom=1;left=1;right=0;html=0;strokeWidth=3;fillColor=#ffffff;strokeColor=#000000;" vertex="1">
+          <mxGeometry x="1750" y="700" width="450" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="d1bDivider" parent="d1b" value="" style="rounded=0;strokeColor=none;fillColor=#000000;" vertex="1">
+          <mxGeometry x="70" y="0" width="3" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="d1bCode" parent="d1b" value="D1" style="text;html=0;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" vertex="1">
+          <mxGeometry x="0" y="0" width="70" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="d1bName" parent="d1b" value="catalog_product" style="text;html=0;strokeColor=none;fillColor=none;align=left;spacingLeft=18;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" vertex="1">
+          <mxGeometry x="73" y="0" width="377" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="d2b" parent="1" value="" style="shape=partialRectangle;top=1;bottom=1;left=1;right=0;html=0;strokeWidth=3;fillColor=#ffffff;strokeColor=#000000;" vertex="1">
+          <mxGeometry x="1750" y="840" width="450" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="d2bDivider" parent="d2b" value="" style="rounded=0;strokeColor=none;fillColor=#000000;" vertex="1">
+          <mxGeometry x="70" y="0" width="3" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="d2bCode" parent="d2b" value="D16" style="text;html=0;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" vertex="1">
+          <mxGeometry x="0" y="0" width="70" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="d2bName" parent="d2b" value="catalog_productimage" style="text;html=0;strokeColor=none;fillColor=none;align=left;spacingLeft=18;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" vertex="1">
+          <mxGeometry x="73" y="0" width="377" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="d3b" parent="1" value="" style="shape=partialRectangle;top=1;bottom=1;left=1;right=0;html=0;strokeWidth=3;fillColor=#ffffff;strokeColor=#000000;" vertex="1">
+          <mxGeometry x="1750" y="980" width="450" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="d3bDivider" parent="d3b" value="" style="rounded=0;strokeColor=none;fillColor=#000000;" vertex="1">
+          <mxGeometry x="70" y="0" width="3" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="d3bCode" parent="d3b" value="D2" style="text;html=0;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" vertex="1">
+          <mxGeometry x="0" y="0" width="70" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="d3bName" parent="d3b" value="catalog_productvariant" style="text;html=0;strokeColor=none;fillColor=none;align=left;spacingLeft=18;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" vertex="1">
+          <mxGeometry x="73" y="0" width="377" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="d5b" parent="1" value="" style="shape=partialRectangle;top=1;bottom=1;left=1;right=0;html=0;strokeWidth=3;fillColor=#ffffff;strokeColor=#000000;" vertex="1">
+          <mxGeometry x="1750" y="1120" width="450" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="d5bDivider" parent="d5b" value="" style="rounded=0;strokeColor=none;fillColor=#000000;" vertex="1">
+          <mxGeometry x="70" y="0" width="3" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="d5bCode" parent="d5b" value="D17" style="text;html=0;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" vertex="1">
+          <mxGeometry x="0" y="0" width="70" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="d5bName" parent="d5b" value="catalog_stockmovement" style="text;html=0;strokeColor=none;fillColor=none;align=left;spacingLeft=18;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" vertex="1">
+          <mxGeometry x="73" y="0" width="377" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="d6b" parent="1" value="" style="shape=partialRectangle;top=1;bottom=1;left=1;right=0;html=0;strokeWidth=3;fillColor=#ffffff;strokeColor=#000000;" vertex="1">
+          <mxGeometry x="1750" y="1260" width="450" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="d6bDivider" parent="d6b" value="" style="rounded=0;strokeColor=none;fillColor=#000000;" vertex="1">
+          <mxGeometry x="70" y="0" width="3" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="d6bCode" parent="d6b" value="D8" style="text;html=0;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" vertex="1">
+          <mxGeometry x="0" y="0" width="70" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="d6bName" parent="d6b" value="accounts_auditevent" style="text;html=0;strokeColor=none;fillColor=none;align=left;spacingLeft=18;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" vertex="1">
+          <mxGeometry x="73" y="0" width="377" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="d1c" parent="1" value="" style="shape=partialRectangle;top=1;bottom=1;left=1;right=0;html=0;strokeWidth=3;fillColor=#ffffff;strokeColor=#000000;" vertex="1">
+          <mxGeometry x="1750" y="1300" width="450" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="d1cDivider" parent="d1c" value="" style="rounded=0;strokeColor=none;fillColor=#000000;" vertex="1">
+          <mxGeometry x="70" y="0" width="3" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="d1cCode" parent="d1c" value="D1" style="text;html=0;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" vertex="1">
+          <mxGeometry x="0" y="0" width="70" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="d1cName" parent="d1c" value="catalog_product" style="text;html=0;strokeColor=none;fillColor=none;align=left;spacingLeft=18;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" vertex="1">
+          <mxGeometry x="73" y="0" width="377" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="d6c" parent="1" value="" style="shape=partialRectangle;top=1;bottom=1;left=1;right=0;html=0;strokeWidth=3;fillColor=#ffffff;strokeColor=#000000;" vertex="1">
+          <mxGeometry x="1750" y="1450" width="450" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="d6cDivider" parent="d6c" value="" style="rounded=0;strokeColor=none;fillColor=#000000;" vertex="1">
+          <mxGeometry x="70" y="0" width="3" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="d6cCode" parent="d6c" value="D8" style="text;html=0;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" vertex="1">
+          <mxGeometry x="0" y="0" width="70" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="d6cName" parent="d6c" value="accounts_auditevent" style="text;html=0;strokeColor=none;fillColor=none;align=left;spacingLeft=18;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" vertex="1">
+          <mxGeometry x="73" y="0" width="377" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="d7c" parent="1" value="" style="shape=partialRectangle;top=1;bottom=1;left=1;right=0;html=0;strokeWidth=3;fillColor=#ffffff;strokeColor=#000000;" vertex="1">
+          <mxGeometry x="1750" y="1600" width="450" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="d7cDivider" parent="d7c" value="" style="rounded=0;strokeColor=none;fillColor=#000000;" vertex="1">
+          <mxGeometry x="70" y="0" width="3" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="d7cCode" parent="d7c" value="D7" style="text;html=0;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" vertex="1">
+          <mxGeometry x="0" y="0" width="70" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="d7cName" parent="d7c" value="accounts_notification" style="text;html=0;strokeColor=none;fillColor=none;align=left;spacingLeft=18;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" vertex="1">
+          <mxGeometry x="73" y="0" width="377" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" parent="1" value="" style="edgeStyle=none;rounded=0;html=0;endArrow=block;endFill=1;endSize=12;strokeWidth=2;exitX=1;exitY=0.3;entryX=0;entryY=0.25;" edge="1" source="seller31" target="p31">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="label_e1" parent="1" value="ข้อมูลสินค้า รูปภาพ และตัวเลือกสินค้า" style="text;html=0;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=14;fontFamily=Tahoma;connectable=0;" vertex="1">
+          <mxGeometry x="408.391211917366" y="160.99574819883" width="324" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" parent="1" value="" style="edgeStyle=none;rounded=0;html=0;endArrow=block;endFill=1;endSize=12;strokeWidth=2;exitX=0;exitY=0.45;entryX=1;entryY=0.7;" edge="1" source="p31" target="seller31">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="label_e2" parent="1" value="ผลการเพิ่มสินค้าเพื่อรออนุมัติ" style="text;html=0;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=14;fontFamily=Tahoma;connectable=0;" vertex="1">
+          <mxGeometry x="434.984229945679" y="177.028683654313" width="268" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" parent="1" value="" style="edgeStyle=none;rounded=0;html=0;endArrow=block;endFill=1;endSize=12;strokeWidth=2;exitX=1;exitY=0.18;entryX=0;entryY=0.45;" edge="1" source="p31" target="d1a">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="label_e3" parent="1" value="ข้อมูลสินค้าและสถานะรออนุมัติ" style="text;html=0;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=14;fontFamily=Tahoma;connectable=0;" vertex="1">
+          <mxGeometry x="1470.68051314413" y="134.912131562889" width="260" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" parent="1" value="" style="edgeStyle=none;rounded=0;html=0;endArrow=block;endFill=1;endSize=12;strokeWidth=2;exitX=1;exitY=0.45;entryX=0;entryY=0.5;" edge="1" source="p31" target="d2a">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="label_e4" parent="1" value="ข้อมูลรูปภาพสินค้า" style="text;html=0;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=14;fontFamily=Tahoma;connectable=0;" vertex="1">
+          <mxGeometry x="1505.71667985756" y="236.232939356909" width="180" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" parent="1" value="" style="edgeStyle=none;rounded=0;html=0;endArrow=block;endFill=1;endSize=12;strokeWidth=2;exitX=1;exitY=0.72;entryX=0;entryY=0.5;" edge="1" source="p31" target="d3a">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="label_e5" parent="1" value="ข้อมูลตัวเลือกสินค้า" style="text;html=0;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=14;fontFamily=Tahoma;connectable=0;" vertex="1">
+          <mxGeometry x="1497.77557525827" y="334.461209750285" width="188" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" parent="1" value="" style="edgeStyle=none;rounded=0;html=0;endArrow=block;endFill=1;endSize=12;strokeWidth=2;exitX=0;exitY=0.5;entryX=1;entryY=0.88;" edge="1" source="d4a" target="p31">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="label_e6" parent="1" value="ข้อมูลหมวดหมู่สินค้า" style="text;html=0;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=14;fontFamily=Tahoma;connectable=0;" vertex="1">
+          <mxGeometry x="1517.76018984548" y="392.422897050428" width="188" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" parent="1" value="" style="edgeStyle=none;rounded=0;html=0;endArrow=block;endFill=1;endSize=12;strokeWidth=2;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" source="p31" target="p32">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="label_e7" parent="1" value="ข้อมูลสินค้าที่เพิ่มแล้ว" style="text;html=0;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=14;fontFamily=Tahoma;connectable=0;" vertex="1">
+          <mxGeometry x="997" y="493" width="220" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" parent="1" value="" style="edgeStyle=none;rounded=0;html=0;endArrow=block;endFill=1;endSize=12;strokeWidth=2;exitX=1;exitY=0.3;entryX=0;entryY=0.25;" edge="1" source="seller32" target="p32">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="label_e8" parent="1" value="ข้อมูลแก้ไขสินค้า รูปภาพ และตัวเลือกสินค้า" style="text;html=0;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=14;fontFamily=Tahoma;connectable=0;" vertex="1">
+          <mxGeometry x="390.391211917366" y="760.99574819883" width="360" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="e9" parent="1" value="" style="edgeStyle=none;rounded=0;html=0;endArrow=block;endFill=1;endSize=12;strokeWidth=2;exitX=0;exitY=0.45;entryX=1;entryY=0.7;" edge="1" source="p32" target="seller32">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="label_e9" parent="1" value="ผลการแก้ไขสินค้า" style="text;html=0;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=14;fontFamily=Tahoma;connectable=0;" vertex="1">
+          <mxGeometry x="478.984229945679" y="777.028683654313" width="180" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="e10" parent="1" value="" style="edgeStyle=none;rounded=0;html=0;endArrow=block;endFill=1;endSize=12;strokeWidth=2;exitX=1;exitY=0.3;entryX=0;entryY=0.85;" edge="1" source="staff32" target="p32">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="label_e10" parent="1" value="ข้อมูลแก้ไขสินค้าโดยเจ้าหน้าที่" style="text;html=0;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=14;fontFamily=Tahoma;connectable=0;" vertex="1">
+          <mxGeometry x="447.027931734942" y="951.283515338864" width="276" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="e11" parent="1" value="" style="edgeStyle=none;rounded=0;html=0;endArrow=block;endFill=1;endSize=12;strokeWidth=2;exitX=1;exitY=0.15;entryX=0;entryY=0.45;" edge="1" source="p32" target="d1b">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="label_e11" parent="1" value="ข้อมูลสินค้าที่แก้ไข" style="text;html=0;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=14;fontFamily=Tahoma;connectable=0;" vertex="1">
+          <mxGeometry x="1505.6850482233" y="736.622244382915" width="188" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="e12" parent="1" value="" style="edgeStyle=none;rounded=0;html=0;endArrow=block;endFill=1;endSize=12;strokeWidth=2;exitX=1;exitY=0.35;entryX=0;entryY=0.5;" edge="1" source="p32" target="d2b">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="label_e12" parent="1" value="ข้อมูลรูปภาพที่แก้ไข" style="text;html=0;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=14;fontFamily=Tahoma;connectable=0;" vertex="1">
+          <mxGeometry x="1500.02848641956" y="829.730607337743" width="188" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="e13" parent="1" value="" style="edgeStyle=none;rounded=0;html=0;endArrow=block;endFill=1;endSize=12;strokeWidth=2;exitX=1;exitY=0.55;entryX=0;entryY=0.5;" edge="1" source="p32" target="d3b">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="label_e13" parent="1" value="ข้อมูลตัวเลือกสินค้าที่แก้ไข" style="text;html=0;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=14;fontFamily=Tahoma;connectable=0;" vertex="1">
+          <mxGeometry x="1463.96373254856" y="919.692333674602" width="252" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="e14" parent="1" value="" style="edgeStyle=none;rounded=0;html=0;endArrow=block;endFill=1;endSize=12;strokeWidth=2;exitX=1;exitY=0.75;entryX=0;entryY=0.5;" edge="1" source="p32" target="d5b">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="label_e14" parent="1" value="ข้อมูลการปรับสต็อก" style="text;html=0;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=14;fontFamily=Tahoma;connectable=0;" vertex="1">
+          <mxGeometry x="1497.32544378698" y="1009.53106508876" width="180" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="e15" parent="1" value="" style="edgeStyle=none;rounded=0;html=0;endArrow=block;endFill=1;endSize=12;strokeWidth=2;exitX=1;exitY=0.92;entryX=0;entryY=0.5;" edge="1" source="p32" target="d6b">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="label_e15" parent="1" value="ประวัติการแก้ไขสินค้า" style="text;html=0;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=14;fontFamily=Tahoma;connectable=0;" vertex="1">
+          <mxGeometry x="1487.59870431098" y="1096.24827219871" width="196" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="e16" parent="1" value="" style="edgeStyle=none;rounded=0;html=0;endArrow=block;endFill=1;endSize=12;strokeWidth=2;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" source="p32" target="p33">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="label_e16" parent="1" value="ข้อมูลสินค้าและสถานะปัจจุบัน" style="text;html=0;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=14;fontFamily=Tahoma;connectable=0;" vertex="1">
+          <mxGeometry x="981" y="1093" width="252" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="e17" parent="1" value="" style="edgeStyle=none;rounded=0;html=0;endArrow=block;endFill=1;endSize=12;strokeWidth=2;exitX=1;exitY=0.35;entryX=0;entryY=0.25;" edge="1" source="staff33" target="p33">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="label_e17" parent="1" value="คำสั่งบล็อก / ปลดบล็อกสินค้า" style="text;html=0;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=14;fontFamily=Tahoma;connectable=0;" vertex="1">
+          <mxGeometry x="453.488842593585" y="1349.74274070579" width="252" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="e18" parent="1" value="" style="edgeStyle=none;rounded=0;html=0;endArrow=block;endFill=1;endSize=12;strokeWidth=2;exitX=0;exitY=0.65;entryX=1;entryY=0.7;" edge="1" source="p33" target="staff33">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="label_e18" parent="1" value="ผลการจัดการสถานะสินค้า" style="text;html=0;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=14;fontFamily=Tahoma;connectable=0;" vertex="1">
+          <mxGeometry x="479.952055183158" y="1384.10616082106" width="204" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="e19" parent="1" value="" style="edgeStyle=none;rounded=0;html=0;endArrow=block;endFill=1;endSize=12;strokeWidth=2;exitX=0;exitY=0.7;entryX=1;entryY=0.35;" edge="1" source="d1c" target="p33">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="label_e19" parent="1" value="ข้อมูลสินค้า" style="text;html=0;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=14;fontFamily=Tahoma;connectable=0;" vertex="1">
+          <mxGeometry x="1508.95178191203" y="1333.28054706342" width="180" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="e20" parent="1" value="" style="edgeStyle=none;rounded=0;html=0;endArrow=block;endFill=1;endSize=12;strokeWidth=2;exitX=1;exitY=0.3;entryX=0;entryY=0.25;" edge="1" source="p33" target="d1c">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="label_e20" parent="1" value="สถานะสินค้าและเหตุผล" style="text;html=0;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=14;fontFamily=Tahoma;connectable=0;" vertex="1">
+          <mxGeometry x="1508.65561787305" y="1344.42802484727" width="188" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="e21" parent="1" value="" style="edgeStyle=none;rounded=0;html=0;endArrow=block;endFill=1;endSize=12;strokeWidth=2;exitX=1;exitY=0.6;entryX=0;entryY=0.5;" edge="1" source="p33" target="d6c">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="label_e21" parent="1" value="ประวัติการบล็อก / ปลดบล็อก" style="text;html=0;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=14;fontFamily=Tahoma;connectable=0;" vertex="1">
+          <mxGeometry x="1478.44163721598" y="1462.89477413563" width="236" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="e22" parent="1" value="" style="edgeStyle=none;rounded=0;html=0;endArrow=block;endFill=1;endSize=12;strokeWidth=2;exitX=1;exitY=0.9;entryX=0;entryY=0.5;" edge="1" source="p33" target="d7c">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="label_e22" parent="1" value="การแจ้งเตือนผู้ขาย" style="text;html=0;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=14;fontFamily=Tahoma;connectable=0;" vertex="1">
+          <mxGeometry x="1502.18888100425" y="1569.46685604654" width="180" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="e23" parent="1" value="" style="edgeStyle=none;rounded=0;html=0;endArrow=block;endFill=1;endSize=12;strokeWidth=2;exitX=0;exitY=0.85;entryX=1;entryY=0.5;" edge="1" source="p33" target="seller33">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="label_e23" parent="1" value="สถานะสินค้าที่เปลี่ยนแปลง" style="text;html=0;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=14;fontFamily=Tahoma;connectable=0;" vertex="1">
+          <mxGeometry x="451.17463366241" y="1516.65883972428" width="228" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="p31Label" value="เพิ่มสินค้า" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontStyle=1;fontSize=17;fontFamily=Tahoma;whiteSpace=wrap;resizable=0;movable=0;rotatable=0;" vertex="1" parent="p31">
+          <mxGeometry x="0.5" y="0.60" width="600" height="82" relative="1" as="geometry">
+            <mxPoint x="-300" y="-41" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="p32Label" value="แก้ไขสินค้า รูปภาพ และตัวเลือกสินค้า" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontStyle=1;fontSize=17;fontFamily=Tahoma;whiteSpace=wrap;resizable=0;movable=0;rotatable=0;" vertex="1" parent="p32">
+          <mxGeometry x="0.5" y="0.60" width="600" height="82" relative="1" as="geometry">
+            <mxPoint x="-300" y="-41" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="p33Label" value="จัดการสถานะสินค้าและบล็อกสินค้า" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontStyle=1;fontSize=17;fontFamily=Tahoma;whiteSpace=wrap;resizable=0;movable=0;rotatable=0;" vertex="1" parent="p33">
+          <mxGeometry x="0.5" y="0.60" width="600" height="82" relative="1" as="geometry">
+            <mxPoint x="-300" y="-41" as="offset" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

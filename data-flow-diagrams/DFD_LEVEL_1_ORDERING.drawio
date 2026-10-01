@@ -1,0 +1,281 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mxGraphModel dx="1800" dy="2200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="2339">
+  <root>
+    <mxCell id="0" parent="">
+      <mxGeometry x="0" y="0" width="0" height="0" as="geometry" />
+    </mxCell>
+    <mxCell id="1" parent="0">
+      <mxGeometry x="0" y="0" width="0" height="0" as="geometry" />
+    </mxCell>
+    <mxCell id="title" value="แผนภาพกระแสข้อมูลระดับ 1 : การสั่งซื้อสินค้า" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontStyle=1;fontSize=20;fontFamily=Tahoma;" parent="1" vertex="1">
+      <mxGeometry x="650" y="20" width="700" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="p41" value="4.1" style="swimlane;html=1;horizontal=1;startSize=42;rounded=0;fillColor=#ffffff;swimlaneFillColor=#ffffff;strokeColor=#000000;fontStyle=1;fontSize=16;fontFamily=Tahoma;align=center;verticalAlign=middle;" parent="1" vertex="1">
+      <mxGeometry x="760" y="100" width="660" height="230" as="geometry" />
+    </mxCell>
+    <mxCell id="p42" value="4.2" style="swimlane;html=1;horizontal=1;startSize=42;rounded=0;fillColor=#ffffff;swimlaneFillColor=#ffffff;strokeColor=#000000;fontStyle=1;fontSize=16;fontFamily=Tahoma;align=center;verticalAlign=middle;" parent="1" vertex="1">
+      <mxGeometry x="760" y="690" width="660" height="230" as="geometry" />
+    </mxCell>
+    <mxCell id="p43" value="4.3" style="swimlane;html=1;horizontal=1;startSize=42;rounded=0;fillColor=#ffffff;swimlaneFillColor=#ffffff;strokeColor=#000000;fontStyle=1;fontSize=16;fontFamily=Tahoma;align=center;verticalAlign=middle;" parent="1" vertex="1">
+      <mxGeometry x="760" y="1280" width="660" height="230" as="geometry" />
+    </mxCell>
+    <mxCell id="buyer41" value="ผู้ซื้อที่เป็นสมาชิก" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontStyle=1;fontSize=16;fontFamily=Tahoma;align=center;verticalAlign=middle;" parent="1" vertex="1">
+      <mxGeometry x="70" y="145" width="320" height="120" as="geometry" />
+    </mxCell>
+    <mxCell id="buyer42" value="ผู้ซื้อที่เป็นสมาชิก" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontStyle=1;fontSize=16;fontFamily=Tahoma;align=center;verticalAlign=middle;" parent="1" vertex="1">
+      <mxGeometry x="70" y="745" width="320" height="120" as="geometry" />
+    </mxCell>
+    <mxCell id="seller43" value="ผู้ขายที่เป็นสมาชิก" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontStyle=1;fontSize=16;fontFamily=Tahoma;align=center;verticalAlign=middle;" parent="1" vertex="1">
+      <mxGeometry x="70" y="1335" width="320" height="120" as="geometry" />
+    </mxCell>
+    <mxCell id="d1a" value="" style="shape=partialRectangle;top=1;bottom=1;left=1;right=0;html=0;strokeWidth=3;fillColor=#ffffff;strokeColor=#000000;" parent="1" vertex="1">
+      <mxGeometry x="1530" y="90" width="450" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d1aCode" value="D1" style="text;html=0;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" parent="d1a" vertex="1">
+      <mxGeometry x="0" y="0" width="70" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d1aName" value="catalog_product" style="text;html=0;strokeColor=none;fillColor=none;align=left;spacingLeft=18;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" parent="d1a" vertex="1">
+      <mxGeometry x="73" y="0" width="377" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d2a" value="" style="shape=partialRectangle;top=1;bottom=1;left=1;right=0;html=0;strokeWidth=3;fillColor=#ffffff;strokeColor=#000000;" parent="1" vertex="1">
+      <mxGeometry x="1530" y="180" width="450" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d2aCode" value="D2" style="text;html=0;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" parent="d2a" vertex="1">
+      <mxGeometry x="0" y="0" width="70" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d2aName" value="catalog_productvariant" style="text;html=0;strokeColor=none;fillColor=none;align=left;spacingLeft=18;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" parent="d2a" vertex="1">
+      <mxGeometry x="73" y="0" width="377" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d3a" value="" style="shape=partialRectangle;top=1;bottom=1;left=1;right=0;html=0;strokeWidth=3;fillColor=#ffffff;strokeColor=#000000;" parent="1" vertex="1">
+      <mxGeometry x="1530" y="270" width="450" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d3aCode" value="D3" style="text;html=0;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" parent="d3a" vertex="1">
+      <mxGeometry x="0" y="0" width="70" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d3aName" value="orders_order" style="text;html=0;strokeColor=none;fillColor=none;align=left;spacingLeft=18;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" parent="d3a" vertex="1">
+      <mxGeometry x="73" y="0" width="377" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d4a" value="" style="shape=partialRectangle;top=1;bottom=1;left=1;right=0;html=0;strokeWidth=3;fillColor=#ffffff;strokeColor=#000000;" parent="1" vertex="1">
+      <mxGeometry x="1530" y="360" width="450" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d4aCode" value="D4" style="text;html=0;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" parent="d4a" vertex="1">
+      <mxGeometry x="0" y="0" width="70" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d4aName" value="orders_orderitem" style="text;html=0;strokeColor=none;fillColor=none;align=left;spacingLeft=18;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" parent="d4a" vertex="1">
+      <mxGeometry x="73" y="0" width="377" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d1b" value="" style="shape=partialRectangle;top=1;bottom=1;left=1;right=0;html=0;strokeWidth=3;fillColor=#ffffff;strokeColor=#000000;" parent="1" vertex="1">
+      <mxGeometry x="1530" y="690" width="450" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d1bCode" value="D3" style="text;html=0;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" parent="d1b" vertex="1">
+      <mxGeometry x="0" y="0" width="70" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d1bName" value="orders_order" style="text;html=0;strokeColor=none;fillColor=none;align=left;spacingLeft=18;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" parent="d1b" vertex="1">
+      <mxGeometry x="73" y="0" width="377" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d5b" value="" style="shape=partialRectangle;top=1;bottom=1;left=1;right=0;html=0;strokeWidth=3;fillColor=#ffffff;strokeColor=#000000;" parent="1" vertex="1">
+      <mxGeometry x="1530" y="790" width="450" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d5bCode" value="D5" style="text;html=0;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" parent="d5b" vertex="1">
+      <mxGeometry x="0" y="0" width="70" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d5bName" value="payments_payment" style="text;html=0;strokeColor=none;fillColor=none;align=left;spacingLeft=18;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" parent="d5b" vertex="1">
+      <mxGeometry x="73" y="0" width="377" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d6b" value="" style="shape=partialRectangle;top=1;bottom=1;left=1;right=0;html=0;strokeWidth=3;fillColor=#ffffff;strokeColor=#000000;" parent="1" vertex="1">
+      <mxGeometry x="1530" y="890" width="450" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d6bCode" value="D6" style="text;html=0;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" parent="d6b" vertex="1">
+      <mxGeometry x="0" y="0" width="70" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d6bName" value="payments_paymentbatch" style="text;html=0;strokeColor=none;fillColor=none;align=left;spacingLeft=18;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" parent="d6b" vertex="1">
+      <mxGeometry x="73" y="0" width="377" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d1c" value="" style="shape=partialRectangle;top=1;bottom=1;left=1;right=0;html=0;strokeWidth=3;fillColor=#ffffff;strokeColor=#000000;" parent="1" vertex="1">
+      <mxGeometry x="1530" y="1280" width="450" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d1cCode" value="D3" style="text;html=0;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" parent="d1c" vertex="1">
+      <mxGeometry x="0" y="0" width="70" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d1cName" value="orders_order" style="text;html=0;strokeColor=none;fillColor=none;align=left;spacingLeft=18;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" parent="d1c" vertex="1">
+      <mxGeometry x="73" y="0" width="377" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d7c" value="" style="shape=partialRectangle;top=1;bottom=1;left=1;right=0;html=0;strokeWidth=3;fillColor=#ffffff;strokeColor=#000000;" parent="1" vertex="1">
+      <mxGeometry x="1530" y="1380" width="450" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d7cCode" value="D7" style="text;html=0;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" parent="d7c" vertex="1">
+      <mxGeometry x="0" y="0" width="70" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d7cName" value="accounts_notification" style="text;html=0;strokeColor=none;fillColor=none;align=left;spacingLeft=18;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" parent="d7c" vertex="1">
+      <mxGeometry x="73" y="0" width="377" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d8c" value="" style="shape=partialRectangle;top=1;bottom=1;left=1;right=0;html=0;strokeWidth=3;fillColor=#ffffff;strokeColor=#000000;" parent="1" vertex="1">
+      <mxGeometry x="1530" y="1480" width="450" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d8cCode" value="D8" style="text;html=0;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" parent="d8c" vertex="1">
+      <mxGeometry x="0" y="0" width="70" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d8cName" value="accounts_auditevent" style="text;html=0;strokeColor=none;fillColor=none;align=left;spacingLeft=18;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" parent="d8c" vertex="1">
+      <mxGeometry x="73" y="0" width="377" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="e1" value="" style="edgeStyle=none;rounded=0;orthogonalLoop=0;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.4;exitX=1;exitY=0.28;exitPerimeter=1;entryX=0;entryY=0.28;entryPerimeter=1;" edge="1" parent="1" source="buyer41" target="p41">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="label_e1" value="ข้อมูลสินค้า จำนวน และที่อยู่จัดส่ง" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=13;fontFamily=Tahoma;whiteSpace=wrap;resizable=1;movable=1;rotatable=0;" parent="1" vertex="1">
+      <mxGeometry x="400" y="165" width="280" height="32" as="geometry" />
+    </mxCell>
+    <mxCell id="e2" value="" style="edgeStyle=none;rounded=0;orthogonalLoop=0;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.4;exitX=0;exitY=0.72;exitPerimeter=1;entryX=1;entryY=0.72;entryPerimeter=1;" edge="1" parent="1" source="p41" target="buyer41">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="label_e2" value="ผลการตรวจสอบและรายละเอียดคำสั่งซื้อ" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=13;fontFamily=Tahoma;whiteSpace=wrap;resizable=1;movable=1;rotatable=0;" parent="1" vertex="1">
+      <mxGeometry x="420" y="235" width="280" height="32" as="geometry" />
+    </mxCell>
+    <mxCell id="e3" value="" style="edgeStyle=none;rounded=0;orthogonalLoop=0;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.4;exitX=0;exitY=0.35;exitPerimeter=1;entryX=1;entryY=0.15;entryPerimeter=1;" edge="1" parent="1" source="d1a" target="p41">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="label_e3" value="ข้อมูลสินค้าและสถานะจำหน่าย" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=13;fontFamily=Tahoma;whiteSpace=wrap;resizable=1;movable=1;rotatable=0;" parent="1" vertex="1">
+      <mxGeometry x="1210" y="112" width="280" height="32" as="geometry" />
+    </mxCell>
+    <mxCell id="e4" value="" style="edgeStyle=none;rounded=0;orthogonalLoop=0;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.4;exitX=0;exitY=0.35;exitPerimeter=1;entryX=1;entryY=0.32;entryPerimeter=1;" edge="1" parent="1" source="d2a" target="p41">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="label_e4" value="ข้อมูลตัวเลือกสินค้าและจำนวนคงเหลือ" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=13;fontFamily=Tahoma;whiteSpace=wrap;resizable=1;movable=1;rotatable=0;" parent="1" vertex="1">
+      <mxGeometry x="1200" y="205" width="280" height="32" as="geometry" />
+    </mxCell>
+    <mxCell id="e5" value="" style="edgeStyle=none;rounded=0;orthogonalLoop=0;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.4;exitX=1;exitY=0.50;exitPerimeter=1;entryX=0;entryY=0.50;entryPerimeter=1;" edge="1" parent="1" source="p41" target="d3a">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="label_e5" value="ข้อมูลคำสั่งซื้อใหม่" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=13;fontFamily=Tahoma;whiteSpace=wrap;resizable=1;movable=1;rotatable=0;" parent="1" vertex="1">
+      <mxGeometry x="1210" y="290" width="280" height="32" as="geometry" />
+    </mxCell>
+    <mxCell id="e6" value="" style="edgeStyle=none;rounded=0;orthogonalLoop=0;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.4;exitX=1;exitY=0.85;exitPerimeter=1;entryX=0;entryY=0.50;entryPerimeter=1;" edge="1" parent="1" source="p41" target="d4a">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="label_e6" value="รายการสินค้าในคำสั่งซื้อ" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=13;fontFamily=Tahoma;whiteSpace=wrap;resizable=1;movable=1;rotatable=0;" parent="1" vertex="1">
+      <mxGeometry x="1210" y="380" width="280" height="32" as="geometry" />
+    </mxCell>
+    <mxCell id="e7" value="" style="edgeStyle=none;rounded=0;orthogonalLoop=0;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.4;exitX=0.30;exitY=1;exitPerimeter=1;entryX=0.30;entryY=0;entryPerimeter=1;" edge="1" parent="1" source="p41" target="p42">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="label_e7" value="คำสั่งซื้อที่รอชำระเงิน" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=13;fontFamily=Tahoma;whiteSpace=wrap;resizable=1;movable=1;rotatable=0;" parent="1" vertex="1">
+      <mxGeometry x="930" y="475" width="280" height="32" as="geometry" />
+    </mxCell>
+    <mxCell id="e8" value="" style="edgeStyle=none;rounded=0;orthogonalLoop=0;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.4;exitX=1;exitY=0.28;exitPerimeter=1;entryX=0;entryY=0.28;entryPerimeter=1;" edge="1" parent="1" source="buyer42" target="p42">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="label_e8" value="วิธีชำระเงินและการยืนยันชำระ" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=13;fontFamily=Tahoma;whiteSpace=wrap;resizable=1;movable=1;rotatable=0;" parent="1" vertex="1">
+      <mxGeometry x="395" y="770" width="280" height="32" as="geometry" />
+    </mxCell>
+    <mxCell id="e9" value="" style="edgeStyle=none;rounded=0;orthogonalLoop=0;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.4;exitX=0;exitY=0.72;exitPerimeter=1;entryX=1;entryY=0.72;entryPerimeter=1;" edge="1" parent="1" source="p42" target="buyer42">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="label_e9" value="ผลการชำระเงิน" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=13;fontFamily=Tahoma;whiteSpace=wrap;resizable=1;movable=1;rotatable=0;" parent="1" vertex="1">
+      <mxGeometry x="435" y="840" width="280" height="32" as="geometry" />
+    </mxCell>
+    <mxCell id="e10" value="" style="edgeStyle=none;rounded=0;orthogonalLoop=0;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.4;exitX=0;exitY=0.30;exitPerimeter=1;entryX=1;entryY=0.20;entryPerimeter=1;" edge="1" parent="1" source="d1b" target="p42">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="label_e10" value="ข้อมูลคำสั่งซื้อและยอดชำระ" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=13;fontFamily=Tahoma;whiteSpace=wrap;resizable=1;movable=1;rotatable=0;" parent="1" vertex="1">
+      <mxGeometry x="1210" y="704" width="280" height="32" as="geometry" />
+    </mxCell>
+    <mxCell id="e11" value="" style="edgeStyle=none;rounded=0;orthogonalLoop=0;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.4;exitX=1;exitY=0.40;exitPerimeter=1;entryX=0;entryY=0.50;entryPerimeter=1;" edge="1" parent="1" source="p42" target="d5b">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="label_e11" value="ข้อมูลรายการชำระเงิน" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=13;fontFamily=Tahoma;whiteSpace=wrap;resizable=1;movable=1;rotatable=0;" parent="1" vertex="1">
+      <mxGeometry x="1210" y="800" width="280" height="32" as="geometry" />
+    </mxCell>
+    <mxCell id="e12" value="" style="edgeStyle=none;rounded=0;orthogonalLoop=0;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.4;exitX=1;exitY=0.65;exitPerimeter=1;entryX=0;entryY=0.50;entryPerimeter=1;" edge="1" parent="1" source="p42" target="d6b">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="label_e12" value="ข้อมูลชุดการชำระเงิน" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=13;fontFamily=Tahoma;whiteSpace=wrap;resizable=1;movable=1;rotatable=0;" parent="1" vertex="1">
+      <mxGeometry x="1210" y="895" width="280" height="32" as="geometry" />
+    </mxCell>
+    <mxCell id="e13" value="" style="edgeStyle=none;rounded=0;orthogonalLoop=0;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.4;exitX=1;exitY=0.20;exitPerimeter=1;entryX=0;entryY=0.75;entryPerimeter=1;" edge="1" parent="1" source="p42" target="d1b">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="label_e13" value="อัปเดตสถานะการชำระเงิน" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=13;fontFamily=Tahoma;whiteSpace=wrap;resizable=1;movable=1;rotatable=0;" parent="1" vertex="1">
+      <mxGeometry x="1190" y="745" width="280" height="32" as="geometry" />
+    </mxCell>
+    <mxCell id="e14" value="" style="edgeStyle=none;rounded=0;orthogonalLoop=0;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.4;exitX=0.70;exitY=1;exitPerimeter=1;entryX=0.70;entryY=0;entryPerimeter=1;" edge="1" parent="1" source="p42" target="p43">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="label_e14" value="คำสั่งซื้อที่ชำระเงินแล้ว" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=13;fontFamily=Tahoma;whiteSpace=wrap;resizable=1;movable=1;rotatable=0;" parent="1" vertex="1">
+      <mxGeometry x="930" y="1065" width="280" height="32" as="geometry" />
+    </mxCell>
+    <mxCell id="e15" value="" style="edgeStyle=none;rounded=0;orthogonalLoop=0;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.4;exitX=0;exitY=0.50;exitPerimeter=1;entryX=1;entryY=0.20;entryPerimeter=1;" edge="1" parent="1" source="d1c" target="p43">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="label_e15" value="ข้อมูลคำสั่งซื้อและผู้ขาย" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=13;fontFamily=Tahoma;whiteSpace=wrap;resizable=1;movable=1;rotatable=0;" parent="1" vertex="1">
+      <mxGeometry x="1210" y="1297" width="280" height="32" as="geometry" />
+    </mxCell>
+    <mxCell id="e16" value="" style="edgeStyle=none;rounded=0;orthogonalLoop=0;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.4;exitX=0;exitY=0.25;exitPerimeter=1;entryX=1;entryY=0.30;entryPerimeter=1;" edge="1" parent="1" source="p43" target="seller43">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="label_e16" value="รายละเอียดคำสั่งซื้อใหม่" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=13;fontFamily=Tahoma;whiteSpace=wrap;resizable=1;movable=1;rotatable=0;" parent="1" vertex="1">
+      <mxGeometry x="405" y="1350" width="280" height="32" as="geometry" />
+    </mxCell>
+    <mxCell id="e17" value="" style="edgeStyle=none;rounded=0;orthogonalLoop=0;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.4;exitX=1;exitY=0.75;exitPerimeter=1;entryX=0;entryY=0.75;entryPerimeter=1;" edge="1" parent="1" source="seller43" target="p43">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="label_e17" value="ผลการรับแจ้งคำสั่งซื้อ" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=13;fontFamily=Tahoma;whiteSpace=wrap;resizable=1;movable=1;rotatable=0;" parent="1" vertex="1">
+      <mxGeometry x="420" y="1420" width="280" height="32" as="geometry" />
+    </mxCell>
+    <mxCell id="e18" value="" style="edgeStyle=none;rounded=0;orthogonalLoop=0;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.4;exitX=1;exitY=0.50;exitPerimeter=1;entryX=0;entryY=0.50;entryPerimeter=1;" edge="1" parent="1" source="p43" target="d7c">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="label_e18" value="ข้อมูลการแจ้งเตือนผู้ขาย" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=13;fontFamily=Tahoma;whiteSpace=wrap;resizable=1;movable=1;rotatable=0;" parent="1" vertex="1">
+      <mxGeometry x="1210" y="1398" width="280" height="32" as="geometry" />
+    </mxCell>
+    <mxCell id="e19" value="" style="edgeStyle=none;rounded=0;orthogonalLoop=0;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.4;exitX=1;exitY=0.75;exitPerimeter=1;entryX=0;entryY=0.50;entryPerimeter=1;" edge="1" parent="1" source="p43" target="d8c">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="label_e19" value="บันทึกเหตุการณ์การสั่งซื้อ" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=13;fontFamily=Tahoma;whiteSpace=wrap;resizable=1;movable=1;rotatable=0;" parent="1" vertex="1">
+      <mxGeometry x="1210" y="1498" width="280" height="32" as="geometry" />
+    </mxCell>
+    <mxCell id="d1aDivider" value="" style="rounded=0;strokeColor=none;fillColor=#000000;" vertex="1" parent="d1a">
+      <mxGeometry x="70" y="0" width="3" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d2aDivider" value="" style="rounded=0;strokeColor=none;fillColor=#000000;" vertex="1" parent="d2a">
+      <mxGeometry x="70" y="0" width="3" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d3aDivider" value="" style="rounded=0;strokeColor=none;fillColor=#000000;" vertex="1" parent="d3a">
+      <mxGeometry x="70" y="0" width="3" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d4aDivider" value="" style="rounded=0;strokeColor=none;fillColor=#000000;" vertex="1" parent="d4a">
+      <mxGeometry x="70" y="0" width="3" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d1bDivider" value="" style="rounded=0;strokeColor=none;fillColor=#000000;" vertex="1" parent="d1b">
+      <mxGeometry x="70" y="0" width="3" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d5bDivider" value="" style="rounded=0;strokeColor=none;fillColor=#000000;" vertex="1" parent="d5b">
+      <mxGeometry x="70" y="0" width="3" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d6bDivider" value="" style="rounded=0;strokeColor=none;fillColor=#000000;" vertex="1" parent="d6b">
+      <mxGeometry x="70" y="0" width="3" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d1cDivider" value="" style="rounded=0;strokeColor=none;fillColor=#000000;" vertex="1" parent="d1c">
+      <mxGeometry x="70" y="0" width="3" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d7cDivider" value="" style="rounded=0;strokeColor=none;fillColor=#000000;" vertex="1" parent="d7c">
+      <mxGeometry x="70" y="0" width="3" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d8cDivider" value="" style="rounded=0;strokeColor=none;fillColor=#000000;" vertex="1" parent="d8c">
+      <mxGeometry x="70" y="0" width="3" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="p41Label" value="ตรวจสอบสินค้าและสร้างคำสั่งซื้อ" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontStyle=1;fontSize=17;fontFamily=Tahoma;whiteSpace=wrap;resizable=0;movable=0;rotatable=0;" vertex="1" parent="p41">
+      <mxGeometry x="0.5" y="0.60" width="600" height="82" relative="1" as="geometry">
+        <mxPoint x="-300" y="-41" as="offset" />
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="p42Label" value="ดำเนินการชำระเงิน" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontStyle=1;fontSize=17;fontFamily=Tahoma;whiteSpace=wrap;resizable=0;movable=0;rotatable=0;" vertex="1" parent="p42">
+      <mxGeometry x="0.5" y="0.60" width="600" height="82" relative="1" as="geometry">
+        <mxPoint x="-300" y="-41" as="offset" />
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="p43Label" value="แจ้งคำสั่งซื้อให้ผู้ขาย" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontStyle=1;fontSize=17;fontFamily=Tahoma;whiteSpace=wrap;resizable=0;movable=0;rotatable=0;" vertex="1" parent="p43">
+      <mxGeometry x="0.5" y="0.60" width="600" height="82" relative="1" as="geometry">
+        <mxPoint x="-300" y="-41" as="offset" />
+      </mxGeometry>
+    </mxCell>
+  </root>
+</mxGraphModel>

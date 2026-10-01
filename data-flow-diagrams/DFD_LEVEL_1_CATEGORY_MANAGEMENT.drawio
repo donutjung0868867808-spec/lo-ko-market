@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mxGraphModel fold="1" pageWidth="1654" dx="1850" tooltips="1" guides="1" connect="1" grid="1" pageHeight="2339" dy="1800" gridSize="10" pageScale="1" page="1" arrows="1">
+  <root>
+    <mxCell id="0" style="" vertex="1" parent="">
+      <mxGeometry x="0" y="0" width="0" height="0" as="geometry" />
+    </mxCell>
+    <mxCell id="1" parent="0" />
+    <mxCell id="title" value="แผนภาพกระแสข้อมูลระดับ 1 : การจัดการหมวดหมู่สินค้า" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontStyle=1;fontSize=20;fontFamily=Tahoma;" vertex="1" parent="1">
+      <mxGeometry x="590" y="20" width="850" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="p81" value="8.1" style="swimlane;html=1;horizontal=1;startSize=42;rounded=0;fillColor=#ffffff;swimlaneFillColor=#ffffff;strokeColor=#000000;fontStyle=1;fontSize=16;fontFamily=Tahoma;align=center;verticalAlign=middle;" vertex="1" parent="1">
+      <mxGeometry x="760" y="110" width="660" height="230" as="geometry" />
+    </mxCell>
+    <mxCell id="p81Label" value="รับข้อมูลการเพิ่ม แก้ไข หรือปิดใช้งานหมวดหมู่" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontStyle=1;fontSize=17;fontFamily=Tahoma;whiteSpace=wrap;resizable=0;movable=0;rotatable=0;" vertex="1" parent="p81">
+      <mxGeometry x="0.5" y="0.60" width="600" height="82" relative="1" as="geometry">
+        <mxPoint x="-300" y="-41" as="offset" />
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="p82" value="8.2" style="swimlane;html=1;horizontal=1;startSize=42;rounded=0;fillColor=#ffffff;swimlaneFillColor=#ffffff;strokeColor=#000000;fontStyle=1;fontSize=16;fontFamily=Tahoma;align=center;verticalAlign=middle;" vertex="1" parent="1">
+      <mxGeometry x="760" y="620" width="660" height="230" as="geometry" />
+    </mxCell>
+    <mxCell id="p82Label" value="ตรวจสอบข้อมูลหมวดหมู่สินค้า" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontStyle=1;fontSize=17;fontFamily=Tahoma;whiteSpace=wrap;resizable=0;movable=0;rotatable=0;" vertex="1" parent="p82">
+      <mxGeometry x="0.5" y="0.60" width="600" height="82" relative="1" as="geometry">
+        <mxPoint x="-300" y="-41" as="offset" />
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="p83" value="8.3" style="swimlane;html=1;horizontal=1;startSize=42;rounded=0;fillColor=#ffffff;swimlaneFillColor=#ffffff;strokeColor=#000000;fontStyle=1;fontSize=16;fontFamily=Tahoma;align=center;verticalAlign=middle;" vertex="1" parent="1">
+      <mxGeometry x="760" y="1130" width="660" height="230" as="geometry" />
+    </mxCell>
+    <mxCell id="p83Label" value="บันทึกการจัดการหมวดหมู่สินค้า" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontStyle=1;fontSize=17;fontFamily=Tahoma;whiteSpace=wrap;resizable=0;movable=0;rotatable=0;" vertex="1" parent="p83">
+      <mxGeometry x="0.5" y="0.60" width="600" height="82" relative="1" as="geometry">
+        <mxPoint x="-300" y="-41" as="offset" />
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="admin81" value="ผู้ดูแลระบบ / เจ้าหน้าที่" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontStyle=1;fontSize=16;fontFamily=Tahoma;align=center;verticalAlign=middle;" vertex="1" parent="1">
+      <mxGeometry x="70" y="165" width="320" height="120" as="geometry" />
+    </mxCell>
+    <mxCell id="admin83" value="ผู้ดูแลระบบ / เจ้าหน้าที่" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontStyle=1;fontSize=16;fontFamily=Tahoma;align=center;verticalAlign=middle;" vertex="1" parent="1">
+      <mxGeometry x="70" y="1185" width="320" height="120" as="geometry" />
+    </mxCell>
+    <mxCell id="d1" value="" style="shape=partialRectangle;top=1;bottom=1;left=1;right=0;html=0;strokeWidth=3;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+      <mxGeometry x="1530" y="720" width="450" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d1Divider" value="" style="rounded=0;strokeColor=none;fillColor=#000000;" vertex="1" parent="d1">
+      <mxGeometry x="70" y="0" width="3" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d1Code" value="D15" style="text;html=0;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" vertex="1" parent="d1">
+      <mxGeometry x="0" y="0" width="70" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d1Name" value="catalog_category" style="text;html=0;strokeColor=none;fillColor=none;align=left;spacingLeft=18;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" vertex="1" parent="d1">
+      <mxGeometry x="73" y="0" width="377" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="e1" value="" style="edgeStyle=none;rounded=0;orthogonalLoop=0;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.4;exitX=1;exitY=0.35;exitPerimeter=1;entryX=0;entryY=0.35;entryPerimeter=1;" edge="1" parent="1" source="admin81" target="p81">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="label_e1" value="ข้อมูลหมวดหมู่ รูปภาพ และคำสั่งจัดการ" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=13;fontFamily=Tahoma;whiteSpace=wrap;resizable=1;movable=1;rotatable=0;" vertex="1" parent="1">
+      <mxGeometry x="405" y="180" width="300" height="30" as="geometry" />
+    </mxCell>
+    <mxCell id="e2" value="" style="edgeStyle=none;rounded=0;orthogonalLoop=0;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.4;exitX=0.35;exitY=1;exitPerimeter=1;entryX=0.35;entryY=0;entryPerimeter=1;" edge="1" parent="1" source="p81" target="p82">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="label_e2" value="ข้อมูลหมวดหมู่สินค้า" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=13;fontFamily=Tahoma;whiteSpace=wrap;resizable=1;movable=1;rotatable=0;" vertex="1" parent="1">
+      <mxGeometry x="930" y="430" width="300" height="30" as="geometry" />
+    </mxCell>
+    <mxCell id="e3" value="" style="edgeStyle=none;rounded=0;orthogonalLoop=0;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.4;exitX=1;exitY=0.35;exitPerimeter=1;entryX=0;entryY=0.30;entryPerimeter=1;" edge="1" parent="1" source="p82" target="d1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="label_e3" value="ข้อมูลหมวดหมู่เพื่อตรวจสอบ" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=13;fontFamily=Tahoma;whiteSpace=wrap;resizable=1;movable=1;rotatable=0;" vertex="1" parent="1">
+      <mxGeometry x="1180" y="660" width="300" height="30" as="geometry" />
+    </mxCell>
+    <mxCell id="e4" value="" style="edgeStyle=none;rounded=0;orthogonalLoop=0;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.4;exitX=0;exitY=0.75;exitPerimeter=1;entryX=1;entryY=0.72;entryPerimeter=1;" edge="1" parent="1" source="d1" target="p82">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="label_e4" value="ข้อมูลหมวดหมู่เดิม" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=13;fontFamily=Tahoma;whiteSpace=wrap;resizable=1;movable=1;rotatable=0;" vertex="1" parent="1">
+      <mxGeometry x="1180" y="745" width="300" height="30" as="geometry" />
+    </mxCell>
+    <mxCell id="e5" value="" style="edgeStyle=none;rounded=0;orthogonalLoop=0;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.4;exitX=0.70;exitY=1;exitPerimeter=1;entryX=0.70;entryY=0;entryPerimeter=1;" edge="1" parent="1" source="p82" target="p83">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="label_e5" value="ข้อมูลหมวดหมู่ที่ผ่านการตรวจสอบ" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=13;fontFamily=Tahoma;whiteSpace=wrap;resizable=1;movable=1;rotatable=0;" vertex="1" parent="1">
+      <mxGeometry x="930" y="940" width="300" height="30" as="geometry" />
+    </mxCell>
+    <mxCell id="e6" value="" style="edgeStyle=none;rounded=0;orthogonalLoop=0;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.4;exitX=1;exitY=0.35;exitPerimeter=1;entryX=0;entryY=0.65;entryPerimeter=1;" edge="1" parent="1" source="p83" target="d1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="label_e6" value="ข้อมูลเพิ่ม แก้ไข หรือสถานะหมวดหมู่" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=13;fontFamily=Tahoma;whiteSpace=wrap;resizable=1;movable=1;rotatable=0;" vertex="1" parent="1">
+      <mxGeometry x="1180" y="1040" width="300" height="30" as="geometry" />
+    </mxCell>
+    <mxCell id="e7" value="" style="edgeStyle=none;rounded=0;orthogonalLoop=0;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.4;exitX=0;exitY=0.62;exitPerimeter=1;entryX=1;entryY=0.60;entryPerimeter=1;" edge="1" parent="1" source="p83" target="admin83">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="label_e7" value="ผลการจัดการหมวดหมู่สินค้า" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=13;fontFamily=Tahoma;whiteSpace=wrap;resizable=1;movable=1;rotatable=0;" vertex="1" parent="1">
+      <mxGeometry x="405" y="1205" width="300" height="30" as="geometry" />
+    </mxCell>
+  </root>
+</mxGraphModel>

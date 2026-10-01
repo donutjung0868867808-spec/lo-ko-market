@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mxGraphModel fold="1" pageWidth="1654" dx="1900" tooltips="1" guides="1" connect="1" grid="1" pageHeight="2339" dy="2000" gridSize="10" pageScale="1" page="1" arrows="1">
+  <root>
+    <mxCell id="0" style="" vertex="1" parent="">
+      <mxGeometry x="0" y="0" width="0" height="0" as="geometry" />
+    </mxCell>
+    <mxCell id="1" parent="0" />
+    <mxCell id="title" value="แผนภาพกระแสข้อมูลระดับ 1 : ผู้ขายรายงานปัญหาให้ผู้ดูแลระบบ" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontStyle=1;fontSize=20;fontFamily=Tahoma;" vertex="1" parent="1">
+      <mxGeometry x="520" y="20" width="1050" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="p111" value="11.1" style="swimlane;html=1;horizontal=1;startSize=42;rounded=0;fillColor=#ffffff;swimlaneFillColor=#ffffff;strokeColor=#000000;fontStyle=1;fontSize=16;fontFamily=Tahoma;align=center;verticalAlign=middle;" vertex="1" parent="1">
+      <mxGeometry x="760" y="110" width="660" height="230" as="geometry" />
+    </mxCell>
+    <mxCell id="p111Label" value="รับข้อมูลปัญหาจากผู้ขาย" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontStyle=1;fontSize=17;fontFamily=Tahoma;whiteSpace=wrap;resizable=0;movable=0;rotatable=0;" vertex="1" parent="p111">
+      <mxGeometry x=".5" y=".60" width="600" height="82" relative="1" as="geometry">
+        <mxPoint x="-300" y="-41" as="offset" />
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="p112" value="11.2" style="swimlane;html=1;horizontal=1;startSize=42;rounded=0;fillColor=#ffffff;swimlaneFillColor=#ffffff;strokeColor=#000000;fontStyle=1;fontSize=16;fontFamily=Tahoma;align=center;verticalAlign=middle;" vertex="1" parent="1">
+      <mxGeometry x="760" y="620" width="660" height="230" as="geometry" />
+    </mxCell>
+    <mxCell id="p112Label" value="บันทึกคำขอและข้อความเริ่มต้น" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontStyle=1;fontSize=17;fontFamily=Tahoma;whiteSpace=wrap;resizable=0;movable=0;rotatable=0;" vertex="1" parent="p112">
+      <mxGeometry x=".5" y=".60" width="600" height="82" relative="1" as="geometry">
+        <mxPoint x="-300" y="-41" as="offset" />
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="p113" value="11.3" style="swimlane;html=1;horizontal=1;startSize=42;rounded=0;fillColor=#ffffff;swimlaneFillColor=#ffffff;strokeColor=#000000;fontStyle=1;fontSize=16;fontFamily=Tahoma;align=center;verticalAlign=middle;" vertex="1" parent="1">
+      <mxGeometry x="760" y="1130" width="660" height="230" as="geometry" />
+    </mxCell>
+    <mxCell id="p113Label" value="สร้างการแจ้งเตือนให้ผู้ดูแลระบบ" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontStyle=1;fontSize=17;fontFamily=Tahoma;whiteSpace=wrap;resizable=0;movable=0;rotatable=0;" vertex="1" parent="p113">
+      <mxGeometry x=".5" y=".60" width="600" height="82" relative="1" as="geometry">
+        <mxPoint x="-300" y="-41" as="offset" />
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="seller111" value="ผู้ขายที่เป็นสมาชิก" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontStyle=1;fontSize=16;fontFamily=Tahoma;align=center;verticalAlign=middle;" vertex="1" parent="1">
+      <mxGeometry x="70" y="165" width="320" height="120" as="geometry" />
+    </mxCell>
+    <mxCell id="admin113" value="ผู้ดูแลระบบ" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontStyle=1;fontSize=16;fontFamily=Tahoma;align=center;verticalAlign=middle;" vertex="1" parent="1">
+      <mxGeometry x="70" y="1185" width="320" height="120" as="geometry" />
+    </mxCell>
+    <mxCell id="d1" value="" style="shape=partialRectangle;top=1;bottom=1;left=1;right=0;html=0;strokeWidth=3;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+      <mxGeometry x="1530" y="620" width="450" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d1Divider" value="" style="rounded=0;strokeColor=none;fillColor=#000000;" vertex="1" parent="d1">
+      <mxGeometry x="70" y="0" width="3" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d1Code" value="D20" style="text;html=0;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" vertex="1" parent="d1">
+      <mxGeometry x="0" y="0" width="70" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d1Name" value="accounts_supportticket" style="text;html=0;strokeColor=none;fillColor=none;align=left;spacingLeft=18;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" vertex="1" parent="d1">
+      <mxGeometry x="73" y="0" width="377" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d2" value="" style="shape=partialRectangle;top=1;bottom=1;left=1;right=0;html=0;strokeWidth=3;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+      <mxGeometry x="1530" y="770" width="450" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d2Divider" value="" style="rounded=0;strokeColor=none;fillColor=#000000;" vertex="1" parent="d2">
+      <mxGeometry x="70" y="0" width="3" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d2Code" value="D21" style="text;html=0;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" vertex="1" parent="d2">
+      <mxGeometry x="0" y="0" width="70" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d2Name" value="accounts_supportmessage" style="text;html=0;strokeColor=none;fillColor=none;align=left;spacingLeft=18;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" vertex="1" parent="d2">
+      <mxGeometry x="73" y="0" width="377" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d3" value="" style="shape=partialRectangle;top=1;bottom=1;left=1;right=0;html=0;strokeWidth=3;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+      <mxGeometry x="1530" y="920" width="450" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d3Divider" value="" style="rounded=0;strokeColor=none;fillColor=#000000;" vertex="1" parent="d3">
+      <mxGeometry x="70" y="0" width="3" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d3Code" value="D8" style="text;html=0;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" vertex="1" parent="d3">
+      <mxGeometry x="0" y="0" width="70" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d3Name" value="accounts_auditevent" style="text;html=0;strokeColor=none;fillColor=none;align=left;spacingLeft=18;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" vertex="1" parent="d3">
+      <mxGeometry x="73" y="0" width="377" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d4" value="" style="shape=partialRectangle;top=1;bottom=1;left=1;right=0;html=0;strokeWidth=3;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+      <mxGeometry x="1530" y="1140" width="450" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d4Divider" value="" style="rounded=0;strokeColor=none;fillColor=#000000;" vertex="1" parent="d4">
+      <mxGeometry x="70" y="0" width="3" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d4Code" value="D7" style="text;html=0;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" vertex="1" parent="d4">
+      <mxGeometry x="0" y="0" width="70" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="d4Name" value="accounts_notification" style="text;html=0;strokeColor=none;fillColor=none;align=left;spacingLeft=18;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Tahoma;" vertex="1" parent="d4">
+      <mxGeometry x="73" y="0" width="377" height="85" as="geometry" />
+    </mxCell>
+    <mxCell id="e1" value="" style="edgeStyle=none;rounded=0;orthogonalLoop=0;jettySize=auto;html=1;endArrow=block;endFill=1;endSize=10;strokeWidth=2;exitX=1;exitY=.35;exitPerimeter=1;entryX=0;entryY=.35;entryPerimeter=1;" edge="1" parent="1" source="seller111" target="p111">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="label_e1" value="หัวข้อ ประเภทปัญหา และข้อความปัญหา" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=13;fontFamily=Tahoma;whiteSpace=wrap;resizable=1;movable=1;rotatable=0;" vertex="1" parent="1">
+      <mxGeometry x="405" y="180" width="300" height="30" as="geometry" />
+    </mxCell>
+    <mxCell id="e2" value="" style="edgeStyle=none;rounded=0;orthogonalLoop=0;jettySize=auto;html=1;endArrow=block;endFill=1;endSize=10;strokeWidth=2;exitX=.35;exitY=1;exitPerimeter=1;entryX=.35;entryY=0;entryPerimeter=1;" edge="1" parent="1" source="p111" target="p112">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="label_e2" value="ข้อมูลคำขอปัญหาจากผู้ขาย" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=13;fontFamily=Tahoma;whiteSpace=wrap;resizable=1;movable=1;rotatable=0;" vertex="1" parent="1">
+      <mxGeometry x="930" y="430" width="300" height="30" as="geometry" />
+    </mxCell>
+    <mxCell id="e3" value="" style="edgeStyle=none;rounded=0;orthogonalLoop=0;jettySize=auto;html=1;endArrow=block;endFill=1;endSize=10;strokeWidth=2;exitX=1;exitY=.25;exitPerimeter=1;entryX=0;entryY=.30;entryPerimeter=1;" edge="1" parent="1" source="p112" target="d1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="label_e3" value="ข้อมูลคำขอถึงผู้ดูแลระบบ" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=13;fontFamily=Tahoma;whiteSpace=wrap;resizable=1;movable=1;rotatable=0;" vertex="1" parent="1">
+      <mxGeometry x="1180" y="630" width="300" height="30" as="geometry" />
+    </mxCell>
+    <mxCell id="e4" value="" style="edgeStyle=none;rounded=0;orthogonalLoop=0;jettySize=auto;html=1;endArrow=block;endFill=1;endSize=10;strokeWidth=2;exitX=1;exitY=.50;exitPerimeter=1;entryX=0;entryY=.35;entryPerimeter=1;" edge="1" parent="1" source="p112" target="d2">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="label_e4" value="ข้อความเริ่มต้นของคำขอ" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=13;fontFamily=Tahoma;whiteSpace=wrap;resizable=1;movable=1;rotatable=0;" vertex="1" parent="1">
+      <mxGeometry x="1180" y="780" width="300" height="30" as="geometry" />
+    </mxCell>
+    <mxCell id="e5" value="" style="edgeStyle=none;rounded=0;orthogonalLoop=0;jettySize=auto;html=1;endArrow=block;endFill=1;endSize=10;strokeWidth=2;exitX=1;exitY=.78;exitPerimeter=1;entryX=0;entryY=.35;entryPerimeter=1;" edge="1" parent="1" source="p112" target="d3">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="label_e5" value="ข้อมูลบันทึกเหตุการณ์การสร้างคำขอ" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=13;fontFamily=Tahoma;whiteSpace=wrap;resizable=1;movable=1;rotatable=0;" vertex="1" parent="1">
+      <mxGeometry x="1170" y="925" width="300" height="30" as="geometry" />
+    </mxCell>
+    <mxCell id="e6" value="" style="edgeStyle=none;rounded=0;orthogonalLoop=0;jettySize=auto;html=1;endArrow=block;endFill=1;endSize=10;strokeWidth=2;exitX=.70;exitY=1;exitPerimeter=1;entryX=.70;entryY=0;entryPerimeter=1;" edge="1" parent="1" source="p112" target="p113">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="label_e6" value="ข้อมูลคำขอใหม่และผู้ดูแลผู้รับแจ้ง" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=13;fontFamily=Tahoma;whiteSpace=wrap;resizable=1;movable=1;rotatable=0;" vertex="1" parent="1">
+      <mxGeometry x="930" y="940" width="300" height="30" as="geometry" />
+    </mxCell>
+    <mxCell id="e7" value="" style="edgeStyle=none;rounded=0;orthogonalLoop=0;jettySize=auto;html=1;endArrow=block;endFill=1;endSize=10;strokeWidth=2;exitX=1;exitY=.40;exitPerimeter=1;entryX=0;entryY=.45;entryPerimeter=1;" edge="1" parent="1" source="p113" target="d4">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="label_e7" value="ข้อมูลการแจ้งเตือนคำขอใหม่" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=13;fontFamily=Tahoma;whiteSpace=wrap;resizable=1;movable=1;rotatable=0;" vertex="1" parent="1">
+      <mxGeometry x="1180" y="1150" width="300" height="30" as="geometry" />
+    </mxCell>
+    <mxCell id="e8" value="" style="edgeStyle=none;rounded=0;orthogonalLoop=0;jettySize=auto;html=1;endArrow=block;endFill=1;endSize=10;strokeWidth=2;exitX=0;exitY=.62;exitPerimeter=1;entryX=1;entryY=.60;entryPerimeter=1;" edge="1" parent="1" source="p113" target="admin113">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="label_e8" value="แจ้งเตือนคำขอปัญหาใหม่จากผู้ขาย" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=13;fontFamily=Tahoma;whiteSpace=wrap;resizable=1;movable=1;rotatable=0;" vertex="1" parent="1">
+      <mxGeometry x="405" y="1205" width="300" height="30" as="geometry" />
+    </mxCell>
+  </root>
+</mxGraphModel>
