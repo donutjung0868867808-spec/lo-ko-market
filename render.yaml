@@ -41,6 +41,14 @@ services:
         value: "False"
       - key: PAYMENT_MODE
         value: "test"
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_PUBLISHABLE_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: STRIPE_CONNECT_WEBHOOK_SECRET
+        sync: false
       - key: DEMO_SETTLEMENTS_ENABLED
         value: "True"
       - key: SETTLEMENT_MAX_ATTEMPTS

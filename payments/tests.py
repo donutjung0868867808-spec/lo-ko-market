@@ -4,6 +4,7 @@ from unittest.mock import patch
 from datetime import timedelta
 from decimal import Decimal
 
+from django.contrib.messages import get_messages
 from django.test import Client, RequestFactory, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -407,6 +408,85 @@ class PaymentWorkflowTests(TestCase):
         payment.refresh_from_db()
         self.assertIn("payment_method=truemoney", payment.checkout_url)
         self.assertTrue(payment.checkout_session_id.startswith("demo-"))
+
+    @override_settings(PAYMENT_MODE="test", STRIPE_SECRET_KEY="sk_test_ready")
+    @patch("payments.views.stripe_client")
+    def test_stripe_replaces_an_active_demo_checkout_url(self, stripe_client_mock):
+        calls = []
+
+        class FakeSession:
+            @staticmethod
+            def create(**kwargs):
+                calls.append(kwargs)
+                return SimpleNamespace(
+                    id="cs_test_replaced_demo",
+                    url="https://checkout.stripe.test/replaced-demo",
+                )
+
+        stripe_client_mock.return_value = SimpleNamespace(
+            checkout=SimpleNamespace(Session=FakeSession)
+        )
+        payment = Payment.objects.create(
+            order=self.order,
+            amount=self.order.total_amount,
+            status=Payment.Status.PROCESSING,
+            checkout_session_id="demo-stale-session",
+            checkout_url=reverse("payments:demo_checkout", args=[self.order.pk]),
+            checkout_expires_at=timezone.now() + timedelta(minutes=20),
+        )
+        previous_attempt_id = payment.checkout_attempt_id
+        self.order.payment_status = Order.PaymentStatus.PROCESSING
+        self.order.save(update_fields=["payment_status", "updated_at"])
+        self.client.force_login(self.buyer)
+
+        response = self.client.get(
+            reverse("payments:create_checkout", args=[self.order.pk]),
+            {"payment_method": "promptpay"},
+        )
+
+        self.assertRedirects(
+            response,
+            "https://checkout.stripe.test/replaced-demo",
+            fetch_redirect_response=False,
+        )
+        payment.refresh_from_db()
+        self.assertEqual(payment.checkout_session_id, "cs_test_replaced_demo")
+        self.assertEqual(payment.checkout_url, "https://checkout.stripe.test/replaced-demo")
+        self.assertNotEqual(payment.checkout_attempt_id, previous_attempt_id)
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0]["payment_method_types"], ["promptpay"])
+
+    @override_settings(PAYMENT_MODE="test", STRIPE_SECRET_KEY="sk_test_ready")
+    @patch("payments.views.stripe_client")
+    def test_stripe_checkout_error_is_visible_and_does_not_fall_back_to_demo(self, stripe_client_mock):
+        class FailingSession:
+            @staticmethod
+            def create(**kwargs):
+                raise RuntimeError("Stripe checkout unavailable")
+
+        stripe_client_mock.return_value = SimpleNamespace(
+            checkout=SimpleNamespace(Session=FailingSession)
+        )
+        self.client.force_login(self.buyer)
+
+        with self.assertLogs("payments.views", level="ERROR") as logs:
+            response = self.client.get(
+                reverse("payments:create_checkout", args=[self.order.pk]),
+                {"payment_method": "card"},
+            )
+
+        self.assertRedirects(response, self.order.get_absolute_url(), fetch_redirect_response=False)
+        messages = [str(message) for message in get_messages(response.wsgi_request)]
+        self.assertTrue(any("รหัสอ้างอิง: PAY-" in message for message in messages))
+        self.assertTrue(any("reference=PAY-" in entry for entry in logs.output))
+        payment = Payment.objects.get(order=self.order)
+        self.order.refresh_from_db()
+        self.product.refresh_from_db()
+        self.assertEqual(payment.status, Payment.Status.FAILED)
+        self.assertFalse(payment.checkout_session_id.startswith("demo-"))
+        self.assertEqual(self.order.payment_status, Order.PaymentStatus.FAILED)
+        self.assertEqual(self.product.stock_quantity, Decimal("10.00"))
+
     @override_settings(SETTLEMENT_HOLD_DAYS=10)
     def test_buyer_confirmation_makes_seller_settlement_ready_immediately(self):
         confirmed_at = timezone.now()

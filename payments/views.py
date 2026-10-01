@@ -110,6 +110,14 @@ def stripe_client():
     return stripe
 
 
+def checkout_is_demo(checkout_session_id, checkout_url):
+    return str(checkout_session_id or "").startswith("demo-") or "/demo/" in str(checkout_url or "")
+
+
+def checkout_error_reference(prefix="PAY"):
+    return f"{prefix}-{uuid.uuid4().hex[:10].upper()}"
+
+
 def truemoney_sandbox_checkout_url(request, payment):
     """Return the one-time sandbox confirmation URL encoded in the TrueMoney QR."""
     checkout_path = reverse(
@@ -404,15 +412,39 @@ def complete_batch_checkout(request, pk):
             return redirect("orders:order_list")
 
         now = timezone.now()
-        if (
+        stripe = stripe_client()
+        has_active_checkout = (
             batch.status == PaymentBatch.Status.PROCESSING
             and batch.checkout_url
             and batch.checkout_expires_at
             and batch.checkout_expires_at > now
-        ):
+        )
+        replacing_demo_checkout = (
+            has_active_checkout
+            and checkout_is_demo(batch.checkout_session_id, batch.checkout_url)
+            and stripe is not None
+        )
+        if has_active_checkout and not replacing_demo_checkout:
             return redirect(batch.checkout_url)
+        if replacing_demo_checkout:
+            logger.info(
+                "Replacing active demo checkout with Stripe checkout for payment batch %s",
+                batch.pk,
+            )
+            batch.checkout_attempt_id = uuid.uuid4()
+            batch.checkout_session_id = ""
+            batch.checkout_url = ""
+            batch.checkout_expires_at = None
+            batch.save(
+                update_fields=[
+                    "checkout_attempt_id",
+                    "checkout_session_id",
+                    "checkout_url",
+                    "checkout_expires_at",
+                    "updated_at",
+                ]
+            )
 
-        stripe = stripe_client()
         if stripe is not None:
             checkout_expires_at = now + timedelta(minutes=30)
             for order in orders:
@@ -456,8 +488,18 @@ def complete_batch_checkout(request, pk):
                     idempotency_key=f"batch-checkout-{batch.pk}-{batch.checkout_attempt_id}",
                 )
             except Exception:
-                logger.exception("Unable to create Stripe checkout for payment batch %s", batch.pk)
-                messages.error(request, "ไม่สามารถเปิดหน้าชำระเงิน Stripe ได้ กรุณาลองใหม่")
+                error_reference = checkout_error_reference("BATCH")
+                logger.exception(
+                    "Unable to create Stripe checkout for payment batch %s method=%s reference=%s",
+                    batch.pk,
+                    payment_method,
+                    error_reference,
+                )
+                messages.error(
+                    request,
+                    f"ไม่สามารถเปิดหน้าชำระเงิน Stripe ได้ กรุณาลองใหม่ "
+                    f"(รหัสอ้างอิง: {error_reference})",
+                )
                 return redirect("orders:order_list")
 
             batch.status = PaymentBatch.Status.PROCESSING
@@ -475,8 +517,22 @@ def complete_batch_checkout(request, pk):
             return redirect(session.url)
 
         if settings.PAYMENT_MODE not in {"demo", "test"}:
+            logger.error(
+                "Stripe client is unavailable for payment batch %s in %s mode",
+                batch.pk,
+                settings.PAYMENT_MODE,
+            )
             messages.error(request, "ระบบชำระเงินยังไม่พร้อมใช้งาน กรุณาติดต่อผู้ดูแลระบบ")
             return redirect("orders:order_list")
+
+        logger.warning(
+            "Stripe client is unavailable for payment batch %s; using test fallback",
+            batch.pk,
+        )
+        messages.warning(
+            request,
+            "ยังไม่ได้เชื่อมต่อ Stripe จึงใช้การชำระเงินจำลองสำหรับรายการนี้",
+        )
 
         if not batch.checkout_session_id:
             batch.checkout_session_id = f"demo-batch-{batch.checkout_attempt_id.hex}"
@@ -607,18 +663,37 @@ def create_checkout_session(request, order_id):
                 return start_demo_checkout(order, payment, request)
             messages.error(request, "TrueMoney Wallet ยังเปิดใช้ได้เฉพาะโหมดทดลอง")
             return redirect(order)
-        if (
+        stripe = stripe_client()
+        has_active_checkout = (
             payment.status == Payment.Status.PROCESSING
             and payment.checkout_url
             and payment.checkout_expires_at
             and payment.checkout_expires_at > now
-        ):
+        )
+        replacing_demo_checkout = (
+            has_active_checkout
+            and checkout_is_demo(payment.checkout_session_id, payment.checkout_url)
+            and stripe is not None
+        )
+        if has_active_checkout and not replacing_demo_checkout:
             return redirect(payment.checkout_url)
+
+        if replacing_demo_checkout:
+            logger.info(
+                "Replacing active demo checkout with Stripe checkout for order %s payment %s",
+                order.pk,
+                payment.pk,
+            )
+            payment.checkout_attempt_id = uuid.uuid4()
+            payment.checkout_session_id = ""
+            payment.checkout_url = ""
+            payment.checkout_expires_at = None
 
         if payment.checkout_session_id and payment.checkout_expires_at and payment.checkout_expires_at <= now:
             payment.checkout_attempt_id = uuid.uuid4()
             payment.checkout_session_id = ""
             payment.checkout_url = ""
+            payment.checkout_expires_at = None
 
         payment.amount = order.total_amount
         payment.currency = settings.DEFAULT_CURRENCY
@@ -629,13 +704,22 @@ def create_checkout_session(request, order_id):
                 "checkout_attempt_id",
                 "checkout_session_id",
                 "checkout_url",
+                "checkout_expires_at",
                 "updated_at",
             ]
         )
 
-        stripe = stripe_client()
         if stripe is None:
             if settings.PAYMENT_MODE in {"demo", "test"}:
+                logger.warning(
+                    "Stripe client is unavailable for order %s payment %s; using demo checkout",
+                    order.pk,
+                    payment.pk,
+                )
+                messages.warning(
+                    request,
+                    "ยังไม่ได้เชื่อมต่อ Stripe จึงเปิดหน้าชำระเงินจำลองสำหรับรายการนี้",
+                )
                 try:
                     return start_demo_checkout(order, payment, request)
                 except ValidationError as exc:
@@ -694,16 +778,22 @@ def create_checkout_session(request, order_id):
                 idempotency_key=f"checkout-{order.pk}-{payment.checkout_attempt_id}",
             )
         except Exception:
-            logger.exception("Unable to create Stripe checkout for order %s", order.pk)
-            if settings.PAYMENT_MODE in {"demo", "test"}:
-                try:
-                    return start_demo_checkout(order, payment, request)
-                except ValidationError as exc:
-                    messages.error(request, exc.message)
-                    return redirect(order)
+            error_reference = checkout_error_reference()
+            logger.exception(
+                "Unable to create Stripe checkout for order %s payment=%s method=%s reference=%s",
+                order.pk,
+                payment.pk,
+                payment_method,
+                error_reference,
+            )
             mark_payment_failed(payment, order)
-            release_order_stock(order, "คืนสต็อกเนื่องจากสร้างหน้าชำระเงินไม่สำเร็จ")
-            messages.error(request, "ไม่สามารถเชื่อมต่อระบบชำระเงินได้ กรุณาลองใหม่")
+            if order.stock_reserved:
+                release_order_stock(order, "คืนสต็อกเนื่องจากสร้างหน้าชำระเงินไม่สำเร็จ")
+            messages.error(
+                request,
+                f"ไม่สามารถเปิดหน้าชำระเงิน Stripe ได้ กรุณาลองใหม่ "
+                f"(รหัสอ้างอิง: {error_reference})",
+            )
             return redirect(order)
 
         payment.status = Payment.Status.PROCESSING
